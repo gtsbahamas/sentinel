@@ -1,0 +1,12 @@
+{
+  "stack": "nextjs-supabase",
+  "domains": ["all"],
+  "exclude": ["node_modules", ".next", "dist", "out", "build", ".git"],
+  "severity": {
+    "failOn": "high"
+  },
+  "output": {
+    "format": "terminal",
+    "dir": ".sentinel/reports"
+  }
+}
