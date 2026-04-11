@@ -102,7 +102,16 @@ function formatTerminalDiff(result: DiffResult): string {
   if (result.added.length > 0) {
     lines.push("  " + "─".repeat(50));
     lines.push("");
-    lines.push(chalk.red.bold(`  NEW FINDINGS (${result.added.length})`));
+    // Build per-layer breakdown
+    const newByLayer = result.added.reduce<Record<string, number>>((a, f) => {
+      a[f.layer] = (a[f.layer] ?? 0) + 1;
+      return a;
+    }, {});
+    const newLayerLabel = Object.entries(newByLayer)
+      .map(([layer, n]) => `${layer}: ${n}`)
+      .join(", ");
+    const newHeader = `  NEW FINDINGS (${result.added.length}${result.added.length > 0 ? ` [${newLayerLabel}]` : ""})`;
+    lines.push(chalk.red.bold(newHeader));
     lines.push("");
     for (const f of result.added) {
       const sev = f.severity.toUpperCase().padEnd(8);
