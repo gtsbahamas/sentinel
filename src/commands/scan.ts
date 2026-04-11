@@ -86,7 +86,14 @@ export async function runScan(options: ScanOptions): Promise<number> {
 
   if (aiConfig.enabled) {
     const aiStart = Date.now();
-    aiResult = await runAI(model, aiConfig);
+    try {
+      aiResult = await runAI(model, aiConfig);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`AI layer failed: ${msg}\n`);
+      process.stderr.write("Continuing with rule findings only.\n");
+      // aiResult stays null, scan proceeds with rule findings
+    }
     ai_ms = Date.now() - aiStart;
     // NOTE: do NOT mutate model.findings — aiResult.findings stays separate.
   }
@@ -131,9 +138,10 @@ function formatAIReport(result: AIRunResult, config: AIConfig): string {
     .filter((s) => findingCounts[s])
     .map((s) => `${s}: ${findingCounts[s]}`)
     .join(", ");
+  const totalInputConsumed = result.usage.inputTokens + result.usage.cacheReadTokens;
   const cacheRate =
-    result.usage.inputTokens > 0
-      ? `${Math.round((result.usage.cacheReadTokens / result.usage.inputTokens) * 100)}%`
+    totalInputConsumed > 0
+      ? `${Math.round((result.usage.cacheReadTokens / totalInputConsumed) * 100)}%`
       : "0%";
   return `AI Analysis
 ───────────
