@@ -5,6 +5,16 @@ import { z } from "zod";
 
 const SeveritySchema = z.enum(["critical", "high", "medium", "low", "info"]);
 
+const AIConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  provider: z.enum(["anthropic", "openai", "mock"]).default("anthropic"),
+  model: z.string().default("claude-sonnet-4-6"),
+  deep: z.boolean().default(false),
+  maxCostUsd: z.number().positive().default(2.0),
+  maxTokensPerEndpoint: z.number().int().positive().default(8000),
+  concurrency: z.number().int().positive().default(3),
+});
+
 const ConfigSchema = z.object({
   stack: z.enum(["nextjs-supabase", "react-vite-supabase", "generic-web"]),
   domains: z.array(z.string()),
@@ -16,6 +26,7 @@ const ConfigSchema = z.object({
     format: z.enum(["terminal", "json", "html", "all"]),
     dir: z.string(),
   }),
+  ai: AIConfigSchema,
 });
 
 export type SentinelConfig = z.infer<typeof ConfigSchema>;
@@ -36,6 +47,15 @@ export const CONFIG_DEFAULTS: SentinelConfig = {
   ],
   severity: { failOn: "high" },
   output: { format: "terminal", dir: ".sentinel/reports" },
+  ai: {
+    enabled: false,
+    provider: "anthropic",
+    model: "claude-sonnet-4-6",
+    deep: false,
+    maxCostUsd: 2.0,
+    maxTokensPerEndpoint: 8000,
+    concurrency: 3,
+  },
 };
 
 export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
@@ -53,6 +73,7 @@ export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
     ...parsed,
     severity: { ...CONFIG_DEFAULTS.severity, ...(parsed.severity ?? {}) },
     output: { ...CONFIG_DEFAULTS.output, ...(parsed.output ?? {}) },
+    ai: { ...CONFIG_DEFAULTS.ai, ...(parsed.ai ?? {}) },
   };
 
   return ConfigSchema.parse(merged);
