@@ -32,10 +32,15 @@ export async function runOrchestrator(
       if (!endpoint) return;
 
       if (budget.exhausted()) {
-        halted = true;
-        budgetExhausted = true;
-        // Current endpoint + anything remaining in queue are all skipped.
-        skipped += queue.length + 1;
+        // Only the first worker to detect exhaustion claims the remaining queue.
+        // Others just count themselves to avoid double-counting under concurrency > 1.
+        if (!halted) {
+          halted = true;
+          budgetExhausted = true;
+          skipped += queue.length + 1;
+        } else {
+          skipped += 1;
+        }
         return;
       }
 
@@ -58,9 +63,13 @@ export async function runOrchestrator(
 
       const estimate = provider.estimateTokens(request);
       if (budget.wouldExceed(estimate)) {
-        halted = true;
-        budgetExhausted = true;
-        skipped += queue.length + 1;
+        if (!halted) {
+          halted = true;
+          budgetExhausted = true;
+          skipped += queue.length + 1;
+        } else {
+          skipped += 1;
+        }
         return;
       }
 
@@ -111,18 +120,24 @@ export async function runOrchestrator(
 
 function orderEndpoints(endpoints: ApiEndpoint[], priorityOrder?: string[]): ApiEndpoint[] {
   if (!priorityOrder || priorityOrder.length === 0) return [...endpoints];
-  const byPath = new Map(endpoints.map((e) => [e.path, e]));
+  // Key on method+path so REST endpoints with the same path but different
+  // methods (GET /api/users vs POST /api/users) remain distinct.
+  const endpointKey = (e: ApiEndpoint) => `${e.method} ${e.path}`;
   const ordered: ApiEndpoint[] = [];
   const seen = new Set<string>();
+  // Priority list is path-based (Stage A emits paths only). For each path in
+  // the priority list, pull every endpoint with that path (may be multiple
+  // methods). Preserve the method order as they appear in endpoints[].
   for (const p of priorityOrder) {
-    const e = byPath.get(p);
-    if (e && !seen.has(p)) {
-      ordered.push(e);
-      seen.add(p);
+    for (const e of endpoints) {
+      if (e.path === p && !seen.has(endpointKey(e))) {
+        ordered.push(e);
+        seen.add(endpointKey(e));
+      }
     }
   }
   for (const e of endpoints) {
-    if (!seen.has(e.path)) ordered.push(e);
+    if (!seen.has(endpointKey(e))) ordered.push(e);
   }
   return ordered;
 }

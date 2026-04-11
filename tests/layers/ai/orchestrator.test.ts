@@ -122,7 +122,8 @@ describe("runOrchestrator", () => {
     const budget = new BudgetTracker(10, pricing);
     const result = await runOrchestrator(model, { ...baseConfig, concurrency: 1 }, mock, budget);
     expect(result.budgetExhausted).toBe(true);
-    expect(result.endpointsAnalyzed).toBeLessThanOrEqual(2);
+    expect(result.endpointsAnalyzed).toBe(2);
+    expect(result.endpointsSkipped).toBe(1);
   });
 
   it("records AIError and continues when provider returns stopReason: error", async () => {
