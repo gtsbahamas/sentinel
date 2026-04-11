@@ -33,7 +33,16 @@ async function walkSourceFiles(model: ProjectModel): Promise<Array<{ file: strin
   const files = await fg(["**/*.{ts,tsx,js,jsx}"], {
     cwd: model.meta.path,
     absolute: true,
-    ignore: ["**/node_modules/**", "**/.next/**", "**/dist/**"],
+    ignore: [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/dist/**",
+      "**/out/**",
+      "**/build/**",
+      "**/public/**",
+      "**/widget-build/**",
+      "**/.claude/worktrees/**",
+    ],
   });
   return Promise.all(
     files.map(async (file) => ({ file, source: await safeReadFile(file) })),
@@ -157,7 +166,7 @@ export const inputInjectionRules: SecurityRule[] = [
     check(model) {
       return scanLines(
         model,
-        /\b(eval|new\s+Function|Function\s*\()/,
+        /\beval\s*\(|\bnew\s+Function\s*\(/,
         (file, line, match) =>
           mkFinding(
             "INPUT-004",

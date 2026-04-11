@@ -23,7 +23,17 @@ export type SentinelConfig = z.infer<typeof ConfigSchema>;
 export const CONFIG_DEFAULTS: SentinelConfig = {
   stack: "nextjs-supabase",
   domains: ["all"],
-  exclude: ["node_modules", ".next", "dist", "out", "build", ".git"],
+  exclude: [
+    "node_modules",
+    ".next",
+    "dist",
+    "out",
+    "build",
+    ".git",
+    ".claude/worktrees",
+    "public",
+    "widget-build",
+  ],
   severity: { failOn: "high" },
   output: { format: "terminal", dir: ".sentinel/reports" },
 };

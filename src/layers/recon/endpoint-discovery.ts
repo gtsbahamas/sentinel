@@ -16,8 +16,16 @@ export async function discoverEndpoints(routes: Route[]): Promise<ApiEndpoint[]>
       ? "joi"
       : null;
     const usesServiceRole = /SERVICE_ROLE|service_role|auth\.admin/.test(source);
-    // Stricter auth check: must have explicit user verification, not just admin API usage
-    const hasAuthCheck = /getUser|getSession|auth\.getUser|auth\.getSession/.test(source);
+    // Auth is recognized in three forms:
+    //   1. Explicit user/session lookup (Supabase, NextAuth, custom).
+    //   2. Webhook signature verification (HMAC + constant-time compare).
+    //   3. Capability-URL tokens validated against a DB column like
+    //      `approval_token` or `response_token`.
+    const hasUserAuth = /getUser|getSession|auth\.getUser|auth\.getSession/.test(source);
+    const hasWebhookSignature =
+      /createHmac\s*\(/.test(source) && /timingSafeEqual/.test(source);
+    const hasCapabilityToken = /\.eq\(\s*["'`][a-z_]*token["'`]/i.test(source);
+    const hasAuthCheck = hasUserAuth || hasWebhookSignature || hasCapabilityToken;
 
     endpoints.push({
       path: route.path,
