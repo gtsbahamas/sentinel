@@ -26,17 +26,31 @@ function exitAfterDrain(code: number): void {
 
 program
   .command("scan")
-  .description("Run Recon + Rules scan against a project")
+  .description("Run Recon + Rules (+ AI) scan against a project")
   .argument("<path>", "Path to the project to scan")
   .option("-f, --format <format>", "Output format (terminal|json|html)", "terminal")
   .option("-o, --out <file>", "Write report to file instead of stdout")
   .option("--fail-on <level>", "Exit 1 if findings at or above level")
+  .option("--ai", "Enable AI layer (opt-in)")
+  .option("--ai-deep", "Enable Stage A project-wide risk pass")
+  .option("--ai-dry-run", "Estimate cost only, make no API calls")
+  .option("--ai-provider <name>", "AI provider (anthropic|openai|mock)")
+  .option("--ai-model <id>", "AI model id")
+  .option("--ai-max-cost <usd>", "Hard budget cap in USD", parseFloat)
+  .option("--ai-concurrency <n>", "Parallel endpoint analyses", parseInt)
   .action(async (path, options) => {
     const exitCode = await runScan({
       path,
       format: options.format,
       failOn: options.failOn,
       outFile: options.out,
+      ai: options.ai,
+      aiDeep: options.aiDeep,
+      aiDryRun: options.aiDryRun,
+      aiProvider: options.aiProvider,
+      aiModel: options.aiModel,
+      aiMaxCost: options.aiMaxCost,
+      aiConcurrency: options.aiConcurrency,
     });
     exitAfterDrain(exitCode);
   });

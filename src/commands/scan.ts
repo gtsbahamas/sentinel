@@ -13,17 +13,40 @@ import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitori
 import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
 import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
 import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
+import { runAI, runDryRun, type DryRunResult } from "../layers/ai/index.js";
+import { MockProvider } from "../layers/ai/providers/mock.js";
 import { formatTerminal } from "../output/terminal.js";
 import { formatJson } from "../output/json.js";
 import { formatHtml } from "../output/html.js";
 import { isAtOrAbove } from "../model/severity.js";
-import type { Severity } from "../model/types.js";
+import type { AIConfig, AIRunResult, Severity } from "../model/types.js";
+import type { SentinelConfig } from "../config.js";
 
 export interface ScanOptions {
   path: string;
   format: "terminal" | "json" | "html";
   failOn?: Severity;
   outFile?: string;
+  ai?: boolean;
+  aiDeep?: boolean;
+  aiDryRun?: boolean;
+  aiProvider?: "anthropic" | "openai" | "mock";
+  aiModel?: string;
+  aiMaxCost?: number;
+  aiConcurrency?: number;
+}
+
+function mergeAIConfig(config: SentinelConfig, options: ScanOptions): AIConfig {
+  return {
+    enabled: options.ai ?? config.ai.enabled,
+    provider: options.aiProvider ?? config.ai.provider,
+    model: options.aiModel ?? config.ai.model,
+    deep: options.aiDeep ?? config.ai.deep,
+    maxCostUsd: options.aiMaxCost ?? config.ai.maxCostUsd,
+    maxTokensPerEndpoint: config.ai.maxTokensPerEndpoint,
+    concurrency: options.aiConcurrency ?? config.ai.concurrency,
+    dryRun: options.aiDryRun ?? false,
+  };
 }
 
 export async function runScan(options: ScanOptions): Promise<number> {
@@ -46,11 +69,32 @@ export async function runScan(options: ScanOptions): Promise<number> {
   registerRules(infrastructureRules);
 
   const rulesStart = Date.now();
-  const findings = await runRules(model);
+  const ruleFindings = await runRules(model);
   const rules_ms = Date.now() - rulesStart;
 
+  let aiResult: AIRunResult | null = null;
+  let ai_ms = 0;
+  const aiConfig = mergeAIConfig(config, options);
+
+  // Dry-run path: emit estimate, return 0, make NO real provider calls.
+  if (options.aiDryRun) {
+    const dryConfig: AIConfig = { ...aiConfig, dryRun: true, enabled: true };
+    const estimate = await runDryRun(model, dryConfig, new MockProvider({}));
+    process.stdout.write(formatDryRunReport(estimate, dryConfig) + "\n");
+    return 0;
+  }
+
+  if (aiConfig.enabled) {
+    const aiStart = Date.now();
+    aiResult = await runAI(model, aiConfig);
+    ai_ms = Date.now() - aiStart;
+    // NOTE: do NOT mutate model.findings — aiResult.findings stays separate.
+  }
+
+  const allFindings = [...ruleFindings, ...(aiResult?.findings ?? [])];
+
   if (options.format === "json") {
-    const body = formatJson(model, findings, { recon_ms, rules_ms });
+    const body = formatJson(model, allFindings, { recon_ms, rules_ms, ai_ms, ai: aiResult ?? undefined });
     if (options.outFile) {
       const dest = resolve(options.outFile);
       await mkdir(dirname(dest), { recursive: true });
@@ -60,17 +104,60 @@ export async function runScan(options: ScanOptions): Promise<number> {
       process.stdout.write(body);
     }
   } else if (options.format === "html") {
-    const body = formatHtml(model, findings, { recon_ms, rules_ms });
+    const body = formatHtml(model, allFindings, { recon_ms, rules_ms });
     const dest = resolve(options.outFile ?? join(options.path, config.output.dir, `scan-${Date.now()}.html`));
     await mkdir(dirname(dest), { recursive: true });
     await writeFile(dest, body, "utf-8");
     process.stdout.write(`Wrote HTML report to ${dest}\n`);
   } else {
-    process.stdout.write(formatTerminal(model, findings));
+    process.stdout.write(formatTerminal(model, allFindings));
+    if (aiResult) {
+      process.stdout.write("\n" + formatAIReport(aiResult, aiConfig) + "\n");
+    }
     process.stdout.write("\n");
   }
 
   const failOn = options.failOn ?? config.severity.failOn;
-  const hasBlockingFinding = findings.some((f) => isAtOrAbove(f.severity, failOn));
+  const hasBlockingFinding = allFindings.some((f) => isAtOrAbove(f.severity, failOn));
   return hasBlockingFinding ? 1 : 0;
+}
+
+function formatAIReport(result: AIRunResult, config: AIConfig): string {
+  const findingCounts = result.findings.reduce<Record<string, number>>((a, f) => {
+    a[f.severity] = (a[f.severity] ?? 0) + 1;
+    return a;
+  }, {});
+  const counts = ["critical", "high", "medium", "low"]
+    .filter((s) => findingCounts[s])
+    .map((s) => `${s}: ${findingCounts[s]}`)
+    .join(", ");
+  const cacheRate =
+    result.usage.inputTokens > 0
+      ? `${Math.round((result.usage.cacheReadTokens / result.usage.inputTokens) * 100)}%`
+      : "0%";
+  return `AI Analysis
+───────────
+Endpoints analyzed: ${result.endpointsAnalyzed} / ${result.endpointsAnalyzed + result.endpointsSkipped}
+Findings:           ${result.findings.length}${counts ? ` (${counts})` : ""}
+Errors:             ${result.errors.length}
+Tokens:
+  Input:       ${result.usage.inputTokens.toLocaleString()}
+  Cached read: ${result.usage.cacheReadTokens.toLocaleString()} (cache hit rate: ${cacheRate})
+  Output:      ${result.usage.outputTokens.toLocaleString()}
+Cost estimate: $${result.usage.estimatedCostUsd.toFixed(2)} (cap $${config.maxCostUsd.toFixed(2)})
+Duration: ${Math.round(result.durationMs / 1000)}s${result.budgetExhausted ? "\nWARNING: budget exhausted — scan halted early" : ""}`;
+}
+
+function formatDryRunReport(e: DryRunResult, config: AIConfig): string {
+  return `AI Dry Run
+──────────
+Endpoints to analyze: ${e.endpointCount}
+Project summary tokens: ${e.projectSummaryTokens.toLocaleString()} (cached after first call)
+Per-endpoint avg tokens: ${e.avgPerEndpointTokens.toLocaleString()}
+Total input tokens: ~${e.totalInputTokens.toLocaleString()}
+Estimated cost: $${e.estimatedCostUsd.toFixed(2)} (${config.provider} ${config.model})
+Budget cap: $${e.maxCostUsd.toFixed(2)}
+Status: ${e.withinBudget ? "within budget" : "EXCEEDS BUDGET"}
+
+Run without --ai-dry-run to execute.`;
 }
