@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { execFileSync } from "child_process";
 import { safeReadFile } from "../../../utils/fs.js";
 import type { Finding, ProjectModel } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
@@ -11,6 +12,23 @@ const KNOWN_KEY_PATTERNS: Array<[string, RegExp]> = [
   ["slack", /xox[bpoa]-[0-9]{10,}-[0-9a-zA-Z]{20,}/],
   ["github", /ghp_[a-zA-Z0-9]{36}/],
 ];
+
+// Directories that never ship to the browser bundle — CLI helpers, background
+// workers, standalone agents, migrations, and Next.js API route handlers.
+const SERVER_ONLY_DIR_PATTERNS = [
+  /[/\\]scripts[/\\]/,
+  /[/\\]worker[/\\]/,
+  /[/\\]agent[/\\]/,
+  /[/\\]supabase[/\\]functions[/\\]/,
+  /[/\\]supabase[/\\]migrations[/\\]/,
+];
+
+function isKnownServerContext(file: string): boolean {
+  if (SERVER_ONLY_DIR_PATTERNS.some((re) => re.test(file))) return true;
+  // Next.js API route handlers run only on the server.
+  if (/[/\\]api[/\\].*route\.(ts|tsx|js|jsx|mjs)$/.test(file)) return true;
+  return false;
+}
 
 function mkFinding(
   rule: { id: string; severity: Finding["severity"]; title: string; remediation: string; references: { cwe?: string; owasp?: string } },
@@ -48,10 +66,12 @@ export const secretsExposureRules: SecurityRule[] = [
       for (const env of model.envVars) {
         if (env.name === "SUPABASE_SERVICE_ROLE_KEY") {
           for (const file of env.referencedIn) {
+            if (isKnownServerContext(file)) continue;
             const source = await safeReadFile(file);
             const isServerOnly = /"use server"|import\s+["']server-only["']/.test(source);
             const hasNodeCheck = /typeof window === ["']undefined["']/.test(source);
-            if (!isServerOnly && !hasNodeCheck) {
+            const hasShebang = /^#!\s*\/usr\/bin\/env/.test(source);
+            if (!isServerOnly && !hasNodeCheck && !hasShebang) {
               findings.push(
                 mkFinding(
                   {
@@ -231,12 +251,75 @@ export const secretsExposureRules: SecurityRule[] = [
     id: "SECRETS-006",
     domain: "secrets-exposure",
     title: "Secret found in git history",
-    description: "Requires --git-history flag. Placeholder in Phase 1.",
-    severity: "high",
+    description: "Known API key pattern present in a historical commit",
+    severity: "critical",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-798" },
-    check() {
-      return [];
+    check(model) {
+      const findings: Finding[] = [];
+      const gitDir = join(model.meta.path, ".git");
+      if (!existsSync(gitDir)) return findings;
+
+      // git log -p only in added lines (+), limited to keep the scan bounded.
+      // Use execFileSync with array args — no shell, no injection surface.
+      let patch = "";
+      try {
+        patch = execFileSync(
+          "git",
+          ["-C", model.meta.path, "log", "-p", "--all", "--full-history", "-G", "sk_|sk-|AKIA|xox[bpoa]-|ghp_", "--max-count=500"],
+          { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] },
+        );
+      } catch {
+        return findings;
+      }
+
+      let currentCommit = "";
+      let currentFile = "";
+      const seen = new Set<string>();
+
+      for (const line of patch.split("\n")) {
+        const commitMatch = line.match(/^commit\s+([0-9a-f]{7,40})/);
+        if (commitMatch) {
+          currentCommit = commitMatch[1].slice(0, 12);
+          continue;
+        }
+        const fileMatch = line.match(/^\+\+\+ b\/(.+)/);
+        if (fileMatch) {
+          currentFile = fileMatch[1];
+          continue;
+        }
+        if (!line.startsWith("+") || line.startsWith("+++")) continue;
+
+        const added = line.slice(1);
+        for (const [provider, pattern] of KNOWN_KEY_PATTERNS) {
+          const match = added.match(pattern);
+          if (!match) continue;
+          const dedupeKey = `${provider}|${match[0]}|${currentCommit}|${currentFile}`;
+          if (seen.has(dedupeKey)) continue;
+          seen.add(dedupeKey);
+          findings.push(
+            mkFinding(
+              {
+                id: "SECRETS-006",
+                severity: "critical",
+                title: `${provider} API key in git history`,
+                remediation:
+                  "Rotate the exposed key immediately. Rewrite history with git-filter-repo or accept that the key is permanently burned.",
+                references: { cwe: "CWE-798" },
+              },
+              [
+                {
+                  file: currentFile,
+                  snippet: match[0],
+                  context: { commit: currentCommit, provider },
+                },
+              ],
+              `A ${provider} key pattern was added to ${currentFile} in commit ${currentCommit} and remains in git history.`,
+            ),
+          );
+        }
+      }
+      return findings;
     },
   },
 

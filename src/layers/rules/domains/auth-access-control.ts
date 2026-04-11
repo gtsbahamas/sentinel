@@ -1,7 +1,19 @@
-import { safeReadFile } from "../../../utils/fs.js";
+import { safeReadFile, readEnvFile, parseEnvFile } from "../../../utils/fs.js";
 import fg from "fast-glob";
+import { join } from "path";
 import type { Finding } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
+
+const SESSION_SECRET_KEYS = [
+  "SESSION_SECRET",
+  "JWT_SECRET",
+  "NEXTAUTH_SECRET",
+  "AUTH_SECRET",
+  "COOKIE_SECRET",
+  "IRON_SESSION_PASSWORD",
+];
+
+const ENV_CANDIDATES = [".env", ".env.local", ".env.production", ".env.development"];
 
 function mkFinding(
   ruleId: string,
@@ -38,10 +50,14 @@ export const authAccessControlRules: SecurityRule[] = [
     severity: "critical",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-862", owasp: "A01:2021" },
-    check(model) {
+    async check(model) {
       const findings: Finding[] = [];
       for (const endpoint of model.endpoints) {
         if (["POST", "PUT", "PATCH", "DELETE"].includes(endpoint.method) && !endpoint.hasAuthCheck) {
+          // Respect an explicit suppression pragma so intentional public
+          // endpoints (e.g., embeddable widget APIs) don't generate noise.
+          const source = await safeReadFile(endpoint.file);
+          if (/sentinel:ignore\s+AUTH-001/.test(source)) continue;
           findings.push(
             mkFinding(
               "AUTH-001",
@@ -255,12 +271,94 @@ export const authAccessControlRules: SecurityRule[] = [
     id: "AUTH-007",
     domain: "auth-access-control",
     title: "Session secret shorter than 32 characters",
-    description: "Placeholder - requires reading .env which is denied",
+    description: "A session/JWT signing secret is defined with fewer than 32 characters of entropy",
     severity: "high",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-326" },
-    check() {
-      return [];
+    async check(model) {
+      const findings: Finding[] = [];
+      const reported = new Set<string>();
+
+      // 1. Scan .env* files for short secrets.
+      for (const relEnv of ENV_CANDIDATES) {
+        const envPath = join(model.meta.path, relEnv);
+        const contents = await readEnvFile(envPath);
+        if (!contents) continue;
+        const parsed = parseEnvFile(contents);
+        for (const key of SESSION_SECRET_KEYS) {
+          const value = parsed[key];
+          if (value === undefined) continue;
+          // Ignore variable references, placeholders, and obvious empties.
+          if (value === "" || value.startsWith("$") || /change[-_ ]?me|replace[-_ ]?me|changeme/i.test(value)) {
+            findings.push(
+              mkFinding(
+                "AUTH-007",
+                "high",
+                `${key} is empty or placeholder in ${relEnv}`,
+                "A signing secret is unset or contains a placeholder value.",
+                "Generate a high-entropy secret: `openssl rand -hex 32`. Store it in a secrets manager.",
+                [{ file: envPath, snippet: `${key}=${value.slice(0, 12)}…` }],
+                { cwe: "CWE-326" },
+              ),
+            );
+            reported.add(key);
+            continue;
+          }
+          if (value.length < 32) {
+            findings.push(
+              mkFinding(
+                "AUTH-007",
+                "high",
+                `${key} is ${value.length} characters (< 32)`,
+                "Short signing secrets are vulnerable to brute force and dictionary attacks.",
+                "Generate a 32+ character random secret: `openssl rand -hex 32`.",
+                [{ file: envPath, snippet: `${key}=<${value.length} chars>` }],
+                { cwe: "CWE-326" },
+              ),
+            );
+            reported.add(key);
+          }
+        }
+      }
+
+      // 2. Scan source for hardcoded short secrets passed to jwt.sign,
+      // iron-session, cookie-session, etc.
+      const files = await fg(["**/*.{ts,tsx,js,jsx,mjs,cjs}"], {
+        cwd: model.meta.path,
+        absolute: true,
+        ignore: ["**/node_modules/**", "**/.next/**", "**/dist/**", "**/build/**"],
+      });
+      const literalSecret = /\b(jwt\.sign|jsonwebtoken\.sign|jose\.sign|sign)\s*\([^)]*?["']([^"']{1,31})["']/g;
+      const cookieSecret = /(cookieName|password|secret)\s*:\s*["']([^"']{1,31})["']/g;
+      for (const file of files) {
+        const source = await safeReadFile(file);
+        if (!/jwt|sign|session|cookie/i.test(source)) continue;
+        const lines = source.split("\n");
+        lines.forEach((line, idx) => {
+          for (const pattern of [literalSecret, cookieSecret]) {
+            const r = new RegExp(pattern.source, pattern.flags);
+            let m: RegExpExecArray | null;
+            while ((m = r.exec(line)) !== null) {
+              const secret = m[2];
+              if (!secret || secret.length >= 32) continue;
+              if (/change[-_]?me|example|test|todo/i.test(secret)) continue;
+              findings.push(
+                mkFinding(
+                  "AUTH-007",
+                  "high",
+                  "Hardcoded signing secret shorter than 32 chars",
+                  "Literal secret passed to a signing/session call.",
+                  "Move the secret to an environment variable, then generate a 32+ char random value.",
+                  [{ file, line: idx + 1, snippet: line.trim().slice(0, 120) }],
+                  { cwe: "CWE-326" },
+                ),
+              );
+            }
+          }
+        });
+      }
+
+      return findings;
     },
   },
 
