@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AIFindingSchema, aiToFinding, type AIFinding } from "../../../src/layers/ai/schema.js";
+import { AIFindingSchema, StageARiskSchema, aiToFinding, type AIFinding } from "../../../src/layers/ai/schema.js";
 
 const baseValid: AIFinding = {
   ruleId: "AI-IDOR-001",
@@ -43,6 +43,14 @@ describe("AIFindingSchema", () => {
   it("rejects reasoning shorter than 20 characters", () => {
     expect(() => AIFindingSchema.parse({ ...baseValid, reasoning: "looks bad" })).toThrow();
   });
+
+  it('accepts confidence: "low"', () => {
+    expect(() => AIFindingSchema.parse({ ...baseValid, confidence: "low" })).not.toThrow();
+  });
+
+  it("rejects unknown severity", () => {
+    expect(() => AIFindingSchema.parse({ ...baseValid, severity: "catastrophic" as never })).toThrow();
+  });
 });
 
 describe("aiToFinding adapter", () => {
@@ -68,5 +76,52 @@ describe("aiToFinding adapter", () => {
     };
     const finding = aiToFinding(noLine);
     expect(finding.id).toBe("ai:AI-IDOR-001:src/app/api/foo/route.ts:0");
+  });
+
+  it("writes reasoning into context on ALL evidence entries, not just the first", () => {
+    const multi: AIFinding = {
+      ...baseValid,
+      evidence: [
+        { file: "a.ts", line: 1 },
+        { file: "b.ts", line: 2, snippet: "x" },
+        { file: "c.ts" },
+      ],
+    };
+    const finding = aiToFinding(multi);
+    expect(finding.evidence).toHaveLength(3);
+    for (const e of finding.evidence) {
+      expect(e.context).toEqual({ reasoning: multi.reasoning });
+    }
+  });
+});
+
+describe("StageARiskSchema", () => {
+  const validRisk = {
+    projectRisks: [
+      {
+        domain: "auth-access-control" as const,
+        description: "Handlers missing ownership checks",
+        affectedEndpoints: ["/api/users/[id]"],
+        severity: "high" as const,
+      },
+    ],
+    priorityOrder: ["/api/users/[id]", "/api/orders/[id]"],
+  };
+
+  it("accepts a valid risk summary", () => {
+    expect(() => StageARiskSchema.parse(validRisk)).not.toThrow();
+  });
+
+  it("rejects an unknown domain in projectRisks", () => {
+    expect(() =>
+      StageARiskSchema.parse({
+        ...validRisk,
+        projectRisks: [{ ...validRisk.projectRisks[0], domain: "typescript-errors" as never }],
+      }),
+    ).toThrow();
+  });
+
+  it("accepts empty projectRisks and priorityOrder arrays", () => {
+    expect(() => StageARiskSchema.parse({ projectRisks: [], priorityOrder: [] })).not.toThrow();
   });
 });
