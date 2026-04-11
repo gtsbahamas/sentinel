@@ -4,6 +4,7 @@ import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { runScan } from "./commands/scan.js";
+import { runDiff } from "./commands/diff.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgPath = join(__dirname, "..", "package.json");
@@ -16,19 +17,45 @@ program
   .description("Security assessment CLI for Next.js + Supabase codebases")
   .version(pkg.version);
 
+// Deferred exit: set process.exitCode and let Node drain stdout naturally.
+// Using process.exit() after a large stdout.write() can truncate output
+// at the pipe buffer boundary (~64KB).
+function exitAfterDrain(code: number): void {
+  process.exitCode = code;
+}
+
 program
   .command("scan")
   .description("Run Recon + Rules scan against a project")
   .argument("<path>", "Path to the project to scan")
-  .option("-f, --format <format>", "Output format (terminal|json)", "terminal")
+  .option("-f, --format <format>", "Output format (terminal|json|html)", "terminal")
+  .option("-o, --out <file>", "Write report to file instead of stdout")
   .option("--fail-on <level>", "Exit 1 if findings at or above level")
   .action(async (path, options) => {
     const exitCode = await runScan({
       path,
       format: options.format,
       failOn: options.failOn,
+      outFile: options.out,
     });
-    process.exit(exitCode);
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("diff")
+  .description("Diff two sentinel JSON reports — shows new, resolved, and unchanged findings")
+  .argument("<baseline>", "Path to baseline JSON report")
+  .argument("<current>", "Path to current JSON report")
+  .option("-f, --format <format>", "Output format (terminal|json)", "terminal")
+  .option("--fail-on <level>", "Exit 1 if NEW findings at or above level")
+  .action(async (baseline, current, options) => {
+    const exitCode = await runDiff({
+      baseline,
+      current,
+      format: options.format,
+      failOn: options.failOn,
+    });
+    exitAfterDrain(exitCode);
   });
 
 program.parseAsync(process.argv);

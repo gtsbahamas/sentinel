@@ -114,6 +114,21 @@ export interface ProjectMeta {
   deployTarget: string | null;
 }
 
+export interface InfraConfig {
+  // Next.js config file (next.config.{js,mjs,ts}) contents if present.
+  nextConfig: { file: string; source: string } | null;
+  // Middleware file contents if present.
+  middleware: { file: string; source: string } | null;
+  // vercel.json contents if present.
+  vercelConfig: { file: string; source: string } | null;
+  // supabase/config.toml contents if present.
+  supabaseConfig: { file: string; source: string } | null;
+  // Map of security header name (lowercased) → array of { source file, value }.
+  // Collected across next.config headers(), middleware response headers,
+  // and vercel.json headers.
+  securityHeaders: Record<string, Array<{ file: string; value: string }>>;
+}
+
 export interface ProjectModel {
   meta: ProjectMeta;
   routes: Route[];
@@ -124,5 +139,6 @@ export interface ProjectModel {
   dependencies: Dependency[];
   envVars: EnvVar[];
   staticAssets: AssetRef[];
+  infra: InfraConfig;
   findings: Finding[];
 }

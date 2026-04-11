@@ -1,0 +1,8 @@
+[project]
+id = "vulnerable-fixture"
+
+[auth.email]
+enable_confirmations = false
+
+[storage.buckets.public-uploads]
+public = true

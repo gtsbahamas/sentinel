@@ -28,6 +28,7 @@ describe("integration: scan command", () => {
     try {
       output = execSync(`npx tsx ${cli} scan ${fixturePath} --format json`, {
         encoding: "utf-8",
+        maxBuffer: 16 * 1024 * 1024,
       });
     } catch (e: any) {
       output = e.stdout ?? "";

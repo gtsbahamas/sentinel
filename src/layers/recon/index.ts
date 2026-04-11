@@ -6,6 +6,7 @@ import { discoverAuthFlows } from "./auth-discovery.js";
 import { discoverUploadHandlers } from "./upload-discovery.js";
 import { discoverEnvVars } from "./env-discovery.js";
 import { discoverDependencies } from "./dep-discovery.js";
+import { discoverInfra } from "./infra-discovery.js";
 import type { ProjectModel } from "../../model/types.js";
 
 export async function runRecon(
@@ -15,12 +16,13 @@ export async function runRecon(
   const meta = await detectStack(projectPath);
   const files = await walkProject(projectPath, exclude);
 
-  const [routes, authFlows, fileUploads, envVars, dependencies] = await Promise.all([
+  const [routes, authFlows, fileUploads, envVars, dependencies, infra] = await Promise.all([
     discoverRoutes(projectPath, meta.framework),
     discoverAuthFlows(files),
     discoverUploadHandlers(files),
     discoverEnvVars(projectPath, files),
     discoverDependencies(projectPath),
+    discoverInfra(projectPath),
   ]);
 
   const endpoints = await discoverEndpoints(routes);
@@ -35,6 +37,7 @@ export async function runRecon(
     dependencies,
     envVars,
     staticAssets: [],
+    infra,
     findings: [],
   };
 }
