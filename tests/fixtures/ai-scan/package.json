@@ -1,0 +1,9 @@
+{
+  "name": "ai-scan-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "next": "^15.0.0",
+    "@supabase/supabase-js": "^2.40.0"
+  }
+}
