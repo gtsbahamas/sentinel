@@ -142,3 +142,53 @@ export interface ProjectModel {
   infra: InfraConfig;
   findings: Finding[];
 }
+
+// ============================================================================
+// AI Layer
+// ============================================================================
+
+export interface AIConfig {
+  enabled: boolean;
+  provider: "anthropic" | "openai" | "mock";
+  model: string;
+  deep: boolean;
+  maxCostUsd: number;
+  maxTokensPerEndpoint: number;
+  concurrency: number;
+  dryRun: boolean;
+}
+
+export interface AIUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  estimatedCostUsd: number;
+}
+
+export interface StageARiskSummary {
+  projectRisks: Array<{
+    domain: SecurityDomain;
+    description: string;
+    affectedEndpoints: string[];
+    severity: Severity;
+  }>;
+  priorityOrder: string[];
+}
+
+export interface AIError {
+  kind: "provider" | "parse" | "budget" | "context";
+  message: string;
+  endpoint?: string;
+}
+
+export interface AIRunResult {
+  findings: Finding[];
+  usage: AIUsage;
+  stageA: StageARiskSummary | null;
+  errors: AIError[];
+  budgetExhausted: boolean;
+  endpointsAnalyzed: number;
+  endpointsSkipped: number;
+  durationMs: number;
+}
