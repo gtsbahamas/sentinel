@@ -200,3 +200,105 @@ export interface AIRunResult {
   magicLinkCapped: number;
   durationMs: number;
 }
+
+// ============================================================================
+// Probe Layer
+// ============================================================================
+
+export type AggressionLevel = "passive" | "standard" | "intrusive";
+
+export interface ProbeConfig {
+  enabled: boolean;
+  level: AggressionLevel;
+  targetUrl: string | null;
+  requestCaps: {
+    passive: number;
+    standard: number;
+    intrusive: number;
+  };
+  requestsPerSecond: number;
+  timeoutMs: number;
+  allowPublicHosts: boolean;
+  allowInternalNetwork: boolean;
+  denyHosts: string[];
+  logDir: string;
+}
+
+export interface ProbeAuthorizationEntry {
+  targetOrigin: string;
+  level: "passive" | "standard";
+  grantedAt: string;
+  expiresAt: string;
+  scopeNote: string;
+}
+
+export interface ProbeTarget {
+  kind: "endpoint" | "static-resource" | "baseline";
+  url: string;
+  method?: Route["method"];
+  auth?: "required" | "unauthenticated" | "unknown";
+  fromLayer: Layer | "recon";
+  fromFindingId?: string;
+  inputs?: ProbeTargetInput[];
+}
+
+export interface ProbeTargetInput {
+  name: string;
+  in: "query" | "body" | "header" | "path";
+  type: "string" | "number" | "boolean" | "uuid" | "unknown";
+  exampleValue?: string | number | boolean;
+}
+
+export interface ProbeEvidence {
+  requestId: string;
+  checkId: string;
+  aggressionLevel: AggressionLevel;
+  request: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    bodyPreview?: string;
+  };
+  response: {
+    status: number;
+    headers: Record<string, string>;
+    bodyPreview: string;
+    timingMs: number;
+  };
+}
+
+export interface ProbeFinding extends Omit<Finding, "evidence"> {
+  evidence: Evidence[];
+  probeEvidence: ProbeEvidence;
+  confirms?: string;
+  refutes?: string;
+}
+
+export interface ProbeError {
+  kind:
+    | "target-unreachable"
+    | "auth-expired"
+    | "rate-limited-by-target"
+    | "cleanup-failed"
+    | "check-error"
+    | "cap-exceeded";
+  message: string;
+  checkId?: string;
+  targetUrl?: string;
+}
+
+export interface ProbeRunResult {
+  findings: ProbeFinding[];
+  confirmedFindingIds: string[];
+  refutedFindingIds: string[];
+  usedRequests: number;
+  requestCap: number;
+  aggressionLevel: AggressionLevel;
+  targetOrigin: string;
+  errors: ProbeError[];
+  cleanupObligationsExecuted: number;
+  cleanupObligationsFailed: number;
+  cleanupFailures: Array<{ obligation: string; error: string }>;
+  probeLogPath: string;
+  durationMs: number;
+}
