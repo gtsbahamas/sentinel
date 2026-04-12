@@ -38,6 +38,12 @@ program
   .option("--ai-model <id>", "AI model id")
   .option("--ai-max-cost <usd>", "Hard budget cap in USD", parseFloat)
   .option("--ai-concurrency <n>", "Parallel endpoint analyses", parseInt)
+  .option(
+    "--ai-magic-link <glob>",
+    "Glob for endpoints protected by unguessable URL tokens (repeatable)",
+    (val: string, prev: string[] = []) => [...prev, val],
+    [] as string[],
+  )
   .action(async (path, options) => {
     const exitCode = await runScan({
       path,
@@ -51,6 +57,7 @@ program
       aiModel: options.aiModel,
       aiMaxCost: options.aiMaxCost,
       aiConcurrency: options.aiConcurrency,
+      aiMagicLinkRoutes: options.aiMagicLink,
     });
     exitAfterDrain(exitCode);
   });

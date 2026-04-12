@@ -34,6 +34,9 @@ export interface ScanOptions {
   aiModel?: string;
   aiMaxCost?: number;
   aiConcurrency?: number;
+  // Repeatable CLI flag: --ai-magic-link <glob>. Merges with
+  // ai.magicLinkRoutes from .sentinelrc.json.
+  aiMagicLinkRoutes?: string[];
 }
 
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
@@ -61,7 +64,11 @@ function mergeAIConfig(config: SentinelConfig, options: ScanOptions): AIConfig {
     maxTokensPerEndpoint: config.ai.maxTokensPerEndpoint,
     concurrency: options.aiConcurrency ?? config.ai.concurrency,
     dryRun: options.aiDryRun ?? false,
-    magicLinkRoutes: config.ai.magicLinkRoutes,
+    // CLI-supplied globs append to (not replace) the config. Deduplicate so
+    // users passing overlapping patterns on the CLI + config don't pay twice.
+    magicLinkRoutes: Array.from(
+      new Set([...config.ai.magicLinkRoutes, ...(options.aiMagicLinkRoutes ?? [])]),
+    ),
   };
 }
 
