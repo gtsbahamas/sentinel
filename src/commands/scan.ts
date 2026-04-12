@@ -18,6 +18,8 @@ import { MockProvider } from "../layers/ai/providers/mock.js";
 import { formatTerminal } from "../output/terminal.js";
 import { formatJson } from "../output/json.js";
 import { formatHtml } from "../output/html.js";
+import { inferContext, readContext } from "../layers/context/index.js";
+import { applyContextSuppressions } from "../layers/context/suppression.js";
 import { isAtOrAbove } from "../model/severity.js";
 import type { AIConfig, AIRunResult, Severity } from "../model/types.js";
 import type { SentinelConfig } from "../config.js";
@@ -79,6 +81,14 @@ export async function runScan(options: ScanOptions): Promise<number> {
   const model = await runRecon(options.path, config.exclude);
   const recon_ms = Date.now() - reconStart;
 
+  // Context phase: load saved context or auto-infer
+  const contextFromFile = await readContext(options.path);
+  const context = contextFromFile ?? await inferContext(model);
+  if (!contextFromFile) {
+    process.stderr.write("No .sentinel/context.json found. Using auto-inferred context.\n");
+    process.stderr.write("Run `sentinel context` to reduce false positives.\n\n");
+  }
+
   resetRegistry();
   registerRules(secretsExposureRules);
   registerRules(inputInjectionRules);
@@ -92,7 +102,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
   registerRules(infrastructureRules);
 
   const rulesStart = Date.now();
-  const ruleFindings = await runRules(model);
+  const ruleFindings = await runRules(model, context);
   const rules_ms = Date.now() - rulesStart;
 
   let aiResult: AIRunResult | null = null;
@@ -126,7 +136,8 @@ export async function runScan(options: ScanOptions): Promise<number> {
     // NOTE: do NOT mutate model.findings — aiResult.findings stays separate.
   }
 
-  const allFindings = [...ruleFindings, ...(aiResult?.findings ?? [])];
+  const rawFindings = [...ruleFindings, ...(aiResult?.findings ?? [])];
+  const allFindings = applyContextSuppressions(rawFindings, context);
 
   if (options.format === "json") {
     const body = formatJson(model, allFindings, { recon_ms, rules_ms, ai_ms, ai: aiResult ?? undefined });
