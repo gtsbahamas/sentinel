@@ -3,6 +3,7 @@
   "dependencies": {
     "next": "16.0.0",
     "@supabase/ssr": "0.10.0",
+    "@supabase/supabase-js": "2.39.0",
     "zod": "4.0.0"
   }
 }
