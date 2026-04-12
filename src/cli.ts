@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { runScan } from "./commands/scan.js";
 import { runDiff } from "./commands/diff.js";
 import { runProbeCommand } from "./commands/probe.js";
+import { runContextCommand } from "./commands/context.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgPath = join(__dirname, "..", "package.json");
@@ -105,6 +106,23 @@ program
       internalNetwork: options.internalNetwork,
       requestCap: options.requestCap,
       targetTimeout: options.targetTimeout,
+    });
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("context")
+  .description("Generate or display project context for smarter scanning")
+  .argument("<path>", "Path to the project")
+  .option("--show", "Display current context without regenerating")
+  .option("--accept-defaults", "Accept all auto-inferred values without prompting")
+  .option("--only <sections>", "Regenerate only specific sections (comma-separated)")
+  .action(async (path, options) => {
+    const exitCode = await runContextCommand({
+      path,
+      show: options.show,
+      acceptDefaults: options.acceptDefaults,
+      only: options.only,
     });
     exitAfterDrain(exitCode);
   });
