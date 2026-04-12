@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import { glob } from "fast-glob";
+import fg from "fast-glob";
 import { relative } from "path";
 import type { ProjectModel } from "../../../model/types.js";
 import type { ProjectContext } from "../types.js";
@@ -85,7 +85,7 @@ export async function inferPublicRoutes(
     // Scan route files directly
     let files: string[] = [];
     try {
-      files = await glob(`${model.meta.path}/src/app/api/**/route.{ts,tsx,js,jsx}`, {
+      files = await fg(`${model.meta.path}/src/app/api/**/route.{ts,tsx,js,jsx}`, {
         onlyFiles: true,
       });
     } catch {

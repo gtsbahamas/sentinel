@@ -1,4 +1,5 @@
 import type { Finding, ProjectModel, Severity, SecurityDomain, StackProfile } from "../../model/types.js";
+import type { ProjectContext } from "../context/types.js";
 
 export interface SecurityRule {
   id: string;
@@ -12,7 +13,7 @@ export interface SecurityRule {
     owasp?: string;
     external?: string[];
   };
-  check: (model: ProjectModel) => Finding[] | Promise<Finding[]>;
+  check: (model: ProjectModel, context?: ProjectContext | null) => Finding[] | Promise<Finding[]>;
 }
 
 const registry: SecurityRule[] = [];

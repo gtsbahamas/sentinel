@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import { glob } from "fast-glob";
+import fg from "fast-glob";
 import type { ProjectModel } from "../../../model/types.js";
 import type { ProjectContext } from "../types.js";
 
@@ -47,7 +47,7 @@ export async function inferDelegations(
   // Scan source files for actual usage
   let files: string[] = [];
   try {
-    files = await glob(`${model.meta.path}/src/**/*.{ts,tsx,js,jsx}`, {
+    files = await fg(`${model.meta.path}/src/**/*.{ts,tsx,js,jsx}`, {
       onlyFiles: true,
     });
   } catch {

@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import { glob } from "fast-glob";
+import fg from "fast-glob";
 import type { ProjectModel } from "../../../model/types.js";
 import type { ProjectContext } from "../types.js";
 
@@ -24,7 +24,7 @@ export async function inferAuth(
   const pattern = `${model.meta.path}/src/app/api/**/*.ts`;
   let files: string[] = [];
   try {
-    files = await glob(pattern, { onlyFiles: true });
+    files = await fg(pattern, { onlyFiles: true });
   } catch {
     // If glob fails, fall through with empty list
   }
