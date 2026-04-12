@@ -61,6 +61,7 @@ function mergeAIConfig(config: SentinelConfig, options: ScanOptions): AIConfig {
     maxTokensPerEndpoint: config.ai.maxTokensPerEndpoint,
     concurrency: options.aiConcurrency ?? config.ai.concurrency,
     dryRun: options.aiDryRun ?? false,
+    magicLinkRoutes: config.ai.magicLinkRoutes,
   };
 }
 
@@ -164,10 +165,11 @@ function formatAIReport(result: AIRunResult, config: AIConfig): string {
       ? `${Math.round((result.usage.cacheReadTokens / totalInputConsumed) * 100)}%`
       : "0%";
   const collapsedNote = result.findingsCollapsed > 0 ? ` (+${result.findingsCollapsed} collapsed)` : "";
+  const cappedNote = result.magicLinkCapped > 0 ? ` (${result.magicLinkCapped} magic-link capped)` : "";
   return `AI Analysis
 ───────────
 Endpoints analyzed: ${result.endpointsAnalyzed} / ${result.endpointsAnalyzed + result.endpointsSkipped}
-Findings:           ${result.findings.length}${counts ? ` (${counts})` : ""}${collapsedNote}
+Findings:           ${result.findings.length}${counts ? ` (${counts})` : ""}${collapsedNote}${cappedNote}
 Errors:             ${result.errors.length}
 Tokens:
   Input:       ${result.usage.inputTokens.toLocaleString()}

@@ -13,6 +13,12 @@ const AIConfigSchema = z.object({
   maxCostUsd: z.number().positive().default(2.0),
   maxTokensPerEndpoint: z.number().int().positive().default(8000),
   concurrency: z.number().int().positive().default(3),
+  // Glob patterns for endpoints that are intentionally unauthenticated
+  // and protected by an unguessable token in the URL (password reset,
+  // magic links, booking confirmations). The AI gets a per-endpoint
+  // context prefix explaining this access model, and post-processing caps
+  // severity for "no auth check" style findings on matching routes.
+  magicLinkRoutes: z.array(z.string()).default([]),
 });
 
 const ConfigSchema = z.object({
@@ -55,6 +61,7 @@ export const CONFIG_DEFAULTS: SentinelConfig = {
     maxCostUsd: 2.0,
     maxTokensPerEndpoint: 8000,
     concurrency: 3,
+    magicLinkRoutes: [],
   },
 };
 

@@ -4,6 +4,7 @@ import type { BudgetTracker } from "./budget.js";
 import { buildContext } from "./context-builder.js";
 import { buildProjectSummary, buildEndpointPrompt, SYSTEM_PREAMBLE, REPORT_FINDINGS_TOOL } from "./prompts.js";
 import { AIFindingSchema, aiToFinding } from "./schema.js";
+import { isMagicLinkEndpoint } from "./magic-link.js";
 
 export async function runOrchestrator(
   model: ProjectModel,
@@ -51,7 +52,8 @@ export async function runOrchestrator(
         continue;
       }
 
-      const userPrompt = buildEndpointPrompt(endpoint, ctx.handlerSource, ctx.adjacent);
+      const isMagicLink = isMagicLinkEndpoint(endpoint, config.magicLinkRoutes);
+      const userPrompt = buildEndpointPrompt(endpoint, ctx.handlerSource, ctx.adjacent, isMagicLink);
       const request: GenerateRequest = {
         systemPrompt: SYSTEM_PREAMBLE,
         projectSummary,
@@ -115,6 +117,7 @@ export async function runOrchestrator(
     endpointsAnalyzed: analyzed,
     endpointsSkipped: skipped,
     findingsCollapsed: 0,
+    magicLinkCapped: 0,
     durationMs: Date.now() - start,
   };
 }

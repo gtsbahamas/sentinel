@@ -44,6 +44,7 @@ export function formatJson(
             endpointsAnalyzed: timing.ai.endpointsAnalyzed,
             endpointsSkipped: timing.ai.endpointsSkipped,
             findingsCollapsed: timing.ai.findingsCollapsed,
+            magicLinkCapped: timing.ai.magicLinkCapped,
             budgetExhausted: timing.ai.budgetExhausted,
             usage: timing.ai.usage,
             errors: timing.ai.errors,

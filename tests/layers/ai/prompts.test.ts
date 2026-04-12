@@ -106,6 +106,26 @@ describe("buildEndpointPrompt", () => {
     expect(p).toContain("auth.ts");
     expect(p).toContain("getUser");
   });
+
+  it("prepends the magic-link prefix when isMagicLink=true", () => {
+    const ep = {
+      path: "/api/public/reservation/[id]",
+      method: "GET" as const,
+      file: "src/app/api/public/reservation/[id]/route.ts",
+      hasValidation: false,
+      validationLibrary: null,
+      hasAuthCheck: false,
+      usesServiceRole: true,
+    };
+    const withoutPrefix = buildEndpointPrompt(ep, "code", [], false);
+    const withPrefix = buildEndpointPrompt(ep, "code", [], true);
+    expect(withoutPrefix).not.toMatch(/MAGIC-LINK ENDPOINT/);
+    expect(withPrefix).toMatch(/^MAGIC-LINK ENDPOINT/);
+    expect(withPrefix).toContain("unguessable token");
+    expect(withPrefix).toContain("DO NOT report");
+    // Endpoint info still follows the prefix
+    expect(withPrefix).toContain("GET /api/public/reservation/[id]");
+  });
 });
 
 describe("buildStageAPrompt", () => {

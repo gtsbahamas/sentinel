@@ -45,6 +45,7 @@ const config: AIConfig = {
   maxTokensPerEndpoint: 8000,
   concurrency: 3,
   dryRun: true,
+  magicLinkRoutes: [],
 };
 
 describe("runDryRun", () => {

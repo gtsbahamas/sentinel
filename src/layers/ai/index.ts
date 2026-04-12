@@ -8,6 +8,7 @@ import { runOrchestrator } from "./orchestrator.js";
 import { runStageA } from "./stage-a.js";
 import { runDryRun, type DryRunResult } from "./dry-run.js";
 import { dedupAIFindings } from "./dedup.js";
+import { applyMagicLinkSeverityCap } from "./magic-link.js";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -38,6 +39,9 @@ export async function runAI(
   const dedup = dedupAIFindings(result.findings);
   result.findings = dedup.findings;
   result.findingsCollapsed = dedup.collapsedCount;
+  const capped = applyMagicLinkSeverityCap(result.findings, config.magicLinkRoutes, model.endpoints);
+  result.findings = capped.findings;
+  result.magicLinkCapped = capped.cappedCount;
   return result;
 }
 

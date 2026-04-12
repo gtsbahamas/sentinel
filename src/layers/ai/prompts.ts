@@ -1,5 +1,6 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { AIFindingSchema } from "./schema.js";
+import { MAGIC_LINK_PROMPT_PREFIX } from "./magic-link.js";
 import type { ProjectModel, ApiEndpoint } from "../../model/types.js";
 import type { ToolDefinition } from "./providers/base.js";
 
@@ -57,6 +58,7 @@ export function buildEndpointPrompt(
   endpoint: ApiEndpoint,
   handlerSource: string,
   adjacentFiles: AdjacentFile[],
+  isMagicLink = false,
 ): string {
   const adjacentSection =
     adjacentFiles.length > 0
@@ -67,7 +69,9 @@ export function buildEndpointPrompt(
 
   const serviceRoleNote = endpoint.usesServiceRole ? "YES (bypasses RLS!)" : "no";
 
-  return `ENDPOINT: ${endpoint.method} ${endpoint.path}
+  const prefix = isMagicLink ? MAGIC_LINK_PROMPT_PREFIX : "";
+
+  return `${prefix}ENDPOINT: ${endpoint.method} ${endpoint.path}
 FILE: ${endpoint.file}
 AUTH CHECK: ${endpoint.hasAuthCheck ? "present" : "absent"}
 VALIDATION: ${endpoint.validationLibrary ?? "none"}

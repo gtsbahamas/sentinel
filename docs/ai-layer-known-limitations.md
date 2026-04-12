@@ -7,9 +7,11 @@ misses context that would change the finding's severity.
 
 ---
 
-## 1. Magic-link-by-UUID endpoints flagged as critical IDOR
+## 1. Magic-link-by-UUID endpoints flagged as critical IDOR (ADDRESSED 2026-04-11)
 
 **Discovered:** 2026-04-11 (skutt scan)
+**Status:** Addressed by `.sentinelrc.json` config + prompt prefix +
+post-processing severity cap. See `src/layers/ai/magic-link.ts`.
 
 **Symptom:** The AI escalates public endpoints that look up a resource by a
 caller-supplied UUID to `critical` severity, labeling the pattern as IDOR.
@@ -32,28 +34,49 @@ helpers. It cannot tell the difference between:
 Both patterns look identical at the handler level: "no auth check, user
 controls the ID, query by ID."
 
-**Current workaround:** Treat `critical` findings on routes under `public/**`
-with manual review. Until the AI layer understands access-model conventions,
-severity on these findings should be downgraded case-by-case.
+**Fix shipped — three layers:**
 
-**Possible fixes (future work):**
+1. **Config** — `.sentinelrc.json` now accepts
+   `ai.magicLinkRoutes: string[]`, an array of glob patterns. Example:
+   ```json
+   { "ai": { "magicLinkRoutes": ["/api/public/**", "/api/reset/*"] } }
+   ```
+   Globs support `*` (single segment) and `**` (any depth). `/api/public/**`
+   matches both `/api/public` and `/api/public/anything/here`.
 
-1. Config annotation: allow `.sentinelrc.json` to declare
-   `magicLinkRoutes: ["/api/public/**"]`. Endpoints matching these globs get
-   a prompt prefix explaining the intended access model, and findings on
-   them are capped at `medium` severity unless the AI cites a concrete
-   bypass beyond "no auth check."
-2. Convention detection: routes under `/api/public/`, `/api/magic/`, or
-   endpoints where the ID parameter is a UUID read from URL params might be
-   heuristically classified as magic-link.
-3. Cross-endpoint reasoning: a Stage A pass that identifies public routes
-   and their access model at the project level, then informs the
-   per-endpoint prompts.
+2. **Prompt prefix** — endpoints matching any configured pattern get a
+   magic-link context block prepended to their per-endpoint prompt. It
+   explains the access model ("unguessable token IS the credential"),
+   tells the AI what NOT to report ("no auth check" as critical IDOR), and
+   steers it toward genuine token-handling concerns (predictability,
+   expiry, single-use enforcement, rate limits, HMAC binding, revocation,
+   logging).
 
-**Mitigations we do recommend even for legitimate magic-link routes:** rate
-limiting by IP, binding the link to the recipient email via HMAC, expiring
-the token after use, and logging every access. These are findings the AI
-layer should still surface — just not as critical IDOR.
+3. **Post-processing cap** — a safety net that enforces the cap
+   deterministically. Any finding whose first-evidence file belongs to a
+   matched endpoint, whose domain is `auth-access-control`, and whose
+   issue tag is `idor` or `auth_bypass` gets its severity capped at
+   `medium`. Other domains (injection, secrets, PII leak, crypto) pass
+   through unchanged — SQL injection on a magic-link endpoint is still
+   critical. Privilege-escalation findings (`privilege_escalation` tag)
+   also pass through — the magic-link pattern doesn't imply anyone can
+   set `is_admin`.
+
+**Measured impact on skutt (replayed offline):** With
+`magicLinkRoutes: ["/api/public/**"]`, 2 endpoints match. 6 findings
+capped: 4 `critical`→`medium` and 2 `high`→`medium`, all on the two
+matched files. Severity distribution shifts from `{critical 5, high 39}`
+to `{critical 3, high 37}`, moving the noise out of the top-of-report
+priority buckets. Non-auth findings (injection, PII leak) unchanged.
+
+Replay on any saved scan result:
+`npx tsx scripts/magic-link-replay.mjs <result.json> '/api/public/**'`
+
+**Mitigations still surfaced for legitimate magic-link routes** (these
+are the findings the AI layer SHOULD emit even at `medium` severity):
+rate limiting, HMAC binding to recipient identity, token expiry,
+single-use enforcement, access logging. The prompt prefix explicitly
+directs the model to look for these.
 
 ---
 
@@ -180,10 +203,9 @@ it can't see a helper's source.
 
 | # | Limitation | Impact | Effort | Status |
 |---|---|---|---|---|
-| 1 | Magic-link misclassified | High (noisy criticals) | Medium (config + prompt) | Open |
-| 2 | Multi-method duplicates | Medium (triage friction) | Low (post-dedup) | **Addressed** |
+| 1 | Magic-link misclassified | High (noisy criticals) | Medium (config + prompt) | **Addressed** |
+| 2 | Multi-method duplicates | Medium (triage friction) | Low (post-dedup) | Addressed (2d35b26) |
 | 3 | Severity inflation | High (erodes trust) | Low (prompt constraint) | Addressed (1d28c6b) |
 | 4 | Auth helper coverage | High (false negatives) | High (context builder redesign) | Open |
 
-Remaining work: #1 (magic-link config) is the biggest open quality fix.
-#4 is the Probe layer's job or a v0.4 refactor.
+Remaining work: #4 is the Probe layer's job or a v0.4 refactor.

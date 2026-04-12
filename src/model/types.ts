@@ -156,6 +156,8 @@ export interface AIConfig {
   maxTokensPerEndpoint: number;
   concurrency: number;
   dryRun: boolean;
+  // See src/config.ts for documentation.
+  magicLinkRoutes: string[];
 }
 
 export interface AIUsage {
@@ -193,5 +195,8 @@ export interface AIRunResult {
   // Count of raw AI findings collapsed into their canonical duplicate.
   // See src/layers/ai/dedup.ts for the grouping rule.
   findingsCollapsed: number;
+  // Count of findings whose severity was capped by the magic-link pass.
+  // See src/layers/ai/magic-link.ts for the cap rule.
+  magicLinkCapped: number;
   durationMs: number;
 }

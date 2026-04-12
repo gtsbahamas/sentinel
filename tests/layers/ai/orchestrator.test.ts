@@ -52,6 +52,7 @@ const baseConfig: AIConfig = {
   maxTokensPerEndpoint: 8000,
   concurrency: 2,
   dryRun: false,
+  magicLinkRoutes: [],
 };
 
 const validAIFinding = {
@@ -175,6 +176,36 @@ describe("runOrchestrator", () => {
       ["/api/stats", "/api/users", "/api/products"],
     );
     expect(order).toEqual(["/api/stats", "/api/users", "/api/products"]);
+  });
+
+  it("injects the magic-link prompt prefix for endpoints matching magicLinkRoutes", async () => {
+    const { root: root2, endpoints: eps } = mkFixture([
+      "src/app/api/public/reset/route.ts",
+      "src/app/api/users/route.ts",
+    ]);
+    const model = mkModel(root2, eps);
+    // Override fixture paths to the human-readable ones the orchestrator sees
+    model.endpoints[0].path = "/api/public/reset";
+    model.endpoints[1].path = "/api/users";
+
+    const prompts: Record<string, string> = {};
+    const tracker: MockProvider & { seen?: unknown } = new MockProvider({});
+    tracker.generateFindings = async (req) => {
+      // Route by userPrompt substring — the prompt always contains the endpoint path.
+      if (req.userPrompt.includes("/api/public/reset")) prompts["/api/public/reset"] = req.userPrompt;
+      else if (req.userPrompt.includes("/api/users")) prompts["/api/users"] = req.userPrompt;
+      return { rawFindings: [], usage: z(), stopReason: "tool_use" };
+    };
+
+    await runOrchestrator(
+      model,
+      { ...baseConfig, magicLinkRoutes: ["/api/public/**"] },
+      tracker,
+      new BudgetTracker(10, mockPricing()),
+    );
+
+    expect(prompts["/api/public/reset"]).toMatch(/^MAGIC-LINK ENDPOINT/);
+    expect(prompts["/api/users"]).not.toMatch(/MAGIC-LINK ENDPOINT/);
   });
 });
 
