@@ -14,6 +14,8 @@ const require = createRequire(import.meta.url);
 export { runDryRun };
 export type { DryRunResult };
 
+export { createProvider };
+
 export async function runAI(
   model: ProjectModel,
   config: AIConfig,
@@ -37,12 +39,17 @@ export async function runAI(
 
 function createProvider(config: AIConfig): AIProvider {
   if (config.provider === "mock") return new MockProvider({});
+  // In dry-run mode the SDK client is never called (estimateTokens is pure
+  // math), but OpenAI's SDK throws at construction on an undefined apiKey.
+  // DRY_RUN_INERT_KEY satisfies the constructor without enabling network calls.
+  const DRY_RUN_INERT_KEY = "dry-run-inert";
   if (config.provider === "anthropic") {
     if (!config.dryRun && !process.env.ANTHROPIC_API_KEY) {
       throw new Error("ANTHROPIC_API_KEY is not set. Run `creds set anthropic-api-key` or export the env var.");
     }
     const Anthropic = require("@anthropic-ai/sdk").default;
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const apiKey = process.env.ANTHROPIC_API_KEY ?? DRY_RUN_INERT_KEY;
+    const client = new Anthropic({ apiKey });
     return new AnthropicProvider(config.model, client);
   }
   if (config.provider === "openai") {
@@ -50,7 +57,8 @@ function createProvider(config: AIConfig): AIProvider {
       throw new Error("OPENAI_API_KEY is not set. Run `creds set openai-api-key` or export the env var.");
     }
     const OpenAI = require("openai").default;
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const apiKey = process.env.OPENAI_API_KEY ?? DRY_RUN_INERT_KEY;
+    const client = new OpenAI({ apiKey });
     return new OpenAIProvider(config.model, client);
   }
   throw new Error(`Unknown AI provider: ${config.provider}`);

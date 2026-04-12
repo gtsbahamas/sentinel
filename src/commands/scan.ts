@@ -13,7 +13,7 @@ import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitori
 import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
 import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
 import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
-import { runAI, runDryRun, type DryRunResult } from "../layers/ai/index.js";
+import { runAI, runDryRun, createProvider, type DryRunResult } from "../layers/ai/index.js";
 import { MockProvider } from "../layers/ai/providers/mock.js";
 import { formatTerminal } from "../output/terminal.js";
 import { formatJson } from "../output/json.js";
@@ -92,9 +92,14 @@ export async function runScan(options: ScanOptions): Promise<number> {
   const aiConfig = mergeAIConfig(config, options);
 
   // Dry-run path: emit estimate, return 0, make NO real provider calls.
+  // Use the real provider so pricing is accurate — estimateTokens() is pure
+  // math with no network. The mock path only applies when the user explicitly
+  // picks --ai-provider mock.
   if (options.aiDryRun) {
     const dryConfig: AIConfig = { ...aiConfig, dryRun: true, enabled: true };
-    const estimate = await runDryRun(model, dryConfig, new MockProvider({}));
+    const estimateProvider =
+      dryConfig.provider === "mock" ? new MockProvider({}) : createProvider(dryConfig);
+    const estimate = await runDryRun(model, dryConfig, estimateProvider);
     process.stdout.write(formatDryRunReport(estimate, dryConfig) + "\n");
     return 0;
   }

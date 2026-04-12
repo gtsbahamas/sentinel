@@ -108,7 +108,13 @@ export class AnthropicProvider implements AIProvider {
     const inputTokens = Math.ceil(
       (request.systemPrompt.length + request.projectSummary.length + request.userPrompt.length) / CHARS_PER_TOKEN,
     );
-    const estimatedCostUsd = (inputTokens / 1_000_000) * this.pricing.inputPerMTokUsd;
+    // Realistic baseline from live smoke tests: Anthropic averages ~1000-1500
+    // output tokens per endpoint. Use 1500 (upper band) capped at maxOutputTokens.
+    // Input-only estimates mislead budgeting — output is ~40% of total cost.
+    const expectedOutputTokens = Math.min(1500, request.maxOutputTokens);
+    const estimatedCostUsd =
+      (inputTokens / 1_000_000) * this.pricing.inputPerMTokUsd +
+      (expectedOutputTokens / 1_000_000) * this.pricing.outputPerMTokUsd;
     return { inputTokens, estimatedCostUsd };
   }
 

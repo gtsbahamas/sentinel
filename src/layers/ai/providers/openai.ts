@@ -112,7 +112,13 @@ export class OpenAIProvider implements AIProvider {
     const inputTokens = Math.ceil(
       (request.systemPrompt.length + request.projectSummary.length + request.userPrompt.length) / CHARS_PER_TOKEN,
     );
-    const estimatedCostUsd = (inputTokens / 1_000_000) * this.pricing.inputPerMTokUsd;
+    // Realistic baseline from live smoke tests: gpt-5 is a reasoning model,
+    // averaging ~2500-3500 completion tokens per endpoint (reasoning tokens
+    // count against max_completion_tokens). Use 3000 capped at maxOutputTokens.
+    const expectedOutputTokens = Math.min(3000, request.maxOutputTokens);
+    const estimatedCostUsd =
+      (inputTokens / 1_000_000) * this.pricing.inputPerMTokUsd +
+      (expectedOutputTokens / 1_000_000) * this.pricing.outputPerMTokUsd;
     return { inputTokens, estimatedCostUsd };
   }
 
