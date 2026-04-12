@@ -3,6 +3,7 @@ import { AIFindingSchema } from "./schema.js";
 import { MAGIC_LINK_PROMPT_PREFIX } from "./magic-link.js";
 import type { ProjectModel, ApiEndpoint } from "../../model/types.js";
 import type { ToolDefinition } from "./providers/base.js";
+import type { ProjectContext } from "../context/types.js";
 
 export const SYSTEM_PREAMBLE = `You are a senior application security engineer analyzing source code.
 Your job is to identify REAL security vulnerabilities — not theoretical risks.
@@ -18,7 +19,7 @@ const SECURITY_RELEVANT_DEPS = new Set([
   "zod", "yup", "joi", "validator", "dompurify", "xss",
 ]);
 
-export function buildProjectSummary(model: ProjectModel): string {
+export function buildProjectSummary(model: ProjectModel, context?: ProjectContext | null): string {
   const { meta, routes, endpoints, dataModels, authFlows, dependencies, infra } = model;
   const routesShown = routes.slice(0, 50);
   const overflow = routes.length > 50 ? `\n  ... and ${routes.length - 50} more` : "";
@@ -26,7 +27,7 @@ export function buildProjectSummary(model: ProjectModel): string {
   const relevantDeps = dependencies.filter((d) => SECURITY_RELEVANT_DEPS.has(d.name));
   const headerKeys = Object.keys(infra.securityHeaders);
 
-  return `PROJECT: ${meta.name}
+  const baseSummary = `PROJECT: ${meta.name}
 STACK: ${meta.stack} · ${meta.framework} · ${meta.language}
 
 ROUTES (${routes.length} total, ${apiCount} API):
@@ -47,6 +48,27 @@ INFRA:
   Security headers present: ${headerKeys.length > 0 ? headerKeys.join(", ") : "none"}
   Middleware: ${infra.middleware ? "present" : "absent"}
   Supabase config: ${infra.supabaseConfig ? "present" : "absent"}`;
+
+  const contextSection = context ? `
+
+ARCHITECTURE CONTEXT:
+  Tenancy: ${context.tenancy}
+  Auth: ${context.auth.defaultClient} client, roles: ${context.auth.roleModel.join(", ") || "none detected"}
+  Validation: ${context.validation.library !== "none" ? `${context.validation.library} schemas${context.validation.importedByRoutes ? " (imported by routes from " + context.validation.schemaLocations.join(", ") + ")" : ""}` : "none"}
+  RLS: ${context.migrations.rlsStrategy}${context.migrations.rlsFile ? ` (${context.migrations.rlsFile})` : ""}
+  Deployment: ${context.deployment.platform}${context.deployment.platformHandles.length > 0 ? ` (handles: ${context.deployment.platformHandles.join(", ")})` : ""}
+  Intentionally public routes:
+${context.publicRoutes.map((r) => `    ${r.pattern} (${r.reason})`).join("\n") || "    none"}
+  Security delegated to third parties:
+${context.delegations.map((d) => `    ${d.provider}: ${d.responsibility}${d.mechanism ? ` via ${d.mechanism}` : ""}`).join("\n") || "    none"}
+  Non-deployed paths: ${context.excludedPaths.join(", ") || "none"}
+
+IMPORTANT: Use this architecture context to avoid false positives. Do NOT flag:
+- Public routes listed above as missing auth (they are intentionally unauthenticated)
+- Security responsibilities delegated to third parties (the provider handles it)
+- Files in non-deployed paths (scripts, seeds, tests — they don't run in production)` : "";
+
+  return baseSummary + contextSection;
 }
 
 export interface AdjacentFile {
