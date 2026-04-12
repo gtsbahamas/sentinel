@@ -5,6 +5,7 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { runScan } from "./commands/scan.js";
 import { runDiff } from "./commands/diff.js";
+import { runProbeCommand } from "./commands/probe.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgPath = join(__dirname, "..", "package.json");
@@ -75,6 +76,35 @@ program
       current,
       format: options.format,
       failOn: options.failOn,
+    });
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("probe")
+  .description("Run Recon + Rules + Probe against a running application")
+  .argument("<path>", "Path to the project to scan")
+  .requiredOption("--target <url>", "Running application URL (scheme://host[:port])")
+  .option("--level <level>", "Aggression level (passive|standard|intrusive)", "passive")
+  .option("--authorize", "Grant authorization for this target")
+  .option("-f, --format <format>", "Output format (terminal|json)", "terminal")
+  .option("--fail-on <level>", "Exit 1 if findings at or above level")
+  .option("--allow-public", "Allow public TLD targets")
+  .option("--internal-network", "Allow RFC1918 targets")
+  .option("--request-cap <n>", "Override default request cap", parseInt)
+  .option("--target-timeout <ms>", "Per-request timeout in ms", parseInt)
+  .action(async (path, options) => {
+    const exitCode = await runProbeCommand({
+      path,
+      target: options.target,
+      level: options.level,
+      authorize: !!options.authorize,
+      format: options.format,
+      failOn: options.failOn,
+      allowPublic: options.allowPublic,
+      internalNetwork: options.internalNetwork,
+      requestCap: options.requestCap,
+      targetTimeout: options.targetTimeout,
     });
     exitAfterDrain(exitCode);
   });
