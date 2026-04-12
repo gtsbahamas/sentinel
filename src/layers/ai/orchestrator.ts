@@ -114,6 +114,7 @@ export async function runOrchestrator(
     budgetExhausted,
     endpointsAnalyzed: analyzed,
     endpointsSkipped: skipped,
+    findingsCollapsed: 0,
     durationMs: Date.now() - start,
   };
 }

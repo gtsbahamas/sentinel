@@ -43,6 +43,7 @@ export function formatJson(
             enabled: true,
             endpointsAnalyzed: timing.ai.endpointsAnalyzed,
             endpointsSkipped: timing.ai.endpointsSkipped,
+            findingsCollapsed: timing.ai.findingsCollapsed,
             budgetExhausted: timing.ai.budgetExhausted,
             usage: timing.ai.usage,
             errors: timing.ai.errors,

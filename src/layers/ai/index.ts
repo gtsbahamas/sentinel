@@ -7,6 +7,7 @@ import { BudgetTracker, type ProviderPricing } from "./budget.js";
 import { runOrchestrator } from "./orchestrator.js";
 import { runStageA } from "./stage-a.js";
 import { runDryRun, type DryRunResult } from "./dry-run.js";
+import { dedupAIFindings } from "./dedup.js";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -34,6 +35,9 @@ export async function runAI(
 
   const result = await runOrchestrator(model, config, provider, budget, priorityOrder);
   result.stageA = stageA;
+  const dedup = dedupAIFindings(result.findings);
+  result.findings = dedup.findings;
+  result.findingsCollapsed = dedup.collapsedCount;
   return result;
 }
 

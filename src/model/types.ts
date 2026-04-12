@@ -190,5 +190,8 @@ export interface AIRunResult {
   budgetExhausted: boolean;
   endpointsAnalyzed: number;
   endpointsSkipped: number;
+  // Count of raw AI findings collapsed into their canonical duplicate.
+  // See src/layers/ai/dedup.ts for the grouping rule.
+  findingsCollapsed: number;
   durationMs: number;
 }

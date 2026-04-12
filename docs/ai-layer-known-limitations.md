@@ -57,9 +57,10 @@ layer should still surface — just not as critical IDOR.
 
 ---
 
-## 2. Duplicate findings on multi-method route files
+## 2. Duplicate findings on multi-method route files (ADDRESSED 2026-04-11)
 
 **Discovered:** 2026-04-11 (skutt scan)
+**Status:** Addressed by post-processing dedup in `src/layers/ai/dedup.ts`.
 
 **Symptom:** A single file exporting multiple HTTP method handlers (e.g.,
 `GET` and `POST` in one `route.ts`) produces N-times-duplicated findings
@@ -76,19 +77,36 @@ as a separate endpoint, even when they share a source file. The per-endpoint
 prompt sends only one handler at a time, so the AI has no way to deduplicate
 across sibling handlers.
 
-**Current workaround:** Accept the duplication. A human reviewer can
-collapse them when triaging.
+**Fix shipped:** `dedupAIFindings` runs in `runAI` after the orchestrator
+returns. Each finding gets a primary issue tag via keyword classification
+(IDOR, rate-limit, error-leak, CSRF/origin, RLS-bypass, privilege-escalation,
+race-condition, PII-leak, input-injection, file-upload, auth-bypass). Findings
+are grouped by `(first-evidence file, domain, tag)`. Broad tags
+(`input_validation`, `business_logic`) and unclassified findings fall back
+to literal normalized-title matching to avoid false merges.
 
-**Possible fixes (future work):**
+Within a group, the strongest representative (highest severity, then
+highest confidence) is kept and evidence from all collapsed siblings is
+merged onto it. The merged finding count surfaces as `findingsCollapsed`
+on `AIRunResult` and in the terminal report.
 
-1. Post-processing dedup: after all endpoints are analyzed, group findings
-   by `(file, domain, similar title)` and collapse near-duplicates.
-2. Batch handler analysis: when a route file exports multiple methods, send
-   them in a single call and let the AI describe file-level issues once.
-   This would also reduce token spend.
-3. Cross-reference in the prompt: include sibling handlers from the same
-   file as read-only context, so the AI can say "this is a file-level
-   issue, see POST" instead of re-listing it.
+**Impact measured on skutt:** 268 → 188 AI findings (82 collapsed, 29.9%
+reduction). No false merges observed when inspecting all 55 collapse
+buckets manually. Rerun with `npx tsx scripts/dedup-replay.mjs <result.json>`
+against any saved scan result.
+
+**Not covered (tradeoffs):**
+
+- Unclassified findings with novel phrasings don't cluster — they only
+  collapse when their normalized titles match exactly. Expanding the
+  keyword taxonomy over time will improve coverage.
+- Tags are title-only. Descriptions are richer but would also cause more
+  over-merging; keeping it title-only is the precision-preserving choice.
+- Alternative fixes left for future work: batch-handler analysis (send
+  all methods of one file in a single prompt) and prompt-level
+  cross-reference (tell the AI about sibling handlers). Both reduce
+  token spend and would catch more duplicates, but require orchestrator
+  changes.
 
 ---
 
@@ -160,13 +178,12 @@ it can't see a helper's source.
 
 ## Prioritization
 
-| # | Limitation | Impact | Effort |
-|---|---|---|---|
-| 1 | Magic-link misclassified | High (noisy criticals) | Medium (config + prompt) |
-| 2 | Multi-method duplicates | Medium (triage friction) | Low (post-dedup) |
-| 3 | Severity inflation | High (erodes trust) | Low (prompt constraint) |
-| 4 | Auth helper coverage | High (false negatives) | High (context builder redesign) |
+| # | Limitation | Impact | Effort | Status |
+|---|---|---|---|---|
+| 1 | Magic-link misclassified | High (noisy criticals) | Medium (config + prompt) | Open |
+| 2 | Multi-method duplicates | Medium (triage friction) | Low (post-dedup) | **Addressed** |
+| 3 | Severity inflation | High (erodes trust) | Low (prompt constraint) | Addressed (1d28c6b) |
+| 4 | Auth helper coverage | High (false negatives) | High (context builder redesign) | Open |
 
-Next release should address #1 and #3 together — both live in the prompt
-plus config plane and don't require architectural changes. #2 is a cheap
-win for a post-pass. #4 is the Probe layer's job or a v0.4 refactor.
+Remaining work: #1 (magic-link config) is the biggest open quality fix.
+#4 is the Probe layer's job or a v0.4 refactor.

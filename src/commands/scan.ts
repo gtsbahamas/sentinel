@@ -163,10 +163,11 @@ function formatAIReport(result: AIRunResult, config: AIConfig): string {
     totalInputConsumed > 0
       ? `${Math.round((result.usage.cacheReadTokens / totalInputConsumed) * 100)}%`
       : "0%";
+  const collapsedNote = result.findingsCollapsed > 0 ? ` (+${result.findingsCollapsed} collapsed)` : "";
   return `AI Analysis
 ───────────
 Endpoints analyzed: ${result.endpointsAnalyzed} / ${result.endpointsAnalyzed + result.endpointsSkipped}
-Findings:           ${result.findings.length}${counts ? ` (${counts})` : ""}
+Findings:           ${result.findings.length}${counts ? ` (${counts})` : ""}${collapsedNote}
 Errors:             ${result.errors.length}
 Tokens:
   Input:       ${result.usage.inputTokens.toLocaleString()}
