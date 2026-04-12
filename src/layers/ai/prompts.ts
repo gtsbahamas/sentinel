@@ -90,6 +90,11 @@ Analyze this endpoint for security vulnerabilities. Consider:
 For EACH finding, call the \`report_findings\` tool.
 If the endpoint has no issues, call it with an empty findings array.
 
+Each finding MUST have a \`ruleId\` in the format \`AI-<CATEGORY>-<NNN>\`
+where CATEGORY is UPPERCASE letters (e.g., AUTH, IDOR, INJECT, CRYPTO, UPLOAD,
+RATELIMIT, INFO) and NNN is a 3-digit number (001, 002, ...). Pick CATEGORY based
+on the domain field. Examples: AI-AUTH-001, AI-IDOR-002, AI-INJECT-001.
+
 Do NOT report:
 - Theoretical issues with no concrete evidence in the code above
 - Issues where "depends on configuration" is the main caveat
@@ -113,6 +118,63 @@ For EACH risk, call \`report_project_risks\` with:
 Then produce a priority order: list the endpoint paths you'd analyze first, most-risky to least-risky. Include EVERY API endpoint in the list.`;
 }
 
+// Keywords that are rejected by Anthropic's JSON Schema draft 2020-12 validator
+// and/or OpenAI's json_schema strict mode. Zod re-validates the parsed response,
+// so stripping these from the advisory schema is lossless.
+const UNSUPPORTED_KEYWORDS = new Set([
+  "pattern",
+  "minLength",
+  "maxLength",
+  "minimum",
+  "maximum",
+  "exclusiveMinimum",
+  "exclusiveMaximum",
+  "minItems",
+  "maxItems",
+  "uniqueItems",
+  "format",
+  "multipleOf",
+]);
+
+function toNullable(prop: Record<string, unknown>): Record<string, unknown> {
+  const t = prop.type;
+  if (typeof t === "string") return { ...prop, type: [t, "null"] };
+  if (Array.isArray(t) && !t.includes("null")) return { ...prop, type: [...t, "null"] };
+  return prop;
+}
+
+// 1. Drops keywords rejected by Anthropic's JSON Schema draft 2020-12 validator
+//    and/or OpenAI's json_schema strict mode.
+// 2. For object nodes, moves all properties into `required` and rewrites
+//    previously-optional fields as nullable — OpenAI strict requires every
+//    property listed in `required`; Anthropic accepts this form as well.
+// Zod re-validates the parsed response, so this lossy transform stays lossless
+// against the ground-truth AIFindingSchema.
+function sanitizeSchema(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(sanitizeSchema);
+  if (!node || typeof node !== "object") return node;
+
+  const obj = node as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (UNSUPPORTED_KEYWORDS.has(k)) continue;
+    out[k] = sanitizeSchema(v);
+  }
+
+  if (out.type === "object" && out.properties && typeof out.properties === "object") {
+    const props = out.properties as Record<string, Record<string, unknown>>;
+    const existingRequired = Array.isArray(out.required) ? (out.required as string[]) : [];
+    const allKeys = Object.keys(props);
+    const optional = allKeys.filter((k) => !existingRequired.includes(k));
+    for (const k of optional) {
+      props[k] = toNullable(props[k]);
+    }
+    out.required = allKeys;
+  }
+
+  return out;
+}
+
 export const REPORT_FINDINGS_TOOL: ToolDefinition = {
   name: "report_findings",
   description: "Report security findings discovered in the code under review. Call once per response with the complete list of findings (possibly empty).",
@@ -121,7 +183,7 @@ export const REPORT_FINDINGS_TOOL: ToolDefinition = {
     properties: {
       findings: {
         type: "array",
-        items: zodToJsonSchema(AIFindingSchema, { target: "openApi3" }),
+        items: sanitizeSchema(zodToJsonSchema(AIFindingSchema)),
       },
     },
     required: ["findings"],

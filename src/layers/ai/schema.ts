@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Finding } from "../../model/types.js";
 
 export const AIFindingSchema = z.object({
-  ruleId: z.string().regex(/^AI-[A-Z]+-\d{3}$/),
+  ruleId: z.string().regex(/^AI-[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d{3}$/),
   domain: z.enum([
     "secrets-exposure",
     "input-injection",
@@ -23,8 +23,8 @@ export const AIFindingSchema = z.object({
     .array(
       z.object({
         file: z.string(),
-        line: z.number().int().positive().optional(),
-        snippet: z.string().max(500).optional(),
+        line: z.number().int().positive().nullish(),
+        snippet: z.string().max(500).nullish(),
       }),
     )
     .min(1),
@@ -57,8 +57,8 @@ export function aiToFinding(ai: AIFinding): Finding {
     description: ai.description,
     evidence: ai.evidence.map((e) => ({
       file: e.file,
-      line: e.line,
-      snippet: e.snippet,
+      line: e.line ?? undefined,
+      snippet: e.snippet ?? undefined,
       context: { reasoning: ai.reasoning },
     })),
     remediation: ai.remediation,

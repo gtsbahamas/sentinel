@@ -25,7 +25,7 @@ export async function runDryRun(
     userPrompt: "",
     toolDefinition: REPORT_FINDINGS_TOOL,
     maxInputTokens: config.maxTokensPerEndpoint,
-    maxOutputTokens: 2000,
+    maxOutputTokens: 8000,
   });
 
   let totalInput = 0;
@@ -41,7 +41,7 @@ export async function runDryRun(
       userPrompt: prompt,
       toolDefinition: REPORT_FINDINGS_TOOL,
       maxInputTokens: config.maxTokensPerEndpoint,
-      maxOutputTokens: 2000,
+      maxOutputTokens: 8000,
     });
     totalInput += est.inputTokens;
     totalCost += est.estimatedCostUsd;

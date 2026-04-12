@@ -12,6 +12,7 @@
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ai-live": "RUN_AI_LIVE_TESTS=1 vitest run --config vitest.live.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests --ext .ts"
   },

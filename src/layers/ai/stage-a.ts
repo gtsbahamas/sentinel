@@ -44,7 +44,7 @@ export async function runStageA(
       userPrompt: buildStageAPrompt(model),
       toolDefinition: STAGE_A_TOOL,
       maxInputTokens: 12000,
-      maxOutputTokens: 2000,
+      maxOutputTokens: 8000,
     });
 
     budget.recordUsage(response.usage);

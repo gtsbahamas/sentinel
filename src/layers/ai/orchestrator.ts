@@ -58,7 +58,7 @@ export async function runOrchestrator(
         userPrompt,
         toolDefinition: REPORT_FINDINGS_TOOL,
         maxInputTokens: config.maxTokensPerEndpoint,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 8000,
       };
 
       const estimate = provider.estimateTokens(request);

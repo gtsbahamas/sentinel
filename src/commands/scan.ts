@@ -36,11 +36,26 @@ export interface ScanOptions {
   aiConcurrency?: number;
 }
 
+const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
+  anthropic: "claude-sonnet-4-6",
+  openai: "gpt-5",
+  mock: "mock",
+};
+
 function mergeAIConfig(config: SentinelConfig, options: ScanOptions): AIConfig {
+  const provider = options.aiProvider ?? config.ai.provider;
+  // When the user switches provider via CLI without also passing --ai-model,
+  // the config.ai.model default (Anthropic-flavored) would be sent to the
+  // wrong provider. Fall through to the provider's native default instead.
+  const providerChanged = options.aiProvider && options.aiProvider !== config.ai.provider;
+  const model =
+    options.aiModel ??
+    (providerChanged ? PROVIDER_DEFAULT_MODELS[provider] ?? config.ai.model : config.ai.model);
+
   return {
     enabled: options.ai ?? config.ai.enabled,
-    provider: options.aiProvider ?? config.ai.provider,
-    model: options.aiModel ?? config.ai.model,
+    provider,
+    model,
     deep: options.aiDeep ?? config.ai.deep,
     maxCostUsd: options.aiMaxCost ?? config.ai.maxCostUsd,
     maxTokensPerEndpoint: config.ai.maxTokensPerEndpoint,
