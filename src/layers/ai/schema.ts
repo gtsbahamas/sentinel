@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Finding } from "../../model/types.js";
+import type { Finding, Severity } from "../../model/types.js";
 
 export const AIFindingSchema = z.object({
   ruleId: z.string().regex(/^AI-[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d{3}$/),
@@ -46,12 +46,32 @@ export const StageARiskSchema = z.object({
   priorityOrder: z.array(z.string()),
 });
 
+// Severity ladder used by capSeverity. Lower index = more severe.
+const SEVERITY_RANK: Severity[] = ["critical", "high", "medium", "low", "info"];
+
+// Confidence-based severity cap. The AI is instructed about this in the
+// prompt but we enforce it deterministically here so the output is
+// well-defined regardless of what the model actually returns.
+//   confidence "high"   → severity may be up to "critical"  (no cap)
+//   confidence "medium" → severity may be up to "high"
+//   confidence "low"    → severity may be up to "medium"
+// Rationale: "critical" should mean "exploitable with reasonable
+// preconditions" — an honest ceiling for lower-confidence findings
+// prevents severity inflation and keeps the critical bucket trustworthy.
+export function capSeverity(severity: Severity, confidence: AIFinding["confidence"]): Severity {
+  const ceiling: Severity = confidence === "high" ? "critical" : confidence === "medium" ? "high" : "medium";
+  const ceilingRank = SEVERITY_RANK.indexOf(ceiling);
+  const currentRank = SEVERITY_RANK.indexOf(severity);
+  return currentRank < ceilingRank ? ceiling : severity;
+}
+
 export function aiToFinding(ai: AIFinding): Finding {
   const first = ai.evidence[0];
+  const cappedSeverity = capSeverity(ai.severity, ai.confidence);
   return {
     id: `ai:${ai.ruleId}:${first.file}:${first.line ?? 0}`,
     domain: ai.domain,
-    severity: ai.severity,
+    severity: cappedSeverity,
     confidence: ai.confidence,
     title: ai.title,
     description: ai.description,

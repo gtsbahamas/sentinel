@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { AIFindingSchema, StageARiskSchema, aiToFinding, type AIFinding } from "../../../src/layers/ai/schema.js";
+import {
+  AIFindingSchema,
+  StageARiskSchema,
+  aiToFinding,
+  capSeverity,
+  type AIFinding,
+} from "../../../src/layers/ai/schema.js";
 
 const baseValid: AIFinding = {
   ruleId: "AI-IDOR-001",
@@ -92,6 +98,56 @@ describe("aiToFinding adapter", () => {
     for (const e of finding.evidence) {
       expect(e.context).toEqual({ reasoning: multi.reasoning });
     }
+  });
+});
+
+describe("capSeverity", () => {
+  it("leaves high-confidence severities unchanged at any level", () => {
+    expect(capSeverity("critical", "high")).toBe("critical");
+    expect(capSeverity("high", "high")).toBe("high");
+    expect(capSeverity("medium", "high")).toBe("medium");
+    expect(capSeverity("low", "high")).toBe("low");
+    expect(capSeverity("info", "high")).toBe("info");
+  });
+
+  it("caps medium confidence at severity 'high'", () => {
+    expect(capSeverity("critical", "medium")).toBe("high");
+    expect(capSeverity("high", "medium")).toBe("high");
+    expect(capSeverity("medium", "medium")).toBe("medium");
+    expect(capSeverity("low", "medium")).toBe("low");
+  });
+
+  it("caps low confidence at severity 'medium'", () => {
+    expect(capSeverity("critical", "low")).toBe("medium");
+    expect(capSeverity("high", "low")).toBe("medium");
+    expect(capSeverity("medium", "low")).toBe("medium");
+    expect(capSeverity("low", "low")).toBe("low");
+    expect(capSeverity("info", "low")).toBe("info");
+  });
+});
+
+describe("aiToFinding severity cap integration", () => {
+  it("downgrades critical+medium-confidence to high", () => {
+    const finding = aiToFinding({ ...baseValid, severity: "critical", confidence: "medium" });
+    expect(finding.severity).toBe("high");
+    // Confidence itself is preserved so callers can see why the cap applied.
+    expect(finding.confidence).toBe("medium");
+  });
+
+  it("downgrades critical+low-confidence to medium", () => {
+    const finding = aiToFinding({ ...baseValid, severity: "critical", confidence: "low" });
+    expect(finding.severity).toBe("medium");
+    expect(finding.confidence).toBe("low");
+  });
+
+  it("preserves critical when confidence is high", () => {
+    const finding = aiToFinding({ ...baseValid, severity: "critical", confidence: "high" });
+    expect(finding.severity).toBe("critical");
+  });
+
+  it("does not raise severities that are already below the cap", () => {
+    const finding = aiToFinding({ ...baseValid, severity: "low", confidence: "high" });
+    expect(finding.severity).toBe("low");
   });
 });
 

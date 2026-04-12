@@ -95,6 +95,22 @@ where CATEGORY is UPPERCASE letters (e.g., AUTH, IDOR, INJECT, CRYPTO, UPLOAD,
 RATELIMIT, INFO) and NNN is a 3-digit number (001, 002, ...). Pick CATEGORY based
 on the domain field. Examples: AI-AUTH-001, AI-IDOR-002, AI-INJECT-001.
 
+SEVERITY DISCIPLINE (non-negotiable):
+- Reserve "critical" for findings where your \`reasoning\` field describes a
+  specific, reproducible exploit path an attacker could execute today — who
+  they are, what request they send, what they get back. "No auth check" alone
+  is NOT a critical exploit path; it is a precondition. A real exploit path
+  names the attacker, their input, and the resulting damage.
+- Your \`confidence\` field constrains your \`severity\`:
+    * confidence "high"   → severity may be up to "critical"
+    * confidence "medium" → severity may be up to "high"
+    * confidence "low"    → severity may be up to "medium"
+  We enforce this cap after you respond. Assigning "critical" with non-"high"
+  confidence wastes output tokens.
+- When you are tempted to mark something "critical" because the surface looks
+  risky but you cannot cite the exploit, use "high" with confidence "medium"
+  or "medium" with confidence "high" instead. Be specific, not loud.
+
 Do NOT report:
 - Theoretical issues with no concrete evidence in the code above
 - Issues where "depends on configuration" is the main caveat
