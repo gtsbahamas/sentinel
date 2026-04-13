@@ -13,7 +13,7 @@ function setStatusClass(cls) {
 function updateStatsPanel() {
   document.getElementById("stat-routes").textContent = state.stats.routes;
   document.getElementById("stat-endpoints").textContent = state.stats.endpoints;
-  document.getElementById("stat-findings").textContent = state.stats.findings;
+  document.getElementById("stat-findings").textContent = `${state.stats.classes} classes (${state.stats.findings} instances)`;
   document.getElementById("stat-critical").textContent = state.stats.critical;
   document.getElementById("stat-high").textContent = state.stats.high;
   document.getElementById("stat-medium").textContent = state.stats.medium;
@@ -74,17 +74,46 @@ function showNodeDetail(node) {
 
   bodyEl.innerHTML = html || '<p class="muted">No additional details.</p>';
 
-  if (node.findings.length === 0) {
+  const groups = node.findingGroups || [];
+  if (groups.length === 0) {
     findingsEl.innerHTML = '<p class="muted">No findings for this node.</p>';
   } else {
-    findingsEl.innerHTML = node.findings.map((f) => `
-      <div class="finding-card ${f.severity}">
-        <div class="finding-title">${escapeHtml(f.title)}</div>
-        <div class="finding-location">${escapeHtml(f.file)}${f.line ? `:${f.line}` : ""}</div>
-        ${f.remediation ? `<div class="finding-remediation">${escapeHtml(f.remediation)}</div>` : ""}
-      </div>
-    `).join("");
+    findingsEl.innerHTML = groups.map((g, i) => {
+      const instanceCount = g.instances.length;
+      const countLabel = instanceCount > 1 ? `<span class="instance-count">${instanceCount} instances</span>` : "";
+      const instancesHtml = g.instances.map((inst) =>
+        `<div class="instance-row">${escapeHtml(inst.file)}${inst.line ? `:${inst.line}` : ""}</div>`
+      ).join("");
+
+      return `
+        <div class="finding-group ${g.severity}">
+          <div class="finding-group-header" onclick="toggleFindingGroup(this)">
+            <span class="finding-group-chevron">&#9654;</span>
+            <span class="finding-group-title">${escapeHtml(g.title)}</span>
+            ${countLabel}
+          </div>
+          <div class="finding-group-body collapsed">
+            <div class="finding-group-meta">
+              <span class="detail-tag ${g.severity}">${g.severity}</span>
+              <span class="detail-tag">${escapeHtml(g.domain)}</span>
+            </div>
+            ${g.remediation ? `<div class="finding-group-remediation">${escapeHtml(g.remediation)}</div>` : ""}
+            <div class="finding-group-instances">
+              <div class="detail-label">Locations</div>
+              ${instancesHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
   }
+}
+
+function toggleFindingGroup(headerEl) {
+  const body = headerEl.nextElementSibling;
+  const chevron = headerEl.querySelector(".finding-group-chevron");
+  body.classList.toggle("collapsed");
+  chevron.classList.toggle("expanded");
 }
 
 function clearNodeDetail() {

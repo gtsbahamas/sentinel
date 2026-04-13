@@ -4,10 +4,10 @@
 
 const state = {
   mode: "scan", // "scan" | "explore"
-  nodes: [],    // { id, lane, type, data, findings: [], maxSeverity: null }
+  nodes: [],    // { id, lane, type, data, findings: [], findingGroups: [], maxSeverity: null }
   edges: [],    // { source, target, type }
-  findings: [], // all findings received
-  stats: { routes: 0, endpoints: 0, findings: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 },
+  findings: [], // all raw findings received
+  stats: { routes: 0, endpoints: 0, findings: 0, classes: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 },
   selectedNodeId: null,
   activeSeverityFilter: "all",
   scanComplete: false,
@@ -73,7 +73,7 @@ function handleReconEvent(event) {
   // Deduplicate by id
   if (state.nodes.find((n) => n.id === id)) return;
 
-  const node = { id, lane, type: event.type, data: event.data, findings: [], maxSeverity: null };
+  const node = { id, lane, type: event.type, data: event.data, findings: [], findingGroups: [], maxSeverity: null };
   state.nodes.push(node);
 
   // Update stats
@@ -87,22 +87,47 @@ function handleReconEvent(event) {
   addLogEntry("info", `${lane}: ${id}`);
 }
 
+// Group a finding into a node's findingGroups array. Returns true if this created a new group.
+function addToFindingGroup(node, finding) {
+  const existing = node.findingGroups.find((g) => g.title === finding.title);
+  if (existing) {
+    existing.instances.push({ file: finding.file, line: finding.line, id: finding.id });
+    existing.severity = maxSeverity(existing.severity, finding.severity);
+    return false;
+  }
+  node.findingGroups.push({
+    title: finding.title,
+    severity: finding.severity,
+    domain: finding.domain,
+    remediation: finding.remediation,
+    instances: [{ file: finding.file, line: finding.line, id: finding.id }],
+  });
+  return true;
+}
+
 function handleFinding(event) {
   const finding = event.data;
   state.findings.push(finding);
 
-  // Update severity stats
+  // Update raw instance stats
   state.stats.findings++;
   state.stats[finding.severity] = (state.stats[finding.severity] || 0) + 1;
-  updateStatsPanel();
 
-  // Attach to matching node
+  // Attach to matching node, grouped by title
   const matchNode = state.nodes.find((n) => n.data.file === finding.file);
   if (matchNode) {
     matchNode.findings.push(finding);
+    const isNewClass = addToFindingGroup(matchNode, finding);
     matchNode.maxSeverity = maxSeverity(matchNode.maxSeverity, finding.severity);
+    // Badge shows distinct vulnerability classes, not raw count
     if (typeof updateNodeSeverity === "function") updateNodeSeverity(matchNode);
   }
+
+  // Track distinct classes globally
+  const isNewGlobal = !state.findings.slice(0, -1).some((f) => f.title === finding.title);
+  if (isNewGlobal) state.stats.classes++;
+
+  updateStatsPanel();
 
   const severityLabel = finding.severity.toUpperCase();
   addLogEntry(finding.severity === "critical" || finding.severity === "high" ? "error" : "warn",
@@ -162,20 +187,20 @@ function transitionToExploreMode() {
   document.getElementById("sidebar-explore").classList.remove("hidden");
   document.getElementById("severity-filters").classList.remove("hidden");
 
-  // Update lane headers with final counts
+  // Update lane headers with final counts (distinct vulnerability classes, not raw instances)
   const laneCounts = {};
-  const laneIssues = {};
+  const laneClasses = {};
   for (const node of state.nodes) {
     laneCounts[node.lane] = (laneCounts[node.lane] || 0) + 1;
-    if (node.findings.length > 0) {
-      laneIssues[node.lane] = (laneIssues[node.lane] || 0) + node.findings.length;
+    if (node.findingGroups.length > 0) {
+      laneClasses[node.lane] = (laneClasses[node.lane] || 0) + node.findingGroups.length;
     }
   }
   for (const lane of ["frontend", "api", "database", "external"]) {
     const count = laneCounts[lane] || 0;
-    const issues = laneIssues[lane] || 0;
-    const statusText = issues > 0 ? `${count} (${issues} issues)` : `${count}`;
-    const statusState = issues > 0 ? "issues" : "complete";
+    const classes = laneClasses[lane] || 0;
+    const statusText = classes > 0 ? `${count} (${classes} issues)` : `${count}`;
+    const statusState = classes > 0 ? "issues" : "complete";
     updateLaneStatus(lane, statusState, statusText);
   }
 }

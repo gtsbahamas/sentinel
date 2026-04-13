@@ -178,7 +178,7 @@ function updateNodeSeverity(node) {
     badge.append("text").attr("class", "node-badge").attr("x", NODE_RADIUS - 2).attr("y", -NODE_RADIUS + 2);
   }
   badge.select("circle").attr("fill", colors.stroke);
-  badge.select("text").text(node.findings.length);
+  badge.select("text").text(node.findingGroups ? node.findingGroups.length : node.findings.length);
 
   const pulse = pulseGroup.append("circle")
     .attr("cx", node.x).attr("cy", node.y)

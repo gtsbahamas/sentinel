@@ -643,6 +643,106 @@ main {
 }
 
 /* ============================================================
+   FINDING GROUPS (collapsed by default, expand on click)
+   ============================================================ */
+
+.finding-group {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  animation: fade-in 0.25s ease;
+  border-left: 3px solid var(--text-muted);
+}
+
+.finding-group.critical { border-left-color: var(--sev-critical-fg); }
+.finding-group.high { border-left-color: var(--sev-high-fg); }
+.finding-group.medium { border-left-color: var(--sev-medium-fg); }
+
+.finding-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.finding-group-header:hover {
+  background: var(--bg-hover);
+}
+
+.finding-group-chevron {
+  font-size: 8px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.finding-group-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.finding-group-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.instance-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: rgba(30, 58, 95, 0.5);
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.finding-group-body {
+  padding: 0 10px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.finding-group-body.collapsed {
+  display: none;
+}
+
+.finding-group-meta {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 6px;
+}
+
+.finding-group-remediation {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 6px 0;
+  padding: 6px 8px;
+  background: rgba(13, 31, 51, 0.6);
+  border-radius: 4px;
+}
+
+.finding-group-instances {
+  margin-top: 6px;
+}
+
+.instance-row {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(30, 58, 95, 0.3);
+}
+
+.instance-row:last-child {
+  border-bottom: none;
+}
+
+/* ============================================================
    SEVERITY BADGES
    ============================================================ */
 
