@@ -52,8 +52,7 @@ export const formFuzzingCheck: ProbeCheck = {
   appliesTo(target: ProbeTarget): boolean {
     if (target.kind !== "endpoint") return false;
     if (target.method === "GET") return false;
-    const method = target.method.toUpperCase();
-    return method === "POST" || method === "PUT" || method === "PATCH";
+    return target.method === "POST" || target.method === "PUT" || target.method === "PATCH";
   },
 
   async run(ctx: ProbeCheckContext): Promise<ProbeCheckResult> {
@@ -72,7 +71,7 @@ export const formFuzzingCheck: ProbeCheck = {
 
       try {
         resp = await ctx.client.request({
-          method: ctx.target.method,
+          method: "POST",
           url: ctx.target.url,
           headers: { "content-type": "application/json" },
           body: payload.body,
@@ -108,7 +107,7 @@ export const formFuzzingCheck: ProbeCheck = {
             requestId: resp.requestId,
             checkId: "form-fuzzing",
             aggressionLevel: "intrusive",
-            request: { method: ctx.target.method, url: ctx.target.url, headers: { "content-type": "application/json" }, bodyPreview: payload.body.slice(0, 256) },
+            request: { method: "POST", url: ctx.target.url, headers: { "content-type": "application/json" }, bodyPreview: payload.body.slice(0, 256) },
             response: { status: resp.status, headers: resp.headers, bodyPreview: resp.body.slice(0, 256), timingMs: resp.timingMs },
           },
         });
@@ -134,7 +133,7 @@ export const formFuzzingCheck: ProbeCheck = {
             requestId: resp.requestId,
             checkId: "form-fuzzing",
             aggressionLevel: "intrusive",
-            request: { method: ctx.target.method, url: ctx.target.url, headers: { "content-type": "application/json" }, bodyPreview: payload.body.slice(0, 256) },
+            request: { method: "POST", url: ctx.target.url, headers: { "content-type": "application/json" }, bodyPreview: payload.body.slice(0, 256) },
             response: { status: resp.status, headers: resp.headers, bodyPreview: resp.body.slice(0, 256), timingMs: resp.timingMs },
           },
         });
