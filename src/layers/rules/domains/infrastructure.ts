@@ -31,6 +31,17 @@ function mkFinding(
   };
 }
 
+/** Heuristic: returns true if the trimmed line looks like a comment. */
+function isCommentLine(line: string): boolean {
+  const t = line.trim();
+  return (
+    t.startsWith("//") ||
+    t.startsWith("/*") ||
+    t.startsWith("*") ||   // inner line of block comment
+    t.startsWith("#")       // shell-style comment in config files
+  );
+}
+
 function infraFiles(model: ProjectModel): string[] {
   const out: string[] = [];
   if (model.infra.nextConfig) out.push(model.infra.nextConfig.file);
@@ -94,8 +105,11 @@ export const infrastructureRules: SecurityRule[] = [
     references: { cwe: "CWE-319" },
     check(model) {
       const findings: Finding[] = [];
-      const tlsDeploys = new Set(["vercel", "cloudflare", "fly"]);
-      const isTlsDeploy = model.meta.deployTarget !== null && tlsDeploys.has(model.meta.deployTarget);
+      // Any web deployment is likely served over HTTPS. Only skip if
+      // deployTarget is explicitly known to be non-TLS (none currently).
+      const nonTlsDeploys = new Set<string>();
+      const isTlsDeploy =
+        model.meta.deployTarget === null || !nonTlsDeploys.has(model.meta.deployTarget);
       const missing = !model.infra.securityHeaders["strict-transport-security"];
       if (isTlsDeploy && missing) {
         findings.push(
@@ -187,16 +201,21 @@ export const infrastructureRules: SecurityRule[] = [
       const setCookieRe = /cookies\s*\(\s*\)\s*\.set|response\.cookies\.set|Set-Cookie|res\.cookie\s*\(/;
       for (const { file, source } of files) {
         if (!setCookieRe.test(source)) continue;
-        // Only flag if the file is also using `secure: false` or simply has
-        // no `secure` mention at all alongside a cookie set.
-        if (/secure\s*:\s*true/.test(source)) continue;
-        if (/sameSite\s*:\s*["']strict["']/.test(source) && /httpOnly\s*:\s*true/.test(source)) {
-          // still want Secure in prod, but less severe if other hardening
-          // is present. Keep the finding.
-        }
         const lines = source.split("\n");
+        // Check whether *any* cookie-setting line is paired with secure: true
+        // within the same logical block (nearby lines). A file-wide check is
+        // too coarse when a file sets multiple cookies.
+        const cookieLines: number[] = [];
         lines.forEach((line, idx) => {
-          if (!setCookieRe.test(line)) return;
+          if (setCookieRe.test(line) && !isCommentLine(line)) cookieLines.push(idx);
+        });
+        if (cookieLines.length === 0) continue;
+        for (const cidx of cookieLines) {
+          // Look in a +-5 line window for secure: true
+          const windowStart = Math.max(0, cidx - 5);
+          const windowEnd = Math.min(lines.length, cidx + 6);
+          const window = lines.slice(windowStart, windowEnd).join("\n");
+          if (/secure\s*:\s*true/.test(window)) continue;
           findings.push(
             mkFinding(
               "INFRA-005",
@@ -204,11 +223,11 @@ export const infrastructureRules: SecurityRule[] = [
               "Cookie set without Secure flag",
               "Cookies without Secure can be sent over plain HTTP and captured by a network attacker.",
               "Set `secure: true` and `httpOnly: true` and `sameSite: 'lax'` (or 'strict') on all session cookies.",
-              [{ file, line: idx + 1, snippet: line.trim().slice(0, 120) }],
+              [{ file, line: cidx + 1, snippet: lines[cidx].trim().slice(0, 120) }],
               { cwe: "CWE-614" },
             ),
           );
-        });
+        }
       }
       return findings;
     },
@@ -230,7 +249,7 @@ export const infrastructureRules: SecurityRule[] = [
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
           if (!re.test(line)) return;
-          if (/\/\/|\/\*/.test(line.trim().slice(0, 2))) return;
+          if (isCommentLine(line)) return;
           findings.push(
             mkFinding(
               "INFRA-006",
@@ -294,17 +313,32 @@ export const infrastructureRules: SecurityRule[] = [
       const findings: Finding[] = [];
       const offenders = [".env", ".env.production", ".env.local"];
       const gitignorePath = join(model.meta.path, ".gitignore");
-      const gitignored = existsSync(gitignorePath)
-        ? new Set(
-            readFileSync(gitignorePath, "utf-8")
-              .split("\n")
-              .map((l) => l.trim()),
-          )
-        : new Set<string>();
+      const gitignoreLines = existsSync(gitignorePath)
+        ? readFileSync(gitignorePath, "utf-8")
+            .split("\n")
+            .map((l) => l.trim())
+            .filter((l) => l.length > 0 && !l.startsWith("#"))
+        : [];
+      const gitignored = new Set(gitignoreLines);
       for (const f of offenders) {
         const full = join(model.meta.path, f);
         if (!existsSync(full)) continue;
-        const ignored = gitignored.has(f) || gitignored.has(`${f}/`) || gitignored.has(".env*") || gitignored.has(".env*.local");
+        // Check exact match, directory match, and common glob patterns.
+        const ignored =
+          gitignored.has(f) ||
+          gitignored.has(`${f}/`) ||
+          gitignored.has(".env*") ||
+          gitignored.has(".env*.local") ||
+          // Handle wildcard suffix patterns like *.local covering .env.local
+          gitignoreLines.some((pattern) => {
+            // Skip negation patterns
+            if (pattern.startsWith("!")) return false;
+            // Simple glob: *.ext
+            if (pattern.startsWith("*.")) {
+              return f.endsWith(pattern.slice(1));
+            }
+            return false;
+          });
         if (ignored) continue;
         findings.push(
           mkFinding(
