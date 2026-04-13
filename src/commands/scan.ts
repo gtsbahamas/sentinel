@@ -23,6 +23,7 @@ import { applyContextSuppressions } from "../layers/context/suppression.js";
 import { isAtOrAbove } from "../model/severity.js";
 import type { AIConfig, AIRunResult, Severity } from "../model/types.js";
 import type { SentinelConfig } from "../config.js";
+import { ScanEventEmitter } from "../dashboard/events.js";
 
 export interface ScanOptions {
   path: string;
@@ -39,6 +40,9 @@ export interface ScanOptions {
   // Repeatable CLI flag: --ai-magic-link <glob>. Merges with
   // ai.magicLinkRoutes from .sentinelrc.json.
   aiMagicLinkRoutes?: string[];
+  dashboard?: boolean;
+  dashboardPort?: number;
+  emitter?: ScanEventEmitter;
 }
 
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
@@ -77,9 +81,23 @@ function mergeAIConfig(config: SentinelConfig, options: ScanOptions): AIConfig {
 export async function runScan(options: ScanOptions): Promise<number> {
   const config = await loadConfig(options.path);
 
+  const emitter = options.emitter ?? (options.dashboard ? new ScanEventEmitter() : null);
+
+  // Dynamic import for dashboard server (only loaded when needed)
+  let dashboardHandle: import("../dashboard/server.js").DashboardHandle | null = null;
+  if (options.dashboard && emitter) {
+    const { startDashboard } = await import("../dashboard/server.js");
+    dashboardHandle = await startDashboard(emitter, { port: options.dashboardPort, openBrowser: true });
+    process.stderr.write(`Dashboard: http://localhost:${dashboardHandle.port}\n`);
+  }
+
+  emitter?.emitEvent({ type: "scan:start", project: options.path, timestamp: Date.now() });
+
   const reconStart = Date.now();
-  const model = await runRecon(options.path, config.exclude);
+  emitter?.emitEvent({ type: "layer:start", layer: "recon", timestamp: Date.now() });
+  const model = await runRecon(options.path, config.exclude, emitter ?? undefined);
   const recon_ms = Date.now() - reconStart;
+  emitter?.emitEvent({ type: "layer:complete", layer: "recon", durationMs: recon_ms, timestamp: Date.now() });
 
   // Context phase: load saved context or auto-infer
   const contextFromFile = await readContext(options.path);
@@ -102,8 +120,10 @@ export async function runScan(options: ScanOptions): Promise<number> {
   registerRules(infrastructureRules);
 
   const rulesStart = Date.now();
-  const ruleFindings = await runRules(model, context);
+  emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
+  const ruleFindings = await runRules(model, context, emitter ?? undefined);
   const rules_ms = Date.now() - rulesStart;
+  emitter?.emitEvent({ type: "layer:complete", layer: "rules", durationMs: rules_ms, timestamp: Date.now() });
 
   let aiResult: AIRunResult | null = null;
   let ai_ms = 0;
@@ -124,8 +144,9 @@ export async function runScan(options: ScanOptions): Promise<number> {
 
   if (aiConfig.enabled) {
     const aiStart = Date.now();
+    emitter?.emitEvent({ type: "layer:start", layer: "ai", timestamp: Date.now() });
     try {
-      aiResult = await runAI(model, aiConfig);
+      aiResult = await runAI(model, aiConfig, undefined, emitter ?? undefined);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(`AI layer failed: ${msg}\n`);
@@ -133,6 +154,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
       // aiResult stays null, scan proceeds with rule findings
     }
     ai_ms = Date.now() - aiStart;
+    emitter?.emitEvent({ type: "layer:complete", layer: "ai", durationMs: ai_ms, timestamp: Date.now() });
     // NOTE: do NOT mutate model.findings — aiResult.findings stays separate.
   }
 
@@ -165,7 +187,43 @@ export async function runScan(options: ScanOptions): Promise<number> {
 
   const failOn = options.failOn ?? config.severity.failOn;
   const hasBlockingFinding = allFindings.some((f) => isAtOrAbove(f.severity, failOn));
-  return hasBlockingFinding ? 1 : 0;
+  const exitCode = hasBlockingFinding ? 1 : 0;
+
+  // Emit scan:complete summary
+  const findingCounts = allFindings.reduce<Record<string, number>>((a, f) => {
+    a[f.severity] = (a[f.severity] ?? 0) + 1;
+    return a;
+  }, {});
+  emitter?.emitEvent({
+    type: "scan:complete",
+    summary: {
+      routes: model.routes.length,
+      endpoints: model.endpoints.length,
+      dataModels: model.dataModels.length,
+      externalServices: 0,
+      findings: {
+        critical: findingCounts["critical"] ?? 0,
+        high: findingCounts["high"] ?? 0,
+        medium: findingCounts["medium"] ?? 0,
+        low: findingCounts["low"] ?? 0,
+        info: findingCounts["info"] ?? 0,
+      },
+      durationMs: recon_ms + rules_ms + ai_ms,
+    },
+    timestamp: Date.now(),
+  });
+
+  // Keep process alive if dashboard is running
+  if (dashboardHandle) {
+    await new Promise<void>((resolve) => {
+      process.on("SIGINT", () => {
+        dashboardHandle!.close();
+        resolve();
+      });
+    });
+  }
+
+  return exitCode;
 }
 
 function formatAIReport(result: AIRunResult, config: AIConfig): string {
