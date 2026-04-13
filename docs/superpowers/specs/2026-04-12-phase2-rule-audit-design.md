@@ -166,28 +166,85 @@ describe("{DOMAIN}-NNN: Rule title", () => {
 
 ## Audit Results
 
-Results will be appended per-domain as each audit completes.
+Executed 2026-04-12. All 6 domains audited, 135 tests passing (up from 22).
 
-### Domain 1: Infrastructure
+### Domain 1: Infrastructure (24 tests, up from 3)
 
-_Pending_
+| Rule | Finding | Fix |
+|------|---------|-----|
+| INFRA-002 | Only fired for vercel/cloudflare/fly. Projects with `deployTarget: null` that deploy to HTTPS hosts were missed | Inverted logic: fire for all targets unless explicitly non-TLS |
+| INFRA-005 | `secure: true` check was file-wide. One secure cookie silenced all insecure cookies in the same file | Window-based check (±5 lines around each cookie-set) |
+| INFRA-005 | `setCookieRe` matched inside comments | Added `isCommentLine()` filter |
+| INFRA-006 | Comment detection missed block comment inner lines (` * http://...`) | Replaced with `isCommentLine()` helper covering `//`, `/*`, `*`, `#` |
+| INFRA-008 | Gitignore parsing included comment lines as patterns | Filter `#` comments and empty lines before building Set |
+| INFRA-008 | No glob matching for `*.local` patterns | Added simple `*.ext` suffix glob matching |
 
-### Domain 2: Supply Chain
+Clean: INFRA-001, INFRA-003, INFRA-004, INFRA-007, INFRA-009, INFRA-010.
 
-_Pending_
+### Domain 2: Supply Chain (28 tests, up from 5)
 
-### Domain 3: Business Logic
+| Rule | Finding | Fix |
+|------|---------|-----|
+| SUPPLY-001 | `affected()` operator precedence bug: `/^3\.0/.test(v) && !/^3\.0\.5/.test(v)` caught 3.0.6+ as vulnerable | Replaced with proper semver comparison |
+| SUPPLY-006 | `crossenv` key mapped `cross-env` as a typosquat, but `cross-env` is the REAL package. The 2017 attack used `crossenv` (no hyphen) as the squatter | Swapped key to `cross-env`, squats to `[crossenv, cross-env.js]` |
 
-_Pending_
+Clean: SUPPLY-002, SUPPLY-003, SUPPLY-004, SUPPLY-005, SUPPLY-007, SUPPLY-008, SUPPLY-009, SUPPLY-010.
 
-### Domain 4: API Security
+Accepted limitation: SUPPLY-009 only parses `package-lock.json`. `pnpm-lock.yaml` and `yarn.lock` support deferred (needs YAML parser dep).
 
-_Pending_
+### Domain 3: Business Logic (23 tests, up from 3)
 
-### Domain 5: Cryptography
+| Rule | Finding | Fix |
+|------|---------|-----|
+| BIZ-003 | Race condition detection false-positived on properly-guarded transactional code | Added skip for files using `BEGIN`, `COMMIT`, `.transaction()`, `FOR UPDATE`, `SERIALIZABLE`, or `advisory_lock` |
+| BIZ-005 | Missed `gift_card` table naming | Broadened `.from()` regex to include `gift_?card` |
+| BIZ-006 | `.min(0)` and `>= 0` were false negatives (allow zero, still dangerous for payments) | Replaced validation skip regex with stricter pattern recognizing `.positive()`, `.nonnegative()`, `.gt()/.gte()` with positive args, `> 0`, `>= 1`, etc. |
 
-_Pending_
+Clean: BIZ-001, BIZ-002, BIZ-004, BIZ-007, BIZ-008, BIZ-009, BIZ-010.
 
-### Domain 6: Logging & Monitoring
+### Domain 4: API Security (18 tests, up from 3)
 
-_Pending_
+| Rule | Finding | Fix |
+|------|---------|-----|
+| API-001 | Regex missed object-literal header form `{ 'Access-Control-Allow-Origin': '*' }` | Added alternation for `['"]HEADER['"]: ['"]value['"]` style |
+| API-007 | Raw `_method` matched any variable named `_method` (FP) | Restricted to `body._method` / `body["_method"]` access patterns |
+| API-008 | `sameSite: 'strict'` check was case-sensitive and missed `lax` (which mitigates CSRF) | Made case-insensitive, accept `strict` or `lax` |
+| API-009 | Only caught `NextResponse.json(err)`, missed `Response.json(err)` and `JSON.stringify(err)` | Widened to union of three patterns |
+| API-010 | Dynamic imports in test mocks / build scripts flagged as critical RCE | Skip files matching `__tests__/`, `__mocks__/`, `tests?/`, `specs?/`, `*.{test,spec}`, `scripts/`, `build/` |
+
+Clean: API-002, API-003, API-004, API-005, API-006.
+
+### Domain 5: Cryptography (19 tests, up from 5)
+
+| Rule | Finding | Fix |
+|------|---------|-----|
+| CRYPTO-002 | `hashCallRe` had `/g` flag used with `.test()` — `lastIndex` persisted, causing non-deterministic/first-file-only detection | Removed `/g` |
+| CRYPTO-005 | **Critical:** Regex was `create(?:De)?cipheriv` (lowercase `c`). Never matched real `createCipheriv` calls — the rule was effectively dead against real Node crypto code. | Fixed case + added `new Uint8Array(N)` zero-IV pattern |
+| CRYPTO-007 | Flagged intentional test clients using `rejectUnauthorized: false` | Skip test dirs / `*.test.*` / `*.spec.*` files |
+| CRYPTO-008 | Whole-file early-return on `timingSafeEqual` — a file using it once hid all other unsafe compares | Per-comparison check, not per-file |
+| CRYPTO-008 | Only matched left-operand form; `received === expected` reversed form missed | Match both operand positions |
+
+Clean: CRYPTO-001, CRYPTO-003, CRYPTO-004, CRYPTO-006, CRYPTO-009, CRYPTO-010.
+
+**Biggest find:** CRYPTO-005 dead rule. Would have been caught day one if tests existed.
+
+### Domain 6: Logging & Monitoring (23 tests, up from 3)
+
+| Rule | Finding | Fix |
+|------|---------|-----|
+| LOG-002 | False-positive noise when a file legitimately uses pino/winston alongside `console.*` | Skip file if it imports a structured logger (pino/winston/bunyan/roarr/loglevel/@logtail/logger) |
+| LOG-005 | False-positives on handlers using `.catch()` chains, global error wrappers, or `captureException` | Skip file if any of `.catch(`, `errorHandler`, `withErrorHandler`, `asyncHandler`, `captureException` present |
+| LOG-006 | Only detected `error.tsx` / `*ErrorBoundary*` files; missed `react-error-boundary` dep and custom boundaries | Also check `model.dependencies` for `react-error-boundary` and scan for `componentDidCatch` / `getDerivedStateFromError` |
+| LOG-010 | Flagged *any* `process.env.DEBUG =` assignment including legitimate `debug` npm usage | Tightened to literal truthy assignments only (`= true`, `= "1"`, `= "*"`, `= "ns:*"`) |
+
+Clean: LOG-001, LOG-003, LOG-004, LOG-007, LOG-008, LOG-009.
+
+---
+
+## Summary
+
+- **60 rules audited** across 6 domains
+- **27 detection fixes** applied (1 critical dead rule, several false-positive/false-negative corrections)
+- **Test coverage: 22 → 135 tests** (513% increase) across Phase 2 domain files
+- **Full test suite: 520/520 passing**
+- **Typecheck: clean**
