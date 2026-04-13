@@ -101,7 +101,12 @@ const KNOWN_VULNERABLE: Array<{
   },
   {
     name: "minimatch",
-    affected: (v) => /^3\.0\.[0-4]/.test(v) || /^3\.0/.test(v) && !/^3\.0\.5/.test(v),
+    affected: (v) => {
+      const m = v.match(/(\d+)\.(\d+)\.(\d+)/);
+      if (!m) return false;
+      const [maj, min, patch] = [+m[1], +m[2], +m[3]];
+      return maj < 3 || (maj === 3 && min === 0 && patch < 5);
+    },
     cve: "CVE-2022-3517",
     severity: "high",
     note: "ReDoS in braceExpand prior to 3.0.5.",
@@ -130,7 +135,7 @@ const TYPOSQUATS: Record<string, string[]> = {
   express: ["expresss", "expres"],
   jsonwebtoken: ["json-web-token", "jsonwebt0ken"],
   typescript: ["typescirpt", "typesript"],
-  crossenv: ["cross-env", "crossenv"], // the typo is the squatted one here
+  "cross-env": ["crossenv", "cross-env.js"], // crossenv (no hyphen) was the real attack
 };
 
 // Packages that should rarely appear in production dependencies.
