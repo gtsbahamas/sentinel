@@ -1,87 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sentinel Dashboard</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
-  <header id="top-bar">
-    <div class="top-bar-left">
-      <span class="logo">SENTINEL</span>
-      <span id="scan-status" class="status scanning">
-        <span class="status-dot"></span>
-        <span id="scan-status-text">Connecting...</span>
-      </span>
+<div class="shell">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <a class="logo" href="#">
+      <div class="logo-mark">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1.5L13.5 4.5V11.5L8 14.5L2.5 11.5V4.5L8 1.5Z" stroke="#7aa8d4" stroke-width="1.5" stroke-linejoin="round"/>
+          <circle cx="8" cy="8" r="2.5" fill="#7aa8d4" opacity="0.7"/>
+        </svg>
+      </div>
+      <span class="logo-text">Sentinel<span>security coach</span></span>
+    </a>
+
+    <div class="topbar-sep"></div>
+
+    <div class="scan-status" id="scanStatus">
+      <div class="scan-dot" id="scanDot"></div>
+      <span id="scanStatusText">Connecting...</span>
     </div>
-    <div id="severity-filters" class="top-bar-right hidden">
-      <button class="filter-btn active" data-severity="all">All</button>
-      <button class="filter-btn" data-severity="critical">Critical</button>
-      <button class="filter-btn" data-severity="high">High</button>
-      <button class="filter-btn" data-severity="medium">Medium</button>
+
+    <div class="topbar-fill"></div>
+
+    <div class="severity-filters" id="severityFilters" style="display:none;">
+      <span class="filter-label">Show</span>
+      <button class="filter-btn active-critical" data-severity="critical">
+        <span class="dot" style="background:var(--critical)"></span>Critical
+      </button>
+      <button class="filter-btn active-high" data-severity="high">
+        <span class="dot" style="background:var(--high)"></span>High
+      </button>
+      <button class="filter-btn active-medium" data-severity="medium">
+        <span class="dot" style="background:var(--medium)"></span>Medium
+      </button>
+      <button class="filter-btn active-low" data-severity="low">
+        <span class="dot" style="background:var(--low)"></span>Low
+      </button>
     </div>
+
+    <div class="topbar-sep"></div>
+
+    <button class="rescan-btn" id="rescanBtn" style="display:none;">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path d="M1.5 6A4.5 4.5 0 0 1 9.5 2.8M10.5 6A4.5 4.5 0 0 1 2.5 9.2M9.5 2.8V1M9.5 2.8H11M2.5 9.2V11M2.5 9.2H1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      Rescan
+    </button>
   </header>
 
-  <main>
-    <div id="graph-area">
-      <svg id="graph-svg"></svg>
-      <div id="lane-headers">
-        <div class="lane-header" data-lane="frontend">
-          <span class="lane-name">FRONTEND</span>
-          <span class="lane-status" id="lane-status-frontend">pending</span>
+  <!-- MAIN SPLIT -->
+  <div class="main-split">
+
+    <!-- GRAPH AREA -->
+    <div class="graph-area">
+      <svg id="graph-svg" class="sr-only"></svg>
+      <div class="lanes-container" id="lanesContainer"></div>
+    </div>
+
+    <!-- DETAIL AREA -->
+    <div class="detail-area">
+      <div class="detail-header">
+        <span class="detail-title" id="detailTitle">Scan Progress</span>
+        <div id="backBtnWrapper" style="display:none; margin-left:auto;">
+          <button class="back-btn" id="backBtn">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M6.5 2L3.5 5L6.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Back to summary
+          </button>
         </div>
-        <div class="lane-header" data-lane="api">
-          <span class="lane-name">API</span>
-          <span class="lane-status" id="lane-status-api">pending</span>
-        </div>
-        <div class="lane-header" data-lane="database">
-          <span class="lane-name">DATABASE</span>
-          <span class="lane-status" id="lane-status-database">pending</span>
-        </div>
-        <div class="lane-header" data-lane="external">
-          <span class="lane-name">EXTERNAL</span>
-          <span class="lane-status" id="lane-status-external">pending</span>
+        <span class="detail-subtitle" id="detailSubtitle"></span>
+      </div>
+      <div class="detail-scroll" id="detailScroll">
+        <div id="detailContent">
+          <div class="scan-progress-view" id="scanProgressView">
+            <div class="click-hint">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1"/></svg>
+              Waiting for scan to start...
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <aside id="sidebar">
-      <div id="sidebar-scan" class="sidebar-content">
-        <div id="stats-panel" class="panel">
-          <h3>Scan Stats</h3>
-          <div class="stat-row"><span class="stat-label">Routes</span><span id="stat-routes" class="stat-value">0</span></div>
-          <div class="stat-row"><span class="stat-label">Endpoints</span><span id="stat-endpoints" class="stat-value">0</span></div>
-          <div class="stat-row"><span class="stat-label">Findings</span><span id="stat-findings" class="stat-value">0</span></div>
-          <div class="stat-row severity-row"><span class="stat-label critical-label">Critical</span><span id="stat-critical" class="stat-value">0</span></div>
-          <div class="stat-row severity-row"><span class="stat-label high-label">High</span><span id="stat-high" class="stat-value">0</span></div>
-          <div class="stat-row severity-row"><span class="stat-label medium-label">Medium</span><span id="stat-medium" class="stat-value">0</span></div>
-          <div class="stat-row severity-row"><span class="stat-label low-label">Low</span><span id="stat-low" class="stat-value">0</span></div>
-        </div>
-        <div id="activity-log" class="panel">
-          <h3>Activity</h3>
-          <div id="log-entries"></div>
-        </div>
-      </div>
+  </div>
+</div>
 
-      <div id="sidebar-explore" class="sidebar-content hidden">
-        <div id="node-detail" class="panel">
-          <h3 id="node-detail-title">Select a node</h3>
-          <div id="node-detail-body">
-            <p class="muted">Click a node in the graph to see details.</p>
-          </div>
-        </div>
-        <div id="node-findings" class="panel">
-          <h3>Findings</h3>
-          <div id="node-findings-list"></div>
-        </div>
-      </div>
-    </aside>
-  </main>
-
-  <script src="graph.js"></script>
-  <script src="sidebar.js"></script>
-  <script src="app.js"></script>
+<script src="graph.js"></script>
+<script src="sidebar.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

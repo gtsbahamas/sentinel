@@ -1,285 +1,269 @@
 // src/dashboard/client/graph.js
+// D3 rendering for horizontal lane bands + severity-ringed nodes.
+// Loaded before sidebar.js and app.js.
 
-const svg = d3.select("#graph-svg");
-const width = () => document.getElementById("graph-area").clientWidth;
-const height = () => document.getElementById("graph-area").clientHeight;
+// ---- Severity ranking (single source of truth) ----
+var SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
 
-const LANES = ["frontend", "api", "database", "external"];
-const LANE_COLORS = {
-  frontend: { fill: "#0f4c75", stroke: "#7bb3e0" },
-  api:      { fill: "#0f4c75", stroke: "#7bb3e0" },
-  database: { fill: "#14532d", stroke: "#4ade80" },
-  external: { fill: "#4a1d96", stroke: "#a78bfa" },
+var SEV_COLOR = {
+  critical: 'var(--critical)',
+  high:     'var(--high)',
+  medium:   'var(--medium)',
+  low:      'var(--low)',
+  info:     'var(--info)',
 };
 
-function laneX(lane) {
-  const i = LANES.indexOf(lane);
-  const w = width();
-  const laneWidth = w / LANES.length;
-  return laneWidth * i + laneWidth / 2;
-}
+var SEV_GLOW = {
+  critical: 'var(--critical-glow)',
+  high:     'var(--high-glow)',
+  medium:   'var(--medium-glow)',
+  low:      'var(--low-glow)',
+  info:     'var(--info-dim)',
+};
 
-function laneBounds(lane) {
-  const i = LANES.indexOf(lane);
-  const w = width();
-  const laneWidth = w / LANES.length;
-  return { x0: laneWidth * i + 30, x1: laneWidth * (i + 1) - 30 };
-}
+var LANES = [
+  { id: 'frontend', label: 'Frontend', statusColor: 'var(--info)' },
+  { id: 'api',      label: 'API',      statusColor: 'var(--low)' },
+  { id: 'database', label: 'Database', statusColor: 'var(--medium)' },
+  { id: 'external', label: 'External', statusColor: 'var(--ink-faint)' },
+];
 
-// Draw lane backgrounds
-const laneGroup = svg.append("g").attr("class", "lanes");
+// Track which nodes are in which lane SVG, keyed by lane id
+var laneNodePositions = {};  // { laneId: [{ nodeRef, _x, _y }] }
+var laneSvgElements = {};    // { laneId: SVGElement }
+var allGraphNodes = [];      // references to node objects with _x, _y, _lane, _svg
 
-function drawLanes() {
-  laneGroup.selectAll("rect").remove();
-  const w = width();
-  const h = height();
-  const laneWidth = w / LANES.length;
+// ---- Build lane DOM ----
+function buildLanes() {
+  var container = document.getElementById('lanesContainer');
+  container.innerHTML = '';
 
-  LANES.forEach((lane, i) => {
-    laneGroup.append("rect")
-      .attr("x", laneWidth * i)
-      .attr("y", 0)
-      .attr("width", laneWidth)
-      .attr("height", h)
-      .attr("fill", i % 2 === 0 ? "#0d2137" : "#0a1d30")
-      .attr("stroke", "#1e3a5f")
-      .attr("stroke-width", 0.5);
+  LANES.forEach(function(lane) {
+    laneNodePositions[lane.id] = [];
+
+    var div = document.createElement('div');
+    div.className = 'lane';
+    div.dataset.lane = lane.id;
+    div.innerHTML =
+      '<div class="lane-label-col">' +
+        '<span class="lane-name">' + lane.label + '</span>' +
+        '<span class="lane-status" id="lane-status-' + lane.id + '">' +
+          '<span class="lane-status-dot" style="background:' + lane.statusColor + '"></span>' +
+          '<span class="lane-status-text">0 items</span>' +
+        '</span>' +
+      '</div>' +
+      '<div class="lane-bg"></div>' +
+      '<svg class="lane-svg" id="svg-' + lane.id + '" overflow="visible"></svg>';
+    container.appendChild(div);
+
+    laneSvgElements[lane.id] = document.getElementById('svg-' + lane.id);
   });
 }
 
-drawLanes();
-
-// Force simulation
-const simulation = d3.forceSimulation()
-  .force("charge", d3.forceManyBody().strength(-80))
-  .force("collide", d3.forceCollide().radius(35))
-  .force("y", d3.forceY(height() / 2).strength(0.03))
-  .on("tick", ticked);
-
-simulation.stop();
-
-const edgeGroup = svg.append("g").attr("class", "edges");
-const nodeGroup = svg.append("g").attr("class", "nodes");
-const pulseGroup = svg.append("g").attr("class", "pulses");
-
-let simNodes = [];
-let simEdges = [];
-
-const NODE_RADIUS = 20;
-const RECT_W = 50;
-const RECT_H = 28;
-
-function nodeShape(lane) {
-  return lane === "frontend" ? "circle" : lane === "database" ? "pill" : lane === "external" ? "diamond" : "rect";
+// ---- Lane status update ----
+function updateLaneStatus(laneId, count) {
+  var textEl = document.querySelector('#lane-status-' + laneId + ' .lane-status-text');
+  if (textEl) {
+    textEl.textContent = count + ' item' + (count !== 1 ? 's' : '');
+  }
 }
 
+// ---- Add a single node incrementally ----
 function addNode(node) {
-  const bounds = laneBounds(node.lane);
-  node.x = bounds.x0 + Math.random() * (bounds.x1 - bounds.x0);
-  node.y = 60 + Math.random() * (height() - 120);
+  var laneId = node.lane;
+  var svgEl = laneSvgElements[laneId];
+  if (!svgEl) return;
 
-  simNodes.push(node);
-  simulation.nodes(simNodes);
-  simulation.alpha(0.3).restart();
+  var svg = d3.select(svgEl);
+  var width = svgEl.clientWidth;
+  var height = svgEl.clientHeight;
 
-  renderNodes();
+  // Position: evenly space based on existing nodes in this lane
+  var laneNodes = laneNodePositions[laneId];
+  laneNodes.push(node);
+
+  // Recalculate positions for all nodes in this lane
+  var spacing = width / (laneNodes.length + 1);
+  laneNodes.forEach(function(n, i) {
+    n._x = spacing * (i + 1);
+    n._y = height / 2;
+    n._lane = laneId;
+  });
+
+  allGraphNodes.push(node);
+
+  // Update lane status
+  updateLaneStatus(laneId, laneNodes.length);
+
+  // Redraw all nodes in this lane (repositions existing ones too)
+  redrawLane(laneId);
 }
 
-function renderNodes() {
-  const groups = nodeGroup.selectAll(".node-group")
-    .data(simNodes, (d) => d.id);
+// ---- Redraw all nodes in a single lane ----
+function redrawLane(laneId) {
+  var svgEl = laneSvgElements[laneId];
+  if (!svgEl) return;
 
-  const enter = groups.enter()
-    .append("g")
-    .attr("class", "node-group entering")
-    .attr("transform", (d) => `translate(${d.x},${d.y})`)
-    .on("click", (event, d) => {
-      if (typeof state !== "undefined" && state.mode === "explore") {
-        event.stopPropagation();
-        if (typeof selectNode === "function") selectNode(d.id);
-        highlightSelected(d.id);
-      }
-    });
+  var svg = d3.select(svgEl);
+  var laneNodes = laneNodePositions[laneId];
+  var r = 20;
 
-  enter.each(function(d) {
-    const g = d3.select(this);
-    const colors = LANE_COLORS[d.lane];
-    const shape = nodeShape(d.lane);
+  // Determine the selected node (from app.js state)
+  var selId = (typeof state !== 'undefined' && state.selectedNodeId) ? state.selectedNodeId : null;
 
-    if (shape === "circle") {
-      g.append("circle")
-        .attr("r", NODE_RADIUS)
-        .attr("fill", colors.fill)
-        .attr("stroke", colors.stroke)
-        .attr("stroke-width", 1.5)
-        .attr("class", "node-shape");
-    } else if (shape === "rect") {
-      g.append("rect")
-        .attr("x", -RECT_W / 2).attr("y", -RECT_H / 2)
-        .attr("width", RECT_W).attr("height", RECT_H)
-        .attr("rx", 6)
-        .attr("fill", colors.fill)
-        .attr("stroke", colors.stroke)
-        .attr("stroke-width", 1.5)
-        .attr("class", "node-shape");
-    } else if (shape === "pill") {
-      g.append("rect")
-        .attr("x", -RECT_W / 2).attr("y", -RECT_H / 2)
-        .attr("width", RECT_W).attr("height", RECT_H)
-        .attr("rx", RECT_H / 2)
-        .attr("fill", colors.fill)
-        .attr("stroke", colors.stroke)
-        .attr("stroke-width", 1.5)
-        .attr("class", "node-shape");
-    } else if (shape === "diamond") {
-      const s = NODE_RADIUS;
-      g.append("polygon")
-        .attr("points", `0,${-s} ${s},0 0,${s} ${-s},0`)
-        .attr("fill", colors.fill)
-        .attr("stroke", colors.stroke)
-        .attr("stroke-width", 1.5)
-        .attr("class", "node-shape");
+  // Get active filters
+  var filters = (typeof state !== 'undefined' && state.activeFilters) ? state.activeFilters : null;
+
+  // Remove old nodes
+  svg.selectAll('.node-group').remove();
+
+  laneNodes.forEach(function(node) {
+    var sev = node.maxSeverity || 'info';
+    var color = SEV_COLOR[sev] || SEV_COLOR.info;
+    var glowColor = SEV_GLOW[sev] || SEV_GLOW.info;
+
+    var isSelected = selId && selId === node.id;
+    var isFaded = selId && selId !== node.id;
+    var isFiltered = filters && !filters.has(sev) && sev !== 'info';
+
+    var cls = 'node-group';
+    if (isFaded) cls += ' faded';
+    if (isSelected) cls += ' selected';
+
+    var g = svg.append('g')
+      .attr('class', cls)
+      .attr('id', 'node-' + node.id.replace(/[^a-zA-Z0-9_-]/g, '_'))
+      .attr('transform', 'translate(' + node._x + ', ' + node._y + ')')
+      .style('opacity', isFiltered ? 0.12 : 1)
+      .on('click', function() {
+        if (typeof onNodeClick === 'function') onNodeClick(node);
+      });
+
+    // Glow ring when selected
+    if (isSelected) {
+      g.append('circle')
+        .attr('r', r + 8)
+        .attr('fill', glowColor)
+        .attr('stroke', 'none');
     }
 
-    const label = d.id.length > 12 ? d.id.slice(-12) : d.id;
-    g.append("text")
-      .attr("text-anchor", "middle")
-      .attr("dy", shape === "circle" || shape === "diamond" ? NODE_RADIUS + 14 : RECT_H / 2 + 14)
-      .attr("font-size", "10px")
-      .attr("fill", "#94a3b8")
+    // Outer ring
+    g.append('circle')
+      .attr('class', 'node-ring')
+      .attr('r', r + 3)
+      .attr('stroke', color)
+      .attr('opacity', isSelected ? 0.6 : 0.25);
+
+    // Inner circle
+    g.append('circle')
+      .attr('class', 'node-circle')
+      .attr('r', r)
+      .attr('fill', isSelected ? (color.replace(')', ', 0.13)').replace('var(', 'rgba(').replace('--', '')) : 'var(--surface-raised)')
+      .attr('stroke', color)
+      .attr('stroke-width', isSelected ? 2 : 1.5);
+
+    // For selected nodes, use a simpler fill approach
+    if (isSelected) {
+      g.select('.node-circle').attr('fill', 'var(--surface-hover)');
+    }
+
+    // Count text (top line: instance total)
+    var groupCount = node.findingGroups ? node.findingGroups.length : 0;
+    var instanceCount = 0;
+    if (node.findingGroups) {
+      node.findingGroups.forEach(function(fg) {
+        instanceCount += fg.instances.length;
+      });
+    }
+
+    if (instanceCount > 0) {
+      g.append('text')
+        .attr('class', 'node-count')
+        .attr('y', -3)
+        .attr('fill', color)
+        .text(instanceCount);
+
+      // Severity initial letter below count
+      var sevText = sev[0].toUpperCase();
+      g.append('text')
+        .attr('y', 8)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '8px')
+        .attr('fill', color)
+        .attr('opacity', 0.7)
+        .attr('font-family', 'Inter, sans-serif')
+        .attr('font-weight', '600')
+        .text(sevText);
+    }
+
+    // Label below node
+    var label = node.label || node.id;
+    if (label.length > 14) label = label.slice(0, 12) + '..';
+    g.append('text')
+      .attr('class', 'node-label')
+      .attr('y', r + 14)
       .text(label);
   });
-
-  setTimeout(() => { enter.classed("entering", false); }, 400);
 }
 
-// Severity colors
-const SEVERITY_COLORS = {
-  critical: { fill: "#991b1b", stroke: "#ef4444", glow: "rgba(239,68,68,0.4)" },
-  high:     { fill: "#7c2d12", stroke: "#f97316", glow: "rgba(249,115,22,0.3)" },
-  medium:   { fill: "#78350f", stroke: "#f59e0b", glow: "rgba(245,158,11,0.2)" },
-};
-
+// ---- Update severity on a node (called when findings arrive) ----
 function updateNodeSeverity(node) {
-  const colors = SEVERITY_COLORS[node.maxSeverity];
-  if (!colors) return;
-
-  const g = nodeGroup.selectAll(".node-group").filter((d) => d.id === node.id);
-
-  g.select(".node-shape")
-    .transition().duration(400)
-    .attr("fill", colors.fill)
-    .attr("stroke", colors.stroke);
-
-  let badge = g.select(".badge-group");
-  if (badge.empty()) {
-    badge = g.append("g").attr("class", "badge-group");
-    badge.append("circle").attr("r", 8).attr("cx", NODE_RADIUS - 2).attr("cy", -NODE_RADIUS + 2);
-    badge.append("text").attr("class", "node-badge").attr("x", NODE_RADIUS - 2).attr("y", -NODE_RADIUS + 2);
+  if (node._lane) {
+    redrawLane(node._lane);
   }
-  badge.select("circle").attr("fill", colors.stroke);
-  badge.select("text").text(node.findingGroups ? node.findingGroups.length : node.findings.length);
-
-  const pulse = pulseGroup.append("circle")
-    .attr("cx", node.x).attr("cy", node.y)
-    .attr("r", 0).attr("fill", "none")
-    .attr("stroke", colors.stroke).attr("stroke-width", 2).attr("opacity", 0.6);
-  pulse.transition().duration(800).attr("r", 40).attr("opacity", 0).remove();
 }
 
-// Edges
+// ---- Add edge between nodes (draw dashed line across lanes if needed) ----
 function addEdge(edgeData) {
-  const source = simNodes.find((n) => n.id === edgeData.source);
-  const target = simNodes.find((n) => n.id === edgeData.target);
+  // Find source and target nodes
+  var source = allGraphNodes.find(function(n) { return n.id === edgeData.source; });
+  var target = allGraphNodes.find(function(n) { return n.id === edgeData.target; });
   if (!source || !target) return;
 
-  simEdges.push({ source, target, type: edgeData.type });
-  renderEdges();
+  // Only draw within-lane edges for now (cross-lane requires overlay SVG)
+  if (source._lane === target._lane) {
+    var svg = d3.select(laneSvgElements[source._lane]);
+    svg.insert('line', '.node-group')
+      .attr('class', 'edge')
+      .attr('x1', source._x)
+      .attr('y1', source._y)
+      .attr('x2', target._x)
+      .attr('y2', target._y)
+      .attr('stroke', 'var(--ink-faint)');
+  }
 }
 
-function renderEdges() {
-  const lines = edgeGroup.selectAll(".edge-line")
-    .data(simEdges, (d) => `${d.source.id}-${d.target.id}`);
+// ---- Redraw all lanes (e.g., on selection change or filter change) ----
+function redrawAllLanes() {
+  // Recalculate positions (sizes may have changed)
+  LANES.forEach(function(lane) {
+    var svgEl = laneSvgElements[lane.id];
+    if (!svgEl) return;
+    var width = svgEl.clientWidth;
+    var height = svgEl.clientHeight;
+    var laneNodes = laneNodePositions[lane.id];
+    if (!laneNodes.length) return;
 
-  lines.enter()
-    .append("path")
-    .attr("class", "edge-line")
-    .attr("d", (d) => {
-      const mx = (d.source.x + d.target.x) / 2;
-      const my = (d.source.y + d.target.y) / 2 - 20;
-      return `M${d.source.x},${d.source.y} Q${mx},${my} ${d.target.x},${d.target.y}`;
-    })
-    .attr("stroke-dasharray", function() { return this.getTotalLength(); })
-    .attr("stroke-dashoffset", function() { return this.getTotalLength(); })
-    .transition().duration(600)
-    .attr("stroke-dashoffset", 0);
-}
+    var spacing = width / (laneNodes.length + 1);
+    laneNodes.forEach(function(n, i) {
+      n._x = spacing * (i + 1);
+      n._y = height / 2;
+    });
 
-// Selection highlight
-function highlightSelected(nodeId) {
-  nodeGroup.selectAll(".node-group").each(function(d) {
-    const g = d3.select(this);
-    if (d.id === nodeId) {
-      g.select(".node-shape")
-        .attr("stroke", "#fbbf24")
-        .attr("stroke-width", 3)
-        .attr("filter", "drop-shadow(0 0 6px rgba(251,191,36,0.4))");
-    } else {
-      const colors = SEVERITY_COLORS[d.maxSeverity] || LANE_COLORS[d.lane];
-      g.select(".node-shape")
-        .attr("stroke", colors.stroke)
-        .attr("stroke-width", 1.5)
-        .attr("filter", null);
-    }
+    redrawLane(lane.id);
   });
 }
 
-// Severity filter
-const SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
-
-function applySeverityFilter(level) {
-  const rank = { all: -1, critical: 4, high: 3, medium: 2 };
-  const minRank = rank[level] ?? -1;
-
-  nodeGroup.selectAll(".node-group")
-    .transition().duration(300)
-    .style("opacity", (d) => {
-      if (minRank <= 0) return 1;
-      const nodeRank = SEVERITY_RANK[d.maxSeverity] ?? 0;
-      return nodeRank >= minRank ? 1 : 0.15;
-    });
+// ---- Apply severity filter (toggle visibility) ----
+function applySeverityFilter() {
+  redrawAllLanes();
 }
 
-// Tick
-function ticked() {
-  for (const d of simNodes) {
-    const bounds = laneBounds(d.lane);
-    d.x = Math.max(bounds.x0, Math.min(bounds.x1, d.x));
-    d.y = Math.max(50, Math.min(height() - 30, d.y));
-  }
-
-  nodeGroup.selectAll(".node-group")
-    .attr("transform", (d) => `translate(${d.x},${d.y})`);
-
-  edgeGroup.selectAll(".edge-line")
-    .attr("d", (d) => {
-      const mx = (d.source.x + d.target.x) / 2;
-      const my = (d.source.y + d.target.y) / 2 - 20;
-      return `M${d.source.x},${d.source.y} Q${mx},${my} ${d.target.x},${d.target.y}`;
-    });
-}
-
-// Deselect on empty space
-svg.on("click", () => {
-  if (typeof state !== "undefined" && state.mode === "explore") {
-    if (typeof deselectNode === "function") deselectNode();
-    highlightSelected(null);
-  }
-});
-
-// Resize
-window.addEventListener("resize", () => {
-  drawLanes();
-  simulation.force("y", d3.forceY(height() / 2).strength(0.03));
-  simulation.alpha(0.3).restart();
+// ---- Resize handler ----
+var graphResizeTimer;
+window.addEventListener('resize', function() {
+  clearTimeout(graphResizeTimer);
+  graphResizeTimer = setTimeout(function() {
+    redrawAllLanes();
+  }, 100);
 });
