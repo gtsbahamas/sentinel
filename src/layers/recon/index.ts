@@ -8,10 +8,12 @@ import { discoverEnvVars } from "./env-discovery.js";
 import { discoverDependencies } from "./dep-discovery.js";
 import { discoverInfra } from "./infra-discovery.js";
 import type { ProjectModel } from "../../model/types.js";
+import type { ScanEventEmitter } from "../../dashboard/events.js";
 
 export async function runRecon(
   projectPath: string,
   exclude: string[],
+  emitter?: ScanEventEmitter,
 ): Promise<ProjectModel> {
   const meta = await detectStack(projectPath);
   const files = await walkProject(projectPath, exclude);
@@ -26,6 +28,85 @@ export async function runRecon(
   ]);
 
   const endpoints = await discoverEndpoints(routes);
+
+  if (emitter) {
+    // Emit route events
+    for (const route of routes) {
+      if (route.isApi) {
+        emitter.emitEvent({
+          type: "recon:endpoint",
+          data: {
+            path: route.path,
+            method: route.method ?? "GET",
+            file: route.file,
+            hasValidation: false,
+            hasAuthCheck: route.hasAuthCheck ?? false,
+            usesServiceRole: false,
+          },
+        });
+      } else {
+        emitter.emitEvent({
+          type: "recon:route",
+          data: {
+            path: route.path,
+            method: route.method ?? "GET",
+            file: route.file,
+            isApi: false,
+            hasAuthCheck: route.hasAuthCheck ?? false,
+          },
+        });
+      }
+    }
+
+    // Emit endpoint events
+    for (const endpoint of endpoints) {
+      emitter.emitEvent({
+        type: "recon:endpoint",
+        data: {
+          path: endpoint.path,
+          method: endpoint.method,
+          file: endpoint.file,
+          hasValidation: endpoint.hasValidation ?? false,
+          hasAuthCheck: endpoint.hasAuthCheck ?? false,
+          usesServiceRole: endpoint.usesServiceRole ?? false,
+        },
+      });
+
+      // Emit edge for route-to-endpoint mapping
+      emitter.emitEvent({
+        type: "edge",
+        data: {
+          source: endpoint.file,
+          target: endpoint.path,
+          type: "exposes",
+        },
+      });
+    }
+
+    // Emit auth flow events
+    for (const authFlow of authFlows) {
+      emitter.emitEvent({
+        type: "recon:authflow",
+        data: {
+          type: authFlow.type,
+          file: authFlow.file,
+          provider: authFlow.provider,
+        },
+      });
+    }
+
+    // Emit env var events
+    for (const envVar of envVars) {
+      emitter.emitEvent({
+        type: "recon:envvar",
+        data: {
+          name: envVar.name,
+          clientExposed: envVar.clientExposed ?? false,
+          referencedIn: envVar.referencedIn ?? [],
+        },
+      });
+    }
+  }
 
   return {
     meta,
