@@ -1,0 +1,905 @@
+/* ============================================================
+   SENTINEL DASHBOARD — DARK THEME
+   ============================================================ */
+
+/* Design tokens */
+:root {
+  /* Backgrounds */
+  --bg-base: #0a1628;
+  --bg-panel: #0d1f33;
+  --bg-lane: #0d2137;
+  --bg-hover: #112440;
+  --border: #1e3a5f;
+
+  /* Text */
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Node colors — Frontend */
+  --node-frontend-bg: #0f4c75;
+  --node-frontend-fg: #7bb3e0;
+
+  /* Node colors — API */
+  --node-api-bg: #0f4c75;
+  --node-api-fg: #7bb3e0;
+
+  /* Node colors — Database */
+  --node-db-bg: #14532d;
+  --node-db-fg: #4ade80;
+
+  /* Node colors — External */
+  --node-ext-bg: #4a1d96;
+  --node-ext-fg: #a78bfa;
+
+  /* Severity — Critical */
+  --sev-critical-bg: #991b1b;
+  --sev-critical-fg: #ef4444;
+
+  /* Severity — High */
+  --sev-high-bg: #7c2d12;
+  --sev-high-fg: #f97316;
+
+  /* Severity — Medium */
+  --sev-medium-bg: #78350f;
+  --sev-medium-fg: #f59e0b;
+
+  /* Severity — Low */
+  --sev-low-bg: #1e3a5f;
+  --sev-low-fg: #60a5fa;
+
+  /* Selection */
+  --selected-border: #fbbf24;
+  --selected-glow: rgba(251, 191, 36, 0.35);
+
+  /* Dimensions */
+  --sidebar-width: 320px;
+  --topbar-height: 48px;
+}
+
+/* ============================================================
+   RESET
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+p {
+  color: var(--text-primary);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  font: inherit;
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+
+.hidden {
+  display: none !important;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+
+#top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--topbar-height);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+}
+
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logo {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+/* ============================================================
+   SCAN STATUS INDICATOR
+   ============================================================ */
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Scanning — pulsing amber */
+.status.scanning .status-dot {
+  background: var(--sev-medium-fg);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* Running — pulsing green */
+.status.running .status-dot {
+  background: var(--node-db-fg);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* Complete — static green */
+.status.complete .status-dot {
+  background: var(--node-db-fg);
+  animation: none;
+}
+
+/* Error — static red */
+.status.error .status-dot {
+  background: var(--sev-critical-fg);
+  animation: none;
+}
+
+/* Connecting — slow pulse gray */
+.status.connecting .status-dot {
+  background: var(--text-muted);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* ============================================================
+   SEVERITY FILTER BUTTONS
+   ============================================================ */
+
+.filter-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  transition: all 0.15s ease;
+}
+
+.filter-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.filter-btn.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: #2d5a8e;
+}
+
+.filter-btn[data-severity="critical"].active {
+  border-color: var(--sev-critical-fg);
+  color: var(--sev-critical-fg);
+  background: rgba(153, 27, 27, 0.25);
+}
+
+.filter-btn[data-severity="high"].active {
+  border-color: var(--sev-high-fg);
+  color: var(--sev-high-fg);
+  background: rgba(124, 45, 18, 0.25);
+}
+
+.filter-btn[data-severity="medium"].active {
+  border-color: var(--sev-medium-fg);
+  color: var(--sev-medium-fg);
+  background: rgba(120, 53, 15, 0.25);
+}
+
+/* ============================================================
+   MAIN LAYOUT
+   ============================================================ */
+
+main {
+  position: fixed;
+  top: var(--topbar-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ============================================================
+   GRAPH AREA
+   ============================================================ */
+
+#graph-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+#graph-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ============================================================
+   LANE HEADERS OVERLAY
+   ============================================================ */
+
+#lane-headers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.lane-header {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px 8px;
+  background: rgba(13, 33, 55, 0.72);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.lane-header:last-child {
+  border-right: none;
+}
+
+.lane-name {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.lane-status {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 2px;
+  text-transform: lowercase;
+}
+
+/* Lane status color variants */
+.lane-header[data-lane="frontend"] .lane-status.scanning,
+.lane-header[data-lane="api"] .lane-status.scanning {
+  color: var(--node-frontend-fg);
+}
+
+.lane-header[data-lane="database"] .lane-status.scanning {
+  color: var(--node-db-fg);
+}
+
+.lane-header[data-lane="external"] .lane-status.scanning {
+  color: var(--node-ext-fg);
+}
+
+.lane-status.complete {
+  color: var(--node-db-fg);
+}
+
+.lane-status.error {
+  color: var(--sev-critical-fg);
+}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+
+#sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sidebar-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* ============================================================
+   PANELS
+   ============================================================ */
+
+.panel {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel:last-child {
+  border-bottom: none;
+}
+
+/* ============================================================
+   STATS PANEL
+   ============================================================ */
+
+#stats-panel {
+  background: var(--bg-panel);
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(30, 58, 95, 0.4);
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  min-width: 30px;
+  text-align: right;
+}
+
+/* Severity-colored labels */
+.severity-row {
+  padding-left: 8px;
+}
+
+.critical-label {
+  color: var(--sev-critical-fg);
+}
+
+.high-label {
+  color: var(--sev-high-fg);
+}
+
+.medium-label {
+  color: var(--sev-medium-fg);
+}
+
+.low-label {
+  color: var(--sev-low-fg);
+}
+
+/* ============================================================
+   ACTIVITY LOG
+   ============================================================ */
+
+#activity-log {
+  flex: 1;
+  background: var(--bg-panel);
+}
+
+#log-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+#log-entries::-webkit-scrollbar {
+  width: 3px;
+}
+
+#log-entries::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  animation: fade-in 0.2s ease;
+}
+
+.log-entry .log-time {
+  color: var(--text-muted);
+  font-size: 10px;
+  flex-shrink: 0;
+  padding-top: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-entry .log-text {
+  flex: 1;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.log-entry.log-finding .log-text {
+  color: var(--text-primary);
+}
+
+.log-entry.log-critical .log-text {
+  color: var(--sev-critical-fg);
+}
+
+.log-entry.log-high .log-text {
+  color: var(--sev-high-fg);
+}
+
+.log-entry.log-medium .log-text {
+  color: var(--sev-medium-fg);
+}
+
+/* ============================================================
+   NODE DETAIL PANEL
+   ============================================================ */
+
+#node-detail {
+  background: var(--bg-panel);
+}
+
+#node-detail-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+#node-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.detail-key {
+  color: var(--text-muted);
+  min-width: 72px;
+  flex-shrink: 0;
+}
+
+.detail-val {
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.detail-method {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  min-width: 36px;
+}
+
+.method-get    { background: rgba(15, 76, 117, 0.5); color: var(--node-frontend-fg); }
+.method-post   { background: rgba(20, 83, 45, 0.5);  color: var(--node-db-fg); }
+.method-put    { background: rgba(120, 53, 15, 0.3); color: var(--sev-medium-fg); }
+.method-patch  { background: rgba(120, 53, 15, 0.3); color: var(--sev-medium-fg); }
+.method-delete { background: rgba(153, 27, 27, 0.3); color: var(--sev-critical-fg); }
+
+/* ============================================================
+   FINDINGS PANEL + CARDS
+   ============================================================ */
+
+#node-findings {
+  background: var(--bg-panel);
+  flex: 1;
+}
+
+#node-findings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.finding-card {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  animation: fade-in 0.25s ease;
+}
+
+.finding-card:hover {
+  border-color: #2d5a8e;
+  background: var(--bg-hover);
+}
+
+.finding-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.finding-card-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.finding-card-body {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.finding-card-location {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 5px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* ============================================================
+   SEVERITY BADGES
+   ============================================================ */
+
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.severity-badge.critical {
+  background: var(--sev-critical-bg);
+  color: var(--sev-critical-fg);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.severity-badge.high {
+  background: var(--sev-high-bg);
+  color: var(--sev-high-fg);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.severity-badge.medium {
+  background: var(--sev-medium-bg);
+  color: var(--sev-medium-fg);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.severity-badge.low {
+  background: var(--sev-low-bg);
+  color: var(--sev-low-fg);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+/* ============================================================
+   D3 GRAPH — NODE STYLES
+   ============================================================ */
+
+.node {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  animation: node-fade-in 0.35s ease forwards;
+  opacity: 0;
+}
+
+.node:hover rect,
+.node:hover circle,
+.node:hover ellipse {
+  filter: brightness(1.25);
+}
+
+.node.selected rect,
+.node.selected circle,
+.node.selected ellipse {
+  stroke: var(--selected-border) !important;
+  stroke-width: 2px !important;
+  filter: drop-shadow(0 0 6px var(--selected-glow));
+}
+
+.node.dimmed {
+  opacity: 0.2;
+}
+
+/* Lane-specific node fill colors */
+.node[data-lane="frontend"] rect,
+.node[data-lane="frontend"] circle {
+  fill: var(--node-frontend-bg);
+  stroke: var(--node-frontend-fg);
+  stroke-width: 1px;
+}
+
+.node[data-lane="api"] rect,
+.node[data-lane="api"] circle {
+  fill: var(--node-api-bg);
+  stroke: var(--node-api-fg);
+  stroke-width: 1px;
+}
+
+.node[data-lane="database"] rect,
+.node[data-lane="database"] circle {
+  fill: var(--node-db-bg);
+  stroke: var(--node-db-fg);
+  stroke-width: 1px;
+}
+
+.node[data-lane="external"] rect,
+.node[data-lane="external"] circle {
+  fill: var(--node-ext-bg);
+  stroke: var(--node-ext-fg);
+  stroke-width: 1px;
+}
+
+/* Node label */
+.node-label {
+  fill: var(--text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Node with findings — severity indicator dot */
+.node-finding-dot {
+  pointer-events: none;
+}
+
+.node-finding-dot.critical { fill: var(--sev-critical-fg); }
+.node-finding-dot.high     { fill: var(--sev-high-fg); }
+.node-finding-dot.medium   { fill: var(--sev-medium-fg); }
+.node-finding-dot.low      { fill: var(--sev-low-fg); }
+
+/* ============================================================
+   D3 GRAPH — EDGE STYLES
+   ============================================================ */
+
+.edge {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1px;
+  opacity: 0;
+  animation: edge-draw 0.4s ease forwards;
+}
+
+.edge.highlighted {
+  stroke: var(--node-frontend-fg);
+  stroke-width: 1.5px;
+  opacity: 0.8;
+}
+
+.edge.dimmed {
+  opacity: 0.08;
+}
+
+/* Edge arrow marker */
+.edge-arrow {
+  fill: var(--border);
+}
+
+/* ============================================================
+   D3 GRAPH — LANE BACKGROUND BANDS
+   ============================================================ */
+
+.lane-band {
+  fill: var(--bg-lane);
+  opacity: 0.4;
+}
+
+.lane-band-line {
+  stroke: var(--border);
+  stroke-width: 1px;
+  opacity: 0.5;
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+
+@keyframes node-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes edge-draw {
+  from {
+    opacity: 0;
+    stroke-dashoffset: 100;
+  }
+  to {
+    opacity: 0.55;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ============================================================
+   EMPTY + LOADING STATES
+   ============================================================ */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+  gap: 6px;
+}
+
+.empty-state-icon {
+  font-size: 24px;
+  opacity: 0.3;
+}
+
+.empty-state-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   RESPONSIVE LAYOUT — Narrower viewports
+   ============================================================ */
+
+@media (max-width: 900px) {
+  :root {
+    --sidebar-width: 260px;
+  }
+}
+
+@media (max-width: 680px) {
+  main {
+    flex-direction: column;
+  }
+
+  #graph-area {
+    flex: 1;
+  }
+
+  #sidebar {
+    width: 100%;
+    height: 280px;
+    flex-shrink: 0;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .sidebar-content {
+    flex-direction: row;
+    flex: 0 0 auto;
+    max-height: 280px;
+    width: 100%;
+  }
+
+  .panel {
+    min-width: 200px;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+  }
+
+  #lane-headers {
+    display: none;
+  }
+}

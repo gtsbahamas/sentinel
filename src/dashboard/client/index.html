@@ -4,9 +4,84 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sentinel Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
-  <h1>Sentinel Dashboard</h1>
-  <p>Loading dashboard...</p>
+  <header id="top-bar">
+    <div class="top-bar-left">
+      <span class="logo">SENTINEL</span>
+      <span id="scan-status" class="status scanning">
+        <span class="status-dot"></span>
+        <span id="scan-status-text">Connecting...</span>
+      </span>
+    </div>
+    <div id="severity-filters" class="top-bar-right hidden">
+      <button class="filter-btn active" data-severity="all">All</button>
+      <button class="filter-btn" data-severity="critical">Critical</button>
+      <button class="filter-btn" data-severity="high">High</button>
+      <button class="filter-btn" data-severity="medium">Medium</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="graph-area">
+      <svg id="graph-svg"></svg>
+      <div id="lane-headers">
+        <div class="lane-header" data-lane="frontend">
+          <span class="lane-name">FRONTEND</span>
+          <span class="lane-status" id="lane-status-frontend">pending</span>
+        </div>
+        <div class="lane-header" data-lane="api">
+          <span class="lane-name">API</span>
+          <span class="lane-status" id="lane-status-api">pending</span>
+        </div>
+        <div class="lane-header" data-lane="database">
+          <span class="lane-name">DATABASE</span>
+          <span class="lane-status" id="lane-status-database">pending</span>
+        </div>
+        <div class="lane-header" data-lane="external">
+          <span class="lane-name">EXTERNAL</span>
+          <span class="lane-status" id="lane-status-external">pending</span>
+        </div>
+      </div>
+    </div>
+
+    <aside id="sidebar">
+      <div id="sidebar-scan" class="sidebar-content">
+        <div id="stats-panel" class="panel">
+          <h3>Scan Stats</h3>
+          <div class="stat-row"><span class="stat-label">Routes</span><span id="stat-routes" class="stat-value">0</span></div>
+          <div class="stat-row"><span class="stat-label">Endpoints</span><span id="stat-endpoints" class="stat-value">0</span></div>
+          <div class="stat-row"><span class="stat-label">Findings</span><span id="stat-findings" class="stat-value">0</span></div>
+          <div class="stat-row severity-row"><span class="stat-label critical-label">Critical</span><span id="stat-critical" class="stat-value">0</span></div>
+          <div class="stat-row severity-row"><span class="stat-label high-label">High</span><span id="stat-high" class="stat-value">0</span></div>
+          <div class="stat-row severity-row"><span class="stat-label medium-label">Medium</span><span id="stat-medium" class="stat-value">0</span></div>
+          <div class="stat-row severity-row"><span class="stat-label low-label">Low</span><span id="stat-low" class="stat-value">0</span></div>
+        </div>
+        <div id="activity-log" class="panel">
+          <h3>Activity</h3>
+          <div id="log-entries"></div>
+        </div>
+      </div>
+
+      <div id="sidebar-explore" class="sidebar-content hidden">
+        <div id="node-detail" class="panel">
+          <h3 id="node-detail-title">Select a node</h3>
+          <div id="node-detail-body">
+            <p class="muted">Click a node in the graph to see details.</p>
+          </div>
+        </div>
+        <div id="node-findings" class="panel">
+          <h3>Findings</h3>
+          <div id="node-findings-list"></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="graph.js"></script>
+  <script src="sidebar.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
