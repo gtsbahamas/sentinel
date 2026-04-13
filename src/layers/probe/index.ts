@@ -6,6 +6,10 @@ import { tlsConfigurationCheck } from "./checks/passive/tls-configuration.js";
 import { endpointEnumerationCheck } from "./checks/passive/endpoint-enumeration.js";
 import { responseBodySecretsCheck } from "./checks/passive/response-body-secrets.js";
 import { corsConfigurationCheck } from "./checks/passive/cors-configuration.js";
+import { rateLimitProbeCheck } from "./checks/standard/rate-limit-probe.js";
+import { authEndpointProbeCheck } from "./checks/standard/auth-endpoint-probe.js";
+import { idorProbeCheck } from "./checks/standard/idor-probe.js";
+import { jwtClaimAuditCheck } from "./checks/standard/jwt-claim-audit.js";
 
 export { registerProbeCheck, resetProbeRegistry } from "./checks/base.js";
 export { resolveAuthorization, loadAuthorizations, persistAuthorization, buildAuthorizationEntry } from "./authorization.js";
@@ -19,6 +23,13 @@ function loadPassiveChecks(): void {
   registerProbeCheck(corsConfigurationCheck);
 }
 
+function loadStandardChecks(): void {
+  registerProbeCheck(rateLimitProbeCheck);
+  registerProbeCheck(authEndpointProbeCheck);
+  registerProbeCheck(idorProbeCheck);
+  registerProbeCheck(jwtClaimAuditCheck);
+}
+
 export async function runProbe(
   model: ProjectModel,
   findings: Finding[],
@@ -27,6 +38,7 @@ export async function runProbe(
 ): Promise<{ result: ProbeRunResult; mergedFindings: Finding[] }> {
   resetProbeRegistry();
   loadPassiveChecks();
+  loadStandardChecks();
 
   return runProbeOrchestrator({
     model,
