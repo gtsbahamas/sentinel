@@ -1,5 +1,6 @@
 import type { AIConfig, AIRunResult, ProjectModel } from "../../model/types.js";
 import type { AIProvider } from "./providers/base.js";
+import type { ScanEventEmitter } from "../../dashboard/events.js";
 import { MockProvider } from "./providers/mock.js";
 import { AnthropicProvider, ANTHROPIC_PRICING } from "./providers/anthropic.js";
 import { OpenAIProvider, OPENAI_PRICING } from "./providers/openai.js";
@@ -22,6 +23,7 @@ export async function runAI(
   model: ProjectModel,
   config: AIConfig,
   injectedProvider?: AIProvider,
+  emitter?: ScanEventEmitter,
 ): Promise<AIRunResult> {
   const provider = injectedProvider ?? createProvider(config);
   const pricing = pricingFor(config);
@@ -42,6 +44,26 @@ export async function runAI(
   const capped = applyMagicLinkSeverityCap(result.findings, config.magicLinkRoutes, model.endpoints);
   result.findings = capped.findings;
   result.magicLinkCapped = capped.cappedCount;
+
+  if (emitter) {
+    for (const f of result.findings) {
+      emitter.emitEvent({
+        type: "finding",
+        data: {
+          id: f.id,
+          severity: f.severity,
+          title: f.title,
+          description: f.description,
+          file: f.evidence[0]?.file ?? "",
+          line: f.evidence[0]?.line,
+          domain: f.domain,
+          layer: f.layer,
+          remediation: f.remediation,
+        },
+      });
+    }
+  }
+
   return result;
 }
 
