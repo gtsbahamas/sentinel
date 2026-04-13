@@ -46,6 +46,8 @@ program
     (val: string, prev: string[] = []) => [...prev, val],
     [] as string[],
   )
+  .option("--dashboard", "Open real-time attack surface visualization in browser")
+  .option("--port <number>", "Dashboard server port (default: 4400)", parseInt)
   .action(async (path, options) => {
     const exitCode = await runScan({
       path,
@@ -60,6 +62,8 @@ program
       aiMaxCost: options.aiMaxCost,
       aiConcurrency: options.aiConcurrency,
       aiMagicLinkRoutes: options.aiMagicLink,
+      dashboard: !!options.dashboard,
+      dashboardPort: options.port,
     });
     exitAfterDrain(exitCode);
   });
