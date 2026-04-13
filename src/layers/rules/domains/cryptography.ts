@@ -42,6 +42,11 @@ async function walkSourceFiles(model: ProjectModel): Promise<Array<{ file: strin
       "**/public/**",
       "**/widget-build/**",
       "**/.claude/worktrees/**",
+      "**/test/**",
+      "**/tests/**",
+      "**/__tests__/**",
+      "**/*.test.*",
+      "**/*.spec.*",
     ],
   });
   return Promise.all(files.map(async (file) => ({ file, source: await safeReadFile(file) })));
@@ -100,7 +105,7 @@ export const cryptographyRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
-      const hashCallRe = /createHash\s*\(\s*["'](md5|sha1)["']/gi;
+      const hashCallRe = /createHash\s*\(\s*["'](md5|sha1)["']/i;
       for (const { file, source } of files) {
         const hasPasswordContext = /\bpassword|\bhash_password|\bverifyPassword|signature|\bsign\b/i.test(source);
         if (!hasPasswordContext && !hashCallRe.test(source)) continue;
@@ -209,7 +214,7 @@ export const cryptographyRules: SecurityRule[] = [
       const files = await walkSourceFiles(model);
       // Look for createCipheriv/createDecipheriv where the third arg is a
       // Buffer.alloc, Buffer.from("const"), or a literal array of zeros.
-      const re = /create(?:De)?cipheriv\s*\([^,]+,\s*[^,]+,\s*(Buffer\.alloc\s*\(\s*\d+\s*\)|Buffer\.from\s*\(\s*["'][^"']*["']|["'][A-Fa-f0-9]{16,}["'])/;
+      const re = /create(?:De)?cipheriv\s*\([^,]+,\s*[^,]+,\s*(Buffer\.alloc\s*\(\s*\d+\s*\)|Buffer\.from\s*\(\s*["'][^"']*["']|new\s+Uint8Array\s*\(\s*\d+\s*\)|["'][A-Fa-f0-9]{16,}["'])/;
       for (const { file, source } of files) {
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
@@ -310,13 +315,17 @@ export const cryptographyRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
-      const re = /(hmac|signature|token|mac|digest)\s*(===|==|!=|!==)\s*(\w|["'`])/i;
+      // Match: <secret-ish identifier> (==|===|!=|!==) <something>, OR the
+      // reverse form: <something> (==|===|!=|!==) <secret-ish identifier>.
+      const reLeft = /\b(hmac|signature|token|mac|digest|sig)\w*\s*(===|!==|==|!=)\s*\S/i;
+      const reRight = /\S\s*(===|!==|==|!=)\s*\b(hmac|signature|token|mac|digest|sig)\w*/i;
       for (const { file, source } of files) {
-        if (!/hmac|signature|timingSafeEqual/i.test(source)) continue;
-        if (/timingSafeEqual/.test(source)) continue;
+        if (!/hmac|signature|token|digest|\bmac\b/i.test(source)) continue;
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
-          if (!re.test(line)) return;
+          // Per-line: if this line already uses timingSafeEqual, it's fine.
+          if (/timingSafeEqual/.test(line)) return;
+          if (!reLeft.test(line) && !reRight.test(line)) return;
           findings.push(
             mkFinding(
               "CRYPTO-008",
