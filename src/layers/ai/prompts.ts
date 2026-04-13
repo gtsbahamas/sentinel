@@ -230,7 +230,7 @@ function toNullable(prop: Record<string, unknown>): Record<string, unknown> {
 //    property listed in `required`; Anthropic accepts this form as well.
 // Zod re-validates the parsed response, so this lossy transform stays lossless
 // against the ground-truth AIFindingSchema.
-function sanitizeSchema(node: unknown): unknown {
+export function sanitizeSchema(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(sanitizeSchema);
   if (!node || typeof node !== "object") return node;
 

@@ -24,7 +24,7 @@ export interface GenerateResponse {
 }
 
 export interface ToolDefinition {
-  name: "report_findings";
+  name: "report_findings" | "report_project_risks" | "report_verdicts";
   description: string;
   schema: object;
 }
