@@ -13,7 +13,7 @@ import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitori
 import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
 import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
 import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
-import { runAI, runDryRun, createProvider, type DryRunResult } from "../layers/ai/index.js";
+import { runAI, runDryRun, createProvider, runVerify, type DryRunResult } from "../layers/ai/index.js";
 import { MockProvider } from "../layers/ai/providers/mock.js";
 import { formatTerminal } from "../output/terminal.js";
 import { formatJson } from "../output/json.js";
@@ -21,11 +21,12 @@ import { formatHtml } from "../output/html.js";
 import { inferContext, readContext } from "../layers/context/index.js";
 import { applyContextSuppressions } from "../layers/context/suppression.js";
 import { isAtOrAbove } from "../model/severity.js";
-import type { AIConfig, AIRunResult, Severity } from "../model/types.js";
+import { mergeVerifyConfig, type VerifyOptions } from "./verify-options.js";
+import type { AIConfig, AIRunResult, Finding, Severity, VerifyResult } from "../model/types.js";
 import type { SentinelConfig } from "../config.js";
 import { ScanEventEmitter } from "../dashboard/events.js";
 
-export interface ScanOptions {
+export interface ScanOptions extends VerifyOptions {
   path: string;
   format: "terminal" | "json" | "html";
   failOn?: Severity;
@@ -158,8 +159,55 @@ export async function runScan(options: ScanOptions): Promise<number> {
     // NOTE: do NOT mutate model.findings — aiResult.findings stays separate.
   }
 
-  const rawFindings = [...ruleFindings, ...(aiResult?.findings ?? [])];
-  const allFindings = applyContextSuppressions(rawFindings, context);
+  // Apply project-level context suppressions to rule findings BEFORE the
+  // verification pass. Suppression is a cheap project-level filter (excluded
+  // paths, delegations); there is no point paying for AI verification on
+  // findings that a user-authored context file has already marked as noise.
+  const suppressedRuleFindings = applyContextSuppressions(ruleFindings, context);
+
+  // Verification pass — reclassifies surviving rule findings using the AI
+  // layer. Findings that pass verification (confirmed + downgraded) re-enter
+  // the main finding stream. Dismissed findings drop out unless keepDismissed
+  // is set.
+  let verifyResult: VerifyResult | null = null;
+  // mergeVerifyConfig reads config.ai.provider (file-level), but we want the
+  // CLI's --ai-provider override to flow through to the verifier as well.
+  // Override after merge so `--verify --ai-provider mock` works as expected.
+  const verifyConfig = { ...mergeVerifyConfig(options, config), provider: aiConfig.provider };
+  let ruleFindingsForReport: Finding[] = suppressedRuleFindings;
+  if (verifyConfig.enabled) {
+    try {
+      const verifyProvider = createProvider({
+        ...aiConfig,
+        provider: verifyConfig.provider,
+        model: verifyConfig.model,
+      });
+      verifyResult = await runVerify(model, suppressedRuleFindings, context, verifyConfig, verifyProvider);
+      ruleFindingsForReport = [
+        ...verifyResult.confirmed,
+        ...verifyResult.downgraded.map((d) => d.finding),
+      ];
+      if (verifyConfig.keepDismissed) {
+        ruleFindingsForReport = [
+          ...ruleFindingsForReport,
+          ...verifyResult.dismissed.map((d) => d.finding),
+        ];
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`Verification pass failed: ${msg}\n`);
+      process.stderr.write("Continuing with unverified rule findings.\n");
+      // verifyResult stays null; ruleFindingsForReport stays as suppressedRuleFindings.
+    }
+  }
+
+  // AI-layer findings are suppressed separately (context applies project-wide,
+  // but verify only examines rule findings — the AI layer has its own
+  // context-awareness via buildProjectSummary).
+  const allFindings = applyContextSuppressions(
+    [...ruleFindingsForReport, ...(aiResult?.findings ?? [])],
+    context,
+  );
 
   // Emit suppressed findings to dashboard (after context filtering)
   if (emitter) {
@@ -184,7 +232,12 @@ export async function runScan(options: ScanOptions): Promise<number> {
   }
 
   if (options.format === "json") {
-    const body = formatJson(model, allFindings, { recon_ms, rules_ms, ai_ms, ai: aiResult ?? undefined });
+    const body = formatJson(
+      model,
+      allFindings,
+      { recon_ms, rules_ms, ai_ms, ai: aiResult ?? undefined },
+      verifyResult,
+    );
     if (options.outFile) {
       const dest = resolve(options.outFile);
       await mkdir(dirname(dest), { recursive: true });
@@ -200,7 +253,9 @@ export async function runScan(options: ScanOptions): Promise<number> {
     await writeFile(dest, body, "utf-8");
     process.stdout.write(`Wrote HTML report to ${dest}\n`);
   } else {
-    process.stdout.write(formatTerminal(model, allFindings));
+    process.stdout.write(
+      formatTerminal(model, allFindings, verifyResult, { keepDismissed: verifyConfig.keepDismissed }),
+    );
     if (aiResult) {
       process.stdout.write("\n" + formatAIReport(aiResult, aiConfig) + "\n");
     }

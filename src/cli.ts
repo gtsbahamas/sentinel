@@ -74,6 +74,12 @@ program
       aiMaxCost: options.aiMaxCost,
       aiConcurrency: options.aiConcurrency,
       aiMagicLinkRoutes: options.aiMagicLink,
+      verify: options.verify,
+      verifyModel: options.verifyModel,
+      verifyMaxCost: options.verifyMaxCost,
+      verifyConcurrency: options.verifyConcurrency,
+      verifyMinSeverity: options.verifyMinSeverity,
+      dismiss: options.dismiss,
       dashboard: !!options.dashboard,
       dashboardPort: options.port,
     });
