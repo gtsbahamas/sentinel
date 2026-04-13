@@ -131,6 +131,9 @@ export const businessLogicRules: SecurityRule[] = [
       for (const { file, source } of files) {
         const m = source.match(re);
         if (!m) continue;
+        // Skip if the file uses transactions or row-level locks — these are
+        // legitimate concurrency controls that prevent the race.
+        if (/\b(BEGIN|COMMIT|\.transaction\s*\(|FOR\s+UPDATE|SERIALIZABLE|advisory_lock)\b/i.test(source)) continue;
         const idx = source.slice(0, source.indexOf(m[0])).split("\n").length;
         findings.push(
           mkFinding(
@@ -190,15 +193,15 @@ export const businessLogicRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
-      const couponUse = /coupon|discount|promo|voucher/i;
+      const couponUse = /coupon|discount|promo|voucher|gift_?card/i;
       for (const { file, source } of files) {
         if (!couponUse.test(source)) continue;
         // If the file touches coupons but never marks one used or limits attempts, flag it.
         if (/used\s*:\s*true|redemptions|redeem_count|.(update|upsert)\s*\(.*(used|redeemed)/i.test(source)) continue;
-        if (!/\.from\s*\(\s*["']?(coupon|discount|promo|voucher)/i.test(source)) continue;
+        if (!/\.from\s*\(\s*["']?(coupon|discount|promo|voucher|gift_?card)/i.test(source)) continue;
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
-          if (!/\.from\s*\(\s*["']?(coupon|discount|promo|voucher)/i.test(line)) return;
+          if (!/\.from\s*\(\s*["']?(coupon|discount|promo|voucher|gift_?card)/i.test(line)) return;
           findings.push(
             mkFinding(
               "BIZ-005",
@@ -232,7 +235,7 @@ export const businessLogicRules: SecurityRule[] = [
       const reads = /\b(amount|quantity|qty|price|value)\b\s*[:=]\s*(body|data|input|payload)\.\1/;
       for (const { file, source } of files) {
         if (!reads.test(source)) continue;
-        if (/\.positive\s*\(|\.min\s*\(\s*0\s*\)|>\s*0|>=\s*0|Math\.max\s*\(\s*0/.test(source)) continue;
+        if (/\.positive\s*\(|\.nonnegative\s*\(|\.gte?\s*\(\s*[1-9]|\.min\s*\(\s*[1-9]|>\s*0\b|>=\s*1\b|Math\.max\s*\(\s*[1-9]/.test(source)) continue;
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
           if (!reads.test(line)) return;
