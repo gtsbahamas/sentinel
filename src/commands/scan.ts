@@ -146,7 +146,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
     const aiStart = Date.now();
     emitter?.emitEvent({ type: "layer:start", layer: "ai", timestamp: Date.now() });
     try {
-      aiResult = await runAI(model, aiConfig, undefined, emitter ?? undefined);
+      aiResult = await runAI(model, aiConfig, undefined, context, emitter ?? undefined);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(`AI layer failed: ${msg}\n`);

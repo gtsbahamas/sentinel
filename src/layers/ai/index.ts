@@ -1,4 +1,5 @@
 import type { AIConfig, AIRunResult, ProjectModel } from "../../model/types.js";
+import type { ProjectContext } from "../context/types.js";
 import type { AIProvider } from "./providers/base.js";
 import type { ScanEventEmitter } from "../../dashboard/events.js";
 import { MockProvider } from "./providers/mock.js";
@@ -23,6 +24,7 @@ export async function runAI(
   model: ProjectModel,
   config: AIConfig,
   injectedProvider?: AIProvider,
+  context?: ProjectContext | null,
   emitter?: ScanEventEmitter,
 ): Promise<AIRunResult> {
   const provider = injectedProvider ?? createProvider(config);
@@ -36,7 +38,7 @@ export async function runAI(
     priorityOrder = stageA?.priorityOrder;
   }
 
-  const result = await runOrchestrator(model, config, provider, budget, priorityOrder);
+  const result = await runOrchestrator(model, config, provider, budget, priorityOrder, context);
   result.stageA = stageA;
   const dedup = dedupAIFindings(result.findings);
   result.findings = dedup.findings;

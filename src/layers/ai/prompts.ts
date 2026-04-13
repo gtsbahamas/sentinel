@@ -1,4 +1,5 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { minimatch } from "minimatch";
 import { AIFindingSchema } from "./schema.js";
 import { MAGIC_LINK_PROMPT_PREFIX } from "./magic-link.js";
 import type { ProjectModel, ApiEndpoint } from "../../model/types.js";
@@ -76,11 +77,40 @@ export interface AdjacentFile {
   content: string;
 }
 
+type DelegationMatch =
+  | { matched: true; delegation: ProjectContext["delegations"][number] }
+  | { matched: false };
+
+function findDelegationFor(
+  endpoint: ApiEndpoint,
+  context: ProjectContext | null | undefined,
+  projectRoot: string | null | undefined,
+): DelegationMatch {
+  if (!context) return { matched: false };
+  // Normalize the endpoint file to a project-relative path so globs like
+  // `src/app/api/public/reservation/**` match consistently.
+  let relPath = endpoint.file;
+  if (projectRoot && relPath.startsWith(projectRoot)) {
+    relPath = relPath.slice(projectRoot.length).replace(/^\/+/, "");
+  }
+  for (const d of context.delegations) {
+    if (!d.appliesTo || d.appliesTo.length === 0) continue;
+    for (const pattern of d.appliesTo) {
+      if (minimatch(relPath, pattern) || relPath.endsWith(pattern) || relPath === pattern) {
+        return { matched: true, delegation: d };
+      }
+    }
+  }
+  return { matched: false };
+}
+
 export function buildEndpointPrompt(
   endpoint: ApiEndpoint,
   handlerSource: string,
   adjacentFiles: AdjacentFile[],
   isMagicLink = false,
+  context?: ProjectContext | null,
+  projectRoot?: string | null,
 ): string {
   const adjacentSection =
     adjacentFiles.length > 0
@@ -93,9 +123,17 @@ export function buildEndpointPrompt(
 
   const prefix = isMagicLink ? MAGIC_LINK_PROMPT_PREFIX : "";
 
+  const match = findDelegationFor(endpoint, context, projectRoot);
+  const delegationNote = match.matched
+    ? `\n\nAUTH DELEGATION (applies to this endpoint):
+This endpoint delegates authentication to \`${match.delegation.mechanism ?? match.delegation.responsibility}\` (${match.delegation.provider}).
+If the handler calls \`${match.delegation.mechanism ?? "the delegated verifier"}\` (directly or via a helper) and rejects requests on failure, treat that as equivalent to session-based auth. Do NOT report this endpoint as "missing auth check" or "IDOR / no ownership check" on the basis of a missing \`getUser()\`-style call.
+Only flag this endpoint if you can point at a specific bypass of the delegated verifier, or a control-flow path where the verifier result is ignored.\n`
+    : "";
+
   return `${prefix}ENDPOINT: ${endpoint.method} ${endpoint.path}
 FILE: ${endpoint.file}
-AUTH CHECK: ${endpoint.hasAuthCheck ? "present" : "absent"}
+AUTH CHECK: ${endpoint.hasAuthCheck ? "present" : "absent"}${delegationNote}
 VALIDATION: ${endpoint.validationLibrary ?? "none"}
 SERVICE ROLE: ${serviceRoleNote}
 

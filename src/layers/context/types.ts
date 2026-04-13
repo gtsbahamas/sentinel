@@ -47,6 +47,11 @@ export const ProjectContextSchema = z.object({
     provider: z.string(),
     responsibility: z.string(),
     mechanism: z.string().optional(),
+    // Glob patterns (relative to project root) that declare which routes this
+    // delegation covers. When present, the AI layer emits a per-endpoint hint
+    // telling the model to treat `mechanism` as the auth primitive for
+    // matching files, instead of looking for session-based auth.
+    appliesTo: z.array(z.string()).optional(),
   })),
 
   version: z.literal(1),
