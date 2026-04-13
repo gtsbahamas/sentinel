@@ -100,6 +100,9 @@ function handleLayerComplete(event) {
 }
 
 function handleReconEvent(event) {
+  // Skip env vars — they're metadata, not attack surface components
+  if (event.type === 'recon:envvar') return;
+
   var lane = classifyLane(event.type, event.data);
   var id = deriveNodeId(event.type, event.data);
 
