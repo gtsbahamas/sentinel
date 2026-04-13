@@ -72,6 +72,7 @@ export const rateLimitProbeCheck: ProbeCheck = {
         confidence: "confirmed",
         title: `Rate limiting confirmed: ${ctx.target.url}`,
         description,
+        impact: "No impact — rate limiting is correctly enforced on this endpoint.",
         evidence: [],
         remediation: "No action needed — rate limiting is working as expected.",
         references: [],
@@ -97,6 +98,7 @@ export const rateLimitProbeCheck: ProbeCheck = {
         confidence: "confirmed",
         title: `No rate limiting detected: ${ctx.target.url}`,
         description: `${MAX_BURST_REQUESTS} rapid GET requests completed without receiving a 429 response. The endpoint appears to lack rate limiting.`,
+        impact: "Your endpoint has no rate limiting. An attacker can brute-force credentials, scrape all your data, or exhaust your infrastructure with automated requests at no effective cost.",
         evidence: [],
         remediation: "Implement rate limiting to protect against abuse and denial-of-service attacks. Consider using token bucket, sliding window, or fixed window algorithms.",
         references: [

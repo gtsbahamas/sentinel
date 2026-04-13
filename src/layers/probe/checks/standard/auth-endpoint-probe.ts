@@ -95,6 +95,7 @@ export const authEndpointProbeCheck: ProbeCheck = {
           confidence: "confirmed",
           title: `User enumeration via verbose error: ${ctx.target.url}`,
           description: `Auth endpoint returned a user-specific error message for a malformed ${payload.label} payload, allowing attackers to determine whether an account exists.`,
+          impact: "Your auth endpoint reveals whether an email address has an account through different error messages. An attacker can harvest valid usernames for targeted phishing or credential stuffing attacks.",
           evidence: [],
           remediation: "Return a generic error message (e.g. 'Invalid credentials') regardless of whether the account exists.",
           references: [
@@ -125,6 +126,7 @@ export const authEndpointProbeCheck: ProbeCheck = {
           confidence: "confirmed",
           title: `Stack trace leakage in auth error response: ${ctx.target.url}`,
           description: `Auth endpoint returned a stack trace or internal file reference in its error response for a malformed ${payload.label} payload. This exposes internal implementation details to attackers.`,
+          impact: "Your auth endpoint leaks stack traces in error responses. Attackers learn your framework version, file structure, and internal method names, which they use to craft more targeted attacks.",
           evidence: [],
           remediation: "Suppress stack traces and internal error details in production. Log them server-side only.",
           references: [

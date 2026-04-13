@@ -28,6 +28,7 @@ export const AIFindingSchema = z.object({
       }),
     )
     .min(1),
+  impact: z.string().min(10).max(1000).optional(),
   remediation: z.string().min(20).max(1000),
   reasoning: z.string().min(20).max(2000),
 });
@@ -75,6 +76,7 @@ export function aiToFinding(ai: AIFinding): Finding {
     confidence: ai.confidence,
     title: ai.title,
     description: ai.description,
+    impact: ai.impact ?? ai.description,
     evidence: ai.evidence.map((e) => ({
       file: e.file,
       line: e.line ?? undefined,

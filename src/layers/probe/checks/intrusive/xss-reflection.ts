@@ -75,6 +75,7 @@ export const xssReflectionCheck: ProbeCheck = {
           confidence: "confirmed",
           title: `XSS reflection detected via query parameter: ${input.name}`,
           description,
+          impact: "Your endpoint reflects user input unescaped into the HTML response. An attacker can inject scripts that steal session cookies, redirect users to phishing sites, or perform actions on their behalf.",
           evidence: [],
           remediation: "Escape all user-supplied input before rendering it in HTML responses. Use a context-aware escaping library and consider implementing a Content Security Policy (CSP).",
           references: [
@@ -136,6 +137,7 @@ export const xssReflectionCheck: ProbeCheck = {
           confidence: "confirmed",
           title: `XSS reflection detected via body parameter: ${input.name}`,
           description,
+          impact: "Your endpoint reflects user input from the request body unescaped into the HTML response. An attacker can inject scripts that steal session cookies, redirect users to phishing sites, or perform actions on their behalf.",
           evidence: [],
           remediation: "Escape all user-supplied input before rendering it in HTML responses. Use a context-aware escaping library and consider implementing a Content Security Policy (CSP).",
           references: [

@@ -96,6 +96,7 @@ export const formFuzzingCheck: ProbeCheck = {
           confidence: "confirmed",
           title: `Unhandled server error on malformed input: ${ctx.target.url}`,
           description: `The endpoint returned a ${resp.status} response when sent a malformed "${payload.label}" payload. This indicates the server failed to validate input before processing, potentially crashing or exposing internal state.`,
+          impact: "Your endpoint crashes with a 5xx error when sent malformed input. This can be used for denial-of-service and may expose stack traces that reveal internal implementation details to attackers.",
           evidence: [],
           remediation: "Validate and sanitize all incoming request bodies before processing. Return consistent 4xx responses for malformed input rather than allowing unhandled exceptions to propagate.",
           references: [
@@ -122,6 +123,7 @@ export const formFuzzingCheck: ProbeCheck = {
           confidence: "confirmed",
           title: `Stack trace leaked in error response: ${ctx.target.url}`,
           description: `The endpoint returned a response containing a stack trace when sent a malformed "${payload.label}" payload. Stack traces expose internal file paths, line numbers, and framework details that aid attackers in crafting targeted exploits.`,
+          impact: "Your endpoint returns stack traces in error responses. Attackers can use file paths, library names, and line numbers to identify exactly which components to target in subsequent attacks.",
           evidence: [],
           remediation: "Configure error handlers to return generic error messages to clients. Log detailed stack traces server-side only. Never expose internal implementation details in API responses.",
           references: [

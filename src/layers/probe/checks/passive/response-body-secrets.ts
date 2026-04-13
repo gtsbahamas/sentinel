@@ -54,6 +54,7 @@ export const responseBodySecretsCheck: ProbeCheck = {
             confidence: "confirmed",
             title: `${pattern.name} found in response body: ${ctx.target.url}`,
             description: `Detected ${pattern.name} pattern in the response body (redacted: ${redactedMatch})`,
+            impact: "Your API response contains what appears to be a secret or credential. Any client that receives this response, including browsers and third-party integrations, can extract and misuse this value.",
             evidence: [],
             remediation: "Remove secrets from response bodies. If this is an API key, rotate it immediately.",
             references: [],

@@ -95,6 +95,7 @@ export const idorProbeCheck: ProbeCheck = {
         confidence: "confirmed",
         title: `Potential IDOR: unauthenticated access to ${accessibleResponse.url}`,
         description: `An unauthenticated GET request to a sentinel UUID path parameter returned HTTP 200 with a non-empty body, indicating the endpoint may not enforce ownership checks (Insecure Direct Object Reference).`,
+        impact: "Your endpoint returns data for any resource ID without verifying ownership. An attacker can enumerate IDs to access other users' data, bypassing all access control.",
         evidence: [],
         remediation: "Ensure all resource access endpoints verify that the requesting user owns or has permission to access the requested resource. Do not rely solely on the ID being unguessable.",
         references: [
@@ -123,6 +124,7 @@ export const idorProbeCheck: ProbeCheck = {
         confidence: "confirmed",
         title: `IDOR not confirmed: access denied for sentinel UUIDs at ${ctx.target.url}`,
         description: `All sentinel UUID substitutions (Nil UUID and Max UUID) returned 401/403, indicating the endpoint enforces access control on unauthenticated requests.`,
+        impact: "No impact — access control is correctly enforced on this endpoint.",
         evidence: [],
         remediation: "No action needed — access control is enforced.",
         references: [],

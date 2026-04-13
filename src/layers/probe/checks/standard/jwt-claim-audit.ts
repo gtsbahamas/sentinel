@@ -111,6 +111,7 @@ export const jwtClaimAuditCheck: ProbeCheck = {
             confidence: "confirmed",
             title: `JWT with alg:none detected: ${ctx.target.url}`,
             description: `A JWT token in the response uses alg:none, meaning no signature verification is performed. This allows attackers to forge arbitrary tokens and bypass authentication.`,
+            impact: "Your server accepts JWTs with alg:none, which means tokens have no signature. An attacker can create a token claiming to be any user, including admins, and your server will accept it as valid.",
             evidence: [],
             remediation: "Reject JWTs with alg:none. Enforce an explicit allowlist of secure algorithms (e.g. RS256, ES256) on the server.",
             references: [
@@ -144,6 +145,7 @@ export const jwtClaimAuditCheck: ProbeCheck = {
           confidence: "confirmed",
           title: `JWT missing exp claim: ${ctx.target.url}`,
           description: `A JWT token in the response is missing the exp (expiration) claim. Tokens without expiration remain valid indefinitely, increasing the impact of token theft.`,
+          impact: "Your JWTs have no expiration. If a token is stolen through XSS, a data breach, or log exposure, it remains valid forever, giving an attacker permanent access unless you implement token revocation.",
           evidence: [],
           remediation: "Include an exp claim in all JWT tokens and enforce short expiration windows (e.g. 15 minutes for access tokens).",
           references: [
@@ -178,6 +180,7 @@ export const jwtClaimAuditCheck: ProbeCheck = {
           confidence: "confirmed",
           title: `JWT contains sensitive claims: ${ctx.target.url}`,
           description: `A JWT token in the response contains sensitive claim key(s): ${foundSensitiveKeys.join(", ")}. JWT payloads are base64-encoded and trivially decoded — sensitive data should never be stored in JWT claims.`,
+          impact: "Your JWT payload contains sensitive data that is only base64-encoded, not encrypted. Any client or intermediary that receives the token can decode and read these values without any key.",
           evidence: [],
           remediation: "Remove sensitive data from JWT claims. Store only identifiers (e.g. user ID) in the token and retrieve sensitive data server-side as needed.",
           references: [

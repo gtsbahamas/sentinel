@@ -169,6 +169,7 @@ export const fileUploadCheck: ProbeCheck = {
             confidence: "confirmed",
             title: "Path traversal filename accepted in file upload",
             description: `The upload endpoint at ${ctx.target.url} accepted a filename containing path traversal sequences ("${testFile.filename}"). An attacker could potentially overwrite arbitrary files on the server.`,
+            impact: "Your upload endpoint accepts filenames with path traversal sequences. An attacker can overwrite arbitrary files on the server, potentially replacing application code or configuration files.",
             evidence: [],
             remediation: "Sanitize uploaded filenames by stripping directory traversal sequences (../, .., %2e%2e, etc.) and reject uploads with suspicious filenames. Store files using server-generated names rather than user-supplied names.",
             references: [
@@ -194,6 +195,7 @@ export const fileUploadCheck: ProbeCheck = {
             confidence: "confirmed",
             title: `File upload accepted without MIME type validation (${testFile.label})`,
             description: `The upload endpoint at ${ctx.target.url} accepted a ${testFile.contentType} file without apparent MIME type validation. The endpoint may accept arbitrary file types, potentially allowing upload of malicious content.`,
+            impact: "Your upload endpoint accepted a file type that should be rejected. An attacker can upload scripts, executables, or other malicious files that could be served to other users or executed on the server.",
             evidence: [],
             remediation: "Implement server-side MIME type validation by inspecting the file content (magic bytes), not just the Content-Type header or filename extension. Maintain an allowlist of acceptable MIME types.",
             references: [
