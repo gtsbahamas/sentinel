@@ -10,6 +10,7 @@ function mkFinding(
   severity: Finding["severity"],
   title: string,
   description: string,
+  impact: string,
   remediation: string,
   evidence: Finding["evidence"],
   refs: { cwe?: string; owasp?: string },
@@ -21,6 +22,7 @@ function mkFinding(
     confidence: "high",
     title,
     description,
+    impact,
     evidence,
     remediation,
     references: [refs.cwe, refs.owasp].filter(Boolean) as string[],
@@ -37,8 +39,8 @@ function isCommentLine(line: string): boolean {
   return (
     t.startsWith("//") ||
     t.startsWith("/*") ||
-    t.startsWith("*") ||   // inner line of block comment
-    t.startsWith("#")       // shell-style comment in config files
+    t.startsWith("*") || // inner line of block comment
+    t.startsWith("#") // shell-style comment in config files
   );
 }
 
@@ -73,6 +75,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "Content-Security-Policy header missing",
     description: "No CSP header configured in next.config, middleware, or vercel.json",
+    impact:
+      "Your app has no Content Security Policy header. An attacker who finds any XSS vulnerability can load scripts from any domain, making exploitation trivial and persistent.",
     severity: "high",
     appliesTo: ["nextjs-supabase", "react-vite-supabase"],
     references: { cwe: "CWE-693" },
@@ -85,6 +89,7 @@ export const infrastructureRules: SecurityRule[] = [
             "high",
             "No Content-Security-Policy header",
             "Without a CSP, a single XSS hole can load arbitrary scripts, iframes, and exfiltrate data.",
+            "Your app has no Content Security Policy header. An attacker who finds any XSS vulnerability can load scripts from any domain, making exploitation trivial and persistent.",
             "Add a CSP in next.config headers() (or middleware) restricting script-src, connect-src, and frame-ancestors.",
             infraFiles(model).map((file) => ({ file })),
             { cwe: "CWE-693" },
@@ -100,6 +105,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "Strict-Transport-Security header missing",
     description: "HSTS not configured",
+    impact:
+      "Your app does not set the Strict-Transport-Security header. An attacker on a public wifi network can intercept the first HTTP request before it redirects to HTTPS, stealing cookies or injecting content.",
     severity: "high",
     appliesTo: ["nextjs-supabase", "react-vite-supabase"],
     references: { cwe: "CWE-319" },
@@ -118,6 +125,7 @@ export const infrastructureRules: SecurityRule[] = [
             "high",
             "No Strict-Transport-Security header",
             "HSTS prevents downgrade attacks to plain HTTP and cookie leakage on the first request of a session.",
+            "Your app does not set the Strict-Transport-Security header. An attacker on a public wifi network can intercept the first HTTP request before it redirects to HTTPS, stealing cookies or injecting content.",
             "Add `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` to the response headers.",
             infraFiles(model).map((file) => ({ file })),
             { cwe: "CWE-319" },
@@ -133,6 +141,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "X-Frame-Options header missing",
     description: "No clickjacking protection configured",
+    impact:
+      "Your app has no X-Frame-Options header. An attacker can embed your app in an invisible iframe on their site and trick users into clicking buttons they cannot see.",
     severity: "medium",
     appliesTo: ["nextjs-supabase", "react-vite-supabase"],
     references: { cwe: "CWE-1021" },
@@ -148,6 +158,7 @@ export const infrastructureRules: SecurityRule[] = [
             "medium",
             "No X-Frame-Options or frame-ancestors directive",
             "Any origin can embed this site in an iframe, enabling clickjacking.",
+            "Your app has no X-Frame-Options header. An attacker can embed your app in an invisible iframe on their site and trick users into clicking buttons they cannot see.",
             "Set `X-Frame-Options: DENY` or add `frame-ancestors 'none'` to your CSP.",
             infraFiles(model).map((file) => ({ file })),
             { cwe: "CWE-1021" },
@@ -163,6 +174,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "Wildcard CORS in config",
     description: "next.config or middleware sets Access-Control-Allow-Origin: *",
+    impact:
+      "Your app allows CORS requests from any origin. Any website can make JavaScript requests to your API, potentially reading responses if the user is authenticated.",
     severity: "high",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-942" },
@@ -177,6 +190,7 @@ export const infrastructureRules: SecurityRule[] = [
             "high",
             "Wildcard CORS origin in infrastructure config",
             "Access-Control-Allow-Origin: * applies to every request that hits the matching path pattern.",
+            "Your app allows CORS requests from any origin. Any website can make JavaScript requests to your API, potentially reading responses if the user is authenticated.",
             "Replace `*` with an explicit list of trusted origins, or reflect the request origin only if it matches an allowlist.",
             [{ file: origin.file, snippet: "Access-Control-Allow-Origin: *" }],
             { cwe: "CWE-942" },
@@ -192,6 +206,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "Cookies set without Secure flag",
     description: "Source sets a Set-Cookie response without Secure",
+    impact:
+      "Your app sets cookies without the Secure flag. On any non-HTTPS connection, like a coffee shop wifi captive portal, these cookies are sent in plaintext and can be intercepted.",
     severity: "high",
     appliesTo: ["nextjs-supabase", "react-vite-supabase"],
     references: { cwe: "CWE-614" },
@@ -222,6 +238,7 @@ export const infrastructureRules: SecurityRule[] = [
               "high",
               "Cookie set without Secure flag",
               "Cookies without Secure can be sent over plain HTTP and captured by a network attacker.",
+              "Your app sets cookies without the Secure flag. On any non-HTTPS connection, like a coffee shop wifi captive portal, these cookies are sent in plaintext and can be intercepted.",
               "Set `secure: true` and `httpOnly: true` and `sameSite: 'lax'` (or 'strict') on all session cookies.",
               [{ file, line: cidx + 1, snippet: lines[cidx].trim().slice(0, 120) }],
               { cwe: "CWE-614" },
@@ -238,6 +255,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "HTTP origin allowed in fetch/axios/CORS config",
     description: "Plain http:// URL in source or config",
+    impact:
+      "Your app communicates with external services over plain HTTP. Any network between your server and the service can read or modify the data in transit.",
     severity: "medium",
     appliesTo: ["nextjs-supabase", "react-vite-supabase", "generic-web"],
     references: { cwe: "CWE-319" },
@@ -256,6 +275,7 @@ export const infrastructureRules: SecurityRule[] = [
               "medium",
               "Plain HTTP URL in source",
               "HTTP connections are subject to MITM injection and can leak credentials.",
+              "Your app communicates with external services over plain HTTP. Any network between your server and the service can read or modify the data in transit.",
               "Use HTTPS for every non-localhost endpoint.",
               [{ file, line: idx + 1, snippet: line.trim().slice(0, 120) }],
               { cwe: "CWE-319" },
@@ -272,6 +292,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "Next.js images.remotePatterns allows wildcard host",
     description: "next.config has a wildcard hostname in remotePatterns",
+    impact:
+      "Your Next.js image configuration allows loading images from any host. An attacker can abuse your image proxy to fetch internal resources or use your server's bandwidth.",
     severity: "medium",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-601" },
@@ -291,6 +313,7 @@ export const infrastructureRules: SecurityRule[] = [
             "medium",
             "Next.js image optimizer trusts any host",
             "An attacker can request `/_next/image?url=https://evil.com/x.png` to proxy arbitrary URLs through your origin.",
+            "Your Next.js image configuration allows loading images from any host. An attacker can abuse your image proxy to fetch internal resources or use your server's bandwidth.",
             "Set `images.remotePatterns` to an explicit list of hostnames (e.g. your Supabase project URL).",
             [{ file: cfg.file }],
             { cwe: "CWE-601" },
@@ -306,6 +329,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "Production .env file committed",
     description: ".env or .env.production exists in the working tree",
+    impact:
+      "Your .env file is present in the project directory and not excluded from version control. If this code is shared or pushed to a remote, every secret in the file is exposed.",
     severity: "critical",
     appliesTo: ["nextjs-supabase", "react-vite-supabase", "generic-web"],
     references: { cwe: "CWE-312" },
@@ -346,6 +371,7 @@ export const infrastructureRules: SecurityRule[] = [
             "critical",
             `${f} is present and not gitignored`,
             "Committing env files ships secrets into the repo permanently.",
+            "Your .env file is present in the project directory and not excluded from version control. If this code is shared or pushed to a remote, every secret in the file is exposed.",
             `Add \`${f}\` to .gitignore and rotate every secret it ever contained.`,
             [{ file: full }],
             { cwe: "CWE-312" },
@@ -361,6 +387,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "Referrer-Policy header missing or permissive",
     description: "No Referrer-Policy, or set to unsafe-url",
+    impact:
+      "Your app has no Referrer-Policy or uses an unsafe one. When users navigate from your app to external sites, the full URL including query parameters is sent as the referrer, potentially leaking tokens or session data.",
     severity: "low",
     appliesTo: ["nextjs-supabase", "react-vite-supabase"],
     references: { cwe: "CWE-200" },
@@ -374,6 +402,7 @@ export const infrastructureRules: SecurityRule[] = [
             "low",
             "No Referrer-Policy header",
             "Without a policy, full URLs (including query strings with tokens) leak in the Referer header to third-party links.",
+            "Your app has no Referrer-Policy or uses an unsafe one. When users navigate from your app to external sites, the full URL including query parameters is sent as the referrer, potentially leaking tokens or session data.",
             "Set `Referrer-Policy: strict-origin-when-cross-origin` at minimum.",
             infraFiles(model).map((file) => ({ file })),
             { cwe: "CWE-200" },
@@ -389,6 +418,7 @@ export const infrastructureRules: SecurityRule[] = [
               "low",
               `Permissive Referrer-Policy: ${h.value}`,
               "Unsafe referrer policies leak full URLs across origins.",
+              "Your app has no Referrer-Policy or uses an unsafe one. When users navigate from your app to external sites, the full URL including query parameters is sent as the referrer, potentially leaking tokens or session data.",
               "Use `strict-origin-when-cross-origin` or `no-referrer`.",
               [{ file: h.file, snippet: `Referrer-Policy: ${h.value}` }],
               { cwe: "CWE-200" },
@@ -405,6 +435,8 @@ export const infrastructureRules: SecurityRule[] = [
     domain: "infrastructure",
     title: "Supabase config has disabled email confirmations",
     description: "supabase/config.toml sets enable_confirmations = false for the email provider",
+    impact:
+      "Your Supabase config has email confirmations disabled. Anyone can sign up with a fake email address and immediately access authenticated features without proving they own the email.",
     severity: "medium",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-287" },
@@ -424,6 +456,7 @@ export const infrastructureRules: SecurityRule[] = [
             "medium",
             "Supabase email confirmations disabled",
             "With confirmations off, anyone can sign up with an email they don't own and receive password reset tokens for it.",
+            "Your Supabase config has email confirmations disabled. Anyone can sign up with a fake email address and immediately access authenticated features without proving they own the email.",
             "Set `enable_confirmations = true` under `[auth.email]` in supabase/config.toml.",
             [{ file: cfg.file }],
             { cwe: "CWE-287" },
