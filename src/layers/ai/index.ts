@@ -17,6 +17,7 @@ const require = createRequire(import.meta.url);
 
 export { runDryRun };
 export type { DryRunResult };
+export { runVerify } from "./verify.js";
 
 export { createProvider };
 
