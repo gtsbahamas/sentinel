@@ -1,4 +1,10 @@
-import type { AIRunResult, Finding, ProjectModel, Severity } from "../model/types.js";
+import type {
+  AIRunResult,
+  Finding,
+  ProjectModel,
+  Severity,
+  VerifyResult,
+} from "../model/types.js";
 
 export interface LayerTiming {
   recon_ms: number;
@@ -11,6 +17,7 @@ export function formatJson(
   model: ProjectModel,
   findings: Finding[],
   timing: LayerTiming,
+  verifyResult?: VerifyResult | null,
 ): string {
   const summary: Record<Severity, number> = {
     critical: 0, high: 0, medium: 0, low: 0, info: 0,
@@ -64,6 +71,21 @@ export function formatJson(
     },
     findings,
     model,
+    ...(verifyResult
+      ? {
+          verification: {
+            confirmed: verifyResult.confirmed,
+            dismissed: verifyResult.dismissed,
+            downgraded: verifyResult.downgraded,
+            usage: verifyResult.usage,
+            errors: verifyResult.errors,
+            budgetExhausted: verifyResult.budgetExhausted,
+            filesProcessed: verifyResult.filesProcessed,
+            findingsProcessed: verifyResult.findingsProcessed,
+            durationMs: verifyResult.durationMs,
+          },
+        }
+      : {}),
   };
 
   return JSON.stringify(output, null, 2);

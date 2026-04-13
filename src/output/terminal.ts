@@ -1,5 +1,11 @@
 import chalk from "chalk";
-import type { Finding, ProjectModel, Severity, SecurityDomain } from "../model/types.js";
+import type {
+  Finding,
+  ProjectModel,
+  Severity,
+  SecurityDomain,
+  VerifyResult,
+} from "../model/types.js";
 import { compareSeverity } from "../model/severity.js";
 
 const SEVERITY_COLOR: Record<Severity, (s: string) => string> = {
@@ -23,7 +29,12 @@ const DOMAINS: SecurityDomain[] = [
   "logging-monitoring",
 ];
 
-export function formatTerminal(model: ProjectModel, findings: Finding[]): string {
+export function formatTerminal(
+  model: ProjectModel,
+  findings: Finding[],
+  verifyResult?: VerifyResult | null,
+  options?: { keepDismissed?: boolean },
+): string {
   const lines: string[] = [];
 
   lines.push(chalk.bold("  SENTINEL v0.1.0 — Security Assessment"));
@@ -93,6 +104,52 @@ export function formatTerminal(model: ProjectModel, findings: Finding[]): string
   lines.push(
     `  Total: ${totals.critical} critical, ${totals.high} high, ${totals.medium} medium, ${totals.low} low, ${totals.info} info`,
   );
+
+  if (verifyResult) {
+    lines.push("");
+    lines.push("  " + "─".repeat(50));
+    lines.push("");
+    lines.push(chalk.bold("  VERIFICATION"));
+    lines.push("");
+    const confirmedCount = verifyResult.confirmed.length;
+    const dismissedCount = verifyResult.dismissed.length;
+    const downgradedCount = verifyResult.downgraded.length;
+    lines.push(
+      `  Verified: ${confirmedCount} confirmed, ${dismissedCount} dismissed, ${downgradedCount} downgraded`,
+    );
+    const cost = verifyResult.usage.estimatedCostUsd;
+    lines.push(
+      chalk.dim(`  (verifier: $${cost.toFixed(4)}, ${verifyResult.durationMs}ms)`),
+    );
+
+    if (verifyResult.errors.length > 0) {
+      lines.push("");
+      lines.push(
+        chalk.yellow(
+          `  ⚠ Verification errors: ${verifyResult.errors.length} (see JSON output for details)`,
+        ),
+      );
+    }
+
+    if (options?.keepDismissed && verifyResult.dismissed.length > 0) {
+      lines.push("");
+      lines.push(chalk.bold("  DISMISSED (SUSPECTED FALSE POSITIVE)"));
+      lines.push("");
+      for (const d of verifyResult.dismissed) {
+        const f = d.finding;
+        lines.push(
+          `  ${chalk.bold(f.id)}  ${f.title}  ${chalk.dim("[" + f.domain + "]")}`,
+        );
+        for (const ev of f.evidence) {
+          lines.push(
+            `           ${chalk.dim(ev.file + (ev.line ? `:${ev.line}` : ""))}`,
+          );
+        }
+        lines.push(`           ${chalk.dim("Dismissed: " + d.reason)}`);
+        lines.push("");
+      }
+    }
+  }
 
   return lines.join("\n");
 }
