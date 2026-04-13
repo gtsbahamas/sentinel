@@ -96,8 +96,12 @@ export const loggingMonitoringRules: SecurityRule[] = [
     references: {},
     async check(model) {
       const findings: Finding[] = [];
+      const structuredLoggerImport = /from\s+["'](pino|winston|bunyan|@logtail\/[\w-]+|roarr|loglevel)["']|import\s+logger\b/;
       for (const endpoint of model.endpoints) {
         const source = await safeReadFile(endpoint.file).catch(() => "");
+        // If the file already imports a structured logger, assume console.* is
+        // intentional (debug scaffolding) rather than a missing-logger issue.
+        if (structuredLoggerImport.test(source)) continue;
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
           if (!/console\.(log|debug|info)/.test(line)) return;
@@ -198,9 +202,13 @@ export const loggingMonitoringRules: SecurityRule[] = [
       const findings: Finding[] = [];
       for (const endpoint of model.endpoints) {
         const source = await safeReadFile(endpoint.file).catch(() => "");
-        // Heuristic: file contains `await` but zero `try {` blocks.
+        // Heuristic: file contains `await` but zero `try {` blocks AND no
+        // `.catch(` chain. Also skip if a global error handler / error boundary
+        // import is present.
         if (!/\bawait\b/.test(source)) continue;
         if (/\btry\s*\{/.test(source)) continue;
+        if (/\.catch\s*\(/.test(source)) continue;
+        if (/errorHandler|withErrorHandler|asyncHandler|captureException/.test(source)) continue;
         findings.push(
           mkFinding(
             "LOG-005",
@@ -227,12 +235,22 @@ export const loggingMonitoringRules: SecurityRule[] = [
     references: {},
     async check(model) {
       const findings: Finding[] = [];
+      // 1. Conventional files
       const files = await fg(["**/error.tsx", "**/error.jsx", "**/*ErrorBoundary*.{ts,tsx,js,jsx}"], {
         cwd: model.meta.path,
         absolute: true,
         ignore: ["**/node_modules/**", "**/.next/**", "**/dist/**"],
       });
       if (files.length > 0) return findings;
+      // 2. react-error-boundary dependency
+      if (model.dependencies.some((d) => d.name === "react-error-boundary")) return findings;
+      // 3. Custom boundary: any source file implementing componentDidCatch or
+      //    getDerivedStateFromError.
+      const sources = await walkSourceFiles(model);
+      const hasCustomBoundary = sources.some(({ source }) =>
+        /componentDidCatch\s*\(|getDerivedStateFromError\s*\(/.test(source),
+      );
+      if (hasCustomBoundary) return findings;
       findings.push(
         mkFinding(
           "LOG-006",
@@ -360,7 +378,11 @@ export const loggingMonitoringRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
-      const re = /process\.env\.DEBUG\s*=|process\.env\.NODE_ENV\s*=\s*["']development["']|NEXT_TELEMETRY_DISABLED\s*=\s*["']0["']/;
+      // Only flag hardcoded truthy assignments. `process.env.DEBUG = process.env.DEBUG || 'foo'`
+      // and `process.env.DEBUG = someVar` are NOT flagged — the `debug` npm package
+      // uses the env var legitimately. We only flag literal `true`/`'1'`/`'*'`/quoted
+      // namespaces, forced NODE_ENV=development, or forced DEV/__DEV__ assignments.
+      const re = /process\.env\.DEBUG\s*=\s*(?:true|["'](?:1|\*|[\w:*-]+)["'])|process\.env\.NODE_ENV\s*=\s*["']development["']|\b(?:__DEV__|DEV)\s*=\s*true\b/;
       for (const { file, source } of files) {
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
