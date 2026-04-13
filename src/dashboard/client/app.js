@@ -32,8 +32,7 @@ function nodeId(eventType, data) {
 }
 
 // ── Severity Ranking ─────────────────────────────────────────────────────────
-
-const SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
+// SEVERITY_RANK is defined in graph.js (loaded first)
 
 function maxSeverity(a, b) {
   if (!a) return b;

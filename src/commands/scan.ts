@@ -215,9 +215,10 @@ export async function runScan(options: ScanOptions): Promise<number> {
 
   // Keep process alive if dashboard is running
   if (dashboardHandle) {
+    process.stderr.write(`\nDashboard running at http://localhost:${dashboardHandle.port}\nPress Ctrl+C to exit.\n`);
     await new Promise<void>((resolve) => {
-      process.on("SIGINT", () => {
-        dashboardHandle!.close();
+      process.on("SIGINT", async () => {
+        await dashboardHandle!.close();
         resolve();
       });
     });

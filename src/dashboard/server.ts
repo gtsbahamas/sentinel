@@ -29,12 +29,23 @@ export async function startDashboard(
 
   app.use(express.static(join(__dirname, "client")));
 
+  // Buffer all events so late-connecting clients get full replay
+  const eventBuffer: string[] = [];
+
   emitter.on("scan-event", (event) => {
     const payload = JSON.stringify(event);
+    eventBuffer.push(payload);
     for (const client of wss.clients) {
       if (client.readyState === 1) {
         client.send(payload);
       }
+    }
+  });
+
+  // Replay buffered events to newly connected clients
+  wss.on("connection", (ws) => {
+    for (const payload of eventBuffer) {
+      ws.send(payload);
     }
   });
 
