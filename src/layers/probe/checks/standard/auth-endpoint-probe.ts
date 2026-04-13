@@ -107,7 +107,7 @@ export const authEndpointProbeCheck: ProbeCheck = {
             requestId: resp.requestId,
             checkId: "auth-endpoint-probe",
             aggressionLevel: "standard",
-            request: { method: "POST", url: ctx.target.url, headers: { "Content-Type": payload.contentType }, body: payload.body },
+            request: { method: "POST", url: ctx.target.url, headers: { "Content-Type": payload.contentType }, bodyPreview: payload.body },
             response: { status: resp.status, headers: resp.headers, bodyPreview: body.slice(0, 256), timingMs: resp.timingMs },
           },
           confirms: priorAuthFinding?.id,
@@ -137,7 +137,7 @@ export const authEndpointProbeCheck: ProbeCheck = {
             requestId: resp.requestId,
             checkId: "auth-endpoint-probe",
             aggressionLevel: "standard",
-            request: { method: "POST", url: ctx.target.url, headers: { "Content-Type": payload.contentType }, body: payload.body },
+            request: { method: "POST", url: ctx.target.url, headers: { "Content-Type": payload.contentType }, bodyPreview: payload.body },
             response: { status: resp.status, headers: resp.headers, bodyPreview: body.slice(0, 256), timingMs: resp.timingMs },
           },
         };
