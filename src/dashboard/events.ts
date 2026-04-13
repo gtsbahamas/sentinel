@@ -56,6 +56,7 @@ export interface FindingEventData {
   severity: Severity;
   title: string;
   description?: string;
+  impact?: string;
   file: string;
   line?: number;
   domain: SecurityDomain;

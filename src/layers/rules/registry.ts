@@ -6,6 +6,7 @@ export interface SecurityRule {
   domain: SecurityDomain;
   title: string;
   description: string;
+  impact: string;
   severity: Severity;
   appliesTo: StackProfile[];
   references: {

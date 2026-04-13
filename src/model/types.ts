@@ -33,6 +33,7 @@ export interface Finding {
   confidence: Confidence;
   title: string;
   description: string;
+  impact: string;
   evidence: Evidence[];
   remediation: string;
   references: string[];

@@ -99,6 +99,7 @@ function addToFindingGroup(node, finding) {
     title: finding.title,
     severity: finding.severity,
     domain: finding.domain,
+    impact: finding.impact,
     remediation: finding.remediation,
     instances: [{ file: finding.file, line: finding.line, id: finding.id }],
   });

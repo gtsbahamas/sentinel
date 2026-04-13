@@ -716,6 +716,17 @@ main {
   margin: 8px 0 6px;
 }
 
+.finding-group-impact {
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: rgba(30, 58, 95, 0.25);
+  border-left: 2px solid var(--text-muted);
+  border-radius: 0 4px 4px 0;
+}
+
 .finding-group-remediation {
   font-size: 11px;
   color: var(--text-secondary);

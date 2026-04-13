@@ -93,11 +93,12 @@ function showNodeDetail(node) {
             ${countLabel}
           </div>
           <div class="finding-group-body collapsed">
+            ${g.impact ? `<div class="finding-group-impact">${escapeHtml(g.impact)}</div>` : ""}
             <div class="finding-group-meta">
               <span class="detail-tag ${g.severity}">${g.severity}</span>
               <span class="detail-tag">${escapeHtml(g.domain)}</span>
             </div>
-            ${g.remediation ? `<div class="finding-group-remediation">${escapeHtml(g.remediation)}</div>` : ""}
+            ${g.remediation ? `<div class="finding-group-remediation"><div class="detail-label">Fix</div>${escapeHtml(g.remediation)}</div>` : ""}
             <div class="finding-group-instances">
               <div class="detail-label">Locations</div>
               ${instancesHtml}

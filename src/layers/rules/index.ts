@@ -24,6 +24,7 @@ export async function runRules(
           severity: f.severity,
           title: f.title,
           description: f.description,
+          impact: f.impact,
           file: f.evidence[0]?.file ?? "",
           line: f.evidence[0]?.line,
           domain: f.domain,
