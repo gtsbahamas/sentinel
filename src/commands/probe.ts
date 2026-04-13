@@ -19,6 +19,8 @@ import {
   buildAuthorizationEntry,
 } from "../layers/probe/index.js";
 import { PROBE_CONFIG_DEFAULTS } from "../layers/probe/schema.js";
+import { inferContext, readContext } from "../layers/context/index.js";
+import { applyContextSuppressions } from "../layers/context/suppression.js";
 import { formatTerminal } from "../output/terminal.js";
 import { formatJson } from "../output/json.js";
 import { isAtOrAbove } from "../model/severity.js";
@@ -97,6 +99,14 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
   process.stderr.write(`Running recon + rules...\n`);
   const model = await runRecon(options.path, config.exclude);
 
+  // Context phase: load saved context or auto-infer (mirrors scan.ts)
+  const contextFromFile = await readContext(options.path);
+  const context = contextFromFile ?? (await inferContext(model));
+  if (!contextFromFile) {
+    process.stderr.write("No .sentinel/context.json found. Using auto-inferred context.\n");
+    process.stderr.write("Run `sentinel context` to reduce false positives.\n\n");
+  }
+
   resetRegistry();
   registerRules(secretsExposureRules);
   registerRules(inputInjectionRules);
@@ -108,12 +118,15 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
   registerRules(apiSecurityRules);
   registerRules(businessLogicRules);
   registerRules(infrastructureRules);
-  const ruleFindings = await runRules(model);
+  const ruleFindings = await runRules(model, context);
 
   process.stderr.write(`Running probe against ${options.target} (level: ${options.level})...\n`);
   const { result, mergedFindings } = await runProbe(model, ruleFindings, probeConfig);
 
-  const allFindings = [...mergedFindings, ...result.findings];
+  const allFindings = applyContextSuppressions(
+    [...mergedFindings, ...result.findings],
+    context,
+  );
 
   if (options.format === "json") {
     const body = formatJson(model, allFindings, {
