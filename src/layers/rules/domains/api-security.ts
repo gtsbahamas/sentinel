@@ -62,8 +62,8 @@ export const apiSecurityRules: SecurityRule[] = [
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
       for (const { file, source } of files) {
-        const hasWildcard = /Access-Control-Allow-Origin["']?\s*[:,]\s*["']\*/.test(source);
-        const hasCreds = /Access-Control-Allow-Credentials["']?\s*[:,]\s*["']true/i.test(source);
+        const hasWildcard = /Access-Control-Allow-Origin["']?\s*[:,]\s*["']\*|['"]Access-Control-Allow-Origin['"]\s*:\s*['"]\*/.test(source);
+        const hasCreds = /Access-Control-Allow-Credentials["']?\s*[:,]\s*["']true|['"]Access-Control-Allow-Credentials['"]\s*:\s*['"]true/i.test(source);
         if (!hasWildcard || !hasCreds) continue;
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
@@ -265,7 +265,7 @@ export const apiSecurityRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
-      const re = /X-HTTP-Method-Override|methodOverride\s*\(|_method/i;
+      const re = /X-HTTP-Method-Override|methodOverride\s*\(|body\s*\.\s*_method|body\[["']_method["']\]/i;
       for (const { file, source } of files) {
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
@@ -303,7 +303,7 @@ export const apiSecurityRules: SecurityRule[] = [
         // Only flag cookie-auth (not JSON bearer-token auth).
         const usesCookies = /cookies\s*\(|req\.cookies|request\.cookies|Set-Cookie|createServerClient/.test(source);
         if (!usesCookies) continue;
-        const hasCsrf = /csrf|X-Csrf|sameSite\s*:\s*["']strict["']/.test(source);
+        const hasCsrf = /csrf|X-Csrf|sameSite\s*:\s*["'](strict|lax)["']/i.test(source);
         if (hasCsrf) continue;
         findings.push(
           mkFinding(
@@ -335,7 +335,8 @@ export const apiSecurityRules: SecurityRule[] = [
         const source = await safeReadFile(endpoint.file).catch(() => "");
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
-          if (!/NextResponse\.json\s*\(\s*(err|error|e)\b/.test(line)) return;
+          const rawErrorRe = /(?:NextResponse\.json|Response\.json|JSON\.stringify)\s*\(\s*(err|error|e)\b/;
+          if (!rawErrorRe.test(line)) return;
           if (/\.message/.test(line)) return;
           findings.push(
             mkFinding(
@@ -366,7 +367,9 @@ export const apiSecurityRules: SecurityRule[] = [
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
       const re = /(require|import)\s*\(\s*(req\.|request\.|params\.|searchParams|body\.|query\.)/;
+      const testFileRe = /(^|\/)(__tests__|__mocks__|tests?|specs?)\/|\.(test|spec)\.[jt]sx?$|(^|\/)(scripts|build)\//;
       for (const { file, source } of files) {
+        if (testFileRe.test(file)) continue;
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
           if (!re.test(line)) return;
