@@ -214,7 +214,7 @@ export const cryptographyRules: SecurityRule[] = [
       const files = await walkSourceFiles(model);
       // Look for createCipheriv/createDecipheriv where the third arg is a
       // Buffer.alloc, Buffer.from("const"), or a literal array of zeros.
-      const re = /create(?:De)?cipheriv\s*\([^,]+,\s*[^,]+,\s*(Buffer\.alloc\s*\(\s*\d+\s*\)|Buffer\.from\s*\(\s*["'][^"']*["']|new\s+Uint8Array\s*\(\s*\d+\s*\)|["'][A-Fa-f0-9]{16,}["'])/;
+      const re = /create(?:De)?Cipheriv\s*\([^,]+,\s*[^,]+,\s*(Buffer\.alloc\s*\(\s*\d+\s*\)|Buffer\.from\s*\(\s*["'][^"']*["']|new\s+Uint8Array\s*\(\s*\d+\s*\)|["'][A-Fa-f0-9]{16,}["'])/;
       for (const { file, source } of files) {
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
