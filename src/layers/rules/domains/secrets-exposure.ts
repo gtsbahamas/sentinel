@@ -34,6 +34,7 @@ function mkFinding(
   rule: { id: string; severity: Finding["severity"]; title: string; remediation: string; references: { cwe?: string; owasp?: string } },
   evidence: Finding["evidence"],
   description: string,
+  impact: string,
 ): Finding {
   return {
     id: `${rule.id}-${evidence[0]?.file ?? "x"}-${evidence[0]?.line ?? 0}`,
@@ -42,6 +43,7 @@ function mkFinding(
     confidence: "high",
     title: rule.title,
     description,
+    impact,
     evidence,
     remediation: rule.remediation,
     references: [rule.references.cwe, rule.references.owasp].filter(Boolean) as string[],
@@ -58,6 +60,7 @@ export const secretsExposureRules: SecurityRule[] = [
     domain: "secrets-exposure",
     title: "Service role key used client-side",
     description: "SUPABASE_SERVICE_ROLE_KEY referenced without server-only guard",
+    impact: "Your Supabase service role key is accessible in client-side code. This key bypasses all Row Level Security, meaning anyone who opens browser DevTools can read, modify, or delete any row in any table.",
     severity: "critical",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-798", owasp: "A07:2021" },
@@ -83,6 +86,7 @@ export const secretsExposureRules: SecurityRule[] = [
                   },
                   [{ file, snippet: "process.env.SUPABASE_SERVICE_ROLE_KEY" }],
                   "Admin key usage outside a server-only boundary exposes it to client bundles.",
+                  "Your Supabase service role key is accessible in client-side code. This key bypasses all Row Level Security, meaning anyone who opens browser DevTools can read, modify, or delete any row in any table.",
                 ),
               );
             }
@@ -98,6 +102,7 @@ export const secretsExposureRules: SecurityRule[] = [
     domain: "secrets-exposure",
     title: "Known API key pattern in source",
     description: "Provider-specific secret pattern detected in source",
+    impact: "Your source code contains an API key matching a known provider pattern. Anyone who reads your code, including through a public repo or client-side bundle, can use this key to access the associated service on your account.",
     severity: "critical",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-798" },
@@ -124,6 +129,7 @@ export const secretsExposureRules: SecurityRule[] = [
                 },
                 [{ file, line, snippet: match[0] }],
                 `A string matching the ${provider} secret pattern was found in source code.`,
+                "Your source code contains an API key matching a known provider pattern. Anyone who reads your code, including through a public repo or client-side bundle, can use this key to access the associated service on your account.",
               ),
             );
           }
@@ -138,6 +144,7 @@ export const secretsExposureRules: SecurityRule[] = [
     domain: "secrets-exposure",
     title: ".env file committed or not gitignored",
     description: ".env file present and not excluded from git",
+    impact: "Your .env file is present in the project and not excluded from git. If this repository is ever shared, pushed to GitHub, or accessed by a third party, every secret in that file is compromised.",
     severity: "critical",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-312" },
@@ -161,6 +168,7 @@ export const secretsExposureRules: SecurityRule[] = [
               },
               [{ file: envPath }],
               ".env file exists without being excluded from version control.",
+              "Your .env file is present in the project and not excluded from git. If this repository is ever shared, pushed to GitHub, or accessed by a third party, every secret in that file is compromised.",
             ),
           );
         }
@@ -174,6 +182,7 @@ export const secretsExposureRules: SecurityRule[] = [
     domain: "secrets-exposure",
     title: "Hardcoded credentials in source",
     description: "String literal assigned to a suspicious variable name",
+    impact: "Your source code contains hardcoded credentials in a variable assignment. These survive in git history even if deleted later, and anyone with repo access can extract them.",
     severity: "high",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-798" },
@@ -207,6 +216,7 @@ export const secretsExposureRules: SecurityRule[] = [
               },
               [{ file, line, snippet: match[0] }],
               "A string literal with a credential-sounding variable name was found.",
+              "Your source code contains hardcoded credentials in a variable assignment. These survive in git history even if deleted later, and anyone with repo access can extract them.",
             ),
           );
         }
@@ -220,6 +230,7 @@ export const secretsExposureRules: SecurityRule[] = [
     domain: "secrets-exposure",
     title: "NEXT_PUBLIC_ prefix on secret-like variable",
     description: "Variable name suggests a secret but is client-exposed",
+    impact: "A variable with a secret-like name uses the NEXT_PUBLIC_ prefix, which makes it available in the browser bundle. Users can see this value in their browser's DevTools.",
     severity: "high",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-312", owasp: "A07:2021" },
@@ -239,6 +250,7 @@ export const secretsExposureRules: SecurityRule[] = [
               },
               env.referencedIn.map((f) => ({ file: f, snippet: env.name })),
               "Client-exposed env vars end up in the browser bundle and are readable by anyone.",
+              "A variable with a secret-like name uses the NEXT_PUBLIC_ prefix, which makes it available in the browser bundle. Users can see this value in their browser's DevTools.",
             ),
           );
         }
@@ -252,6 +264,7 @@ export const secretsExposureRules: SecurityRule[] = [
     domain: "secrets-exposure",
     title: "Secret found in git history",
     description: "Known API key pattern present in a historical commit",
+    impact: "A secret matching a known API key pattern exists in your git history. Even though it may be removed from the current code, anyone who clones the repository can find it by searching commit history.",
     severity: "critical",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-798" },
@@ -315,6 +328,7 @@ export const secretsExposureRules: SecurityRule[] = [
                 },
               ],
               `A ${provider} key pattern was added to ${currentFile} in commit ${currentCommit} and remains in git history.`,
+              "A secret matching a known API key pattern exists in your git history. Even though it may be removed from the current code, anyone who clones the repository can find it by searching commit history.",
             ),
           );
         }
@@ -328,6 +342,7 @@ export const secretsExposureRules: SecurityRule[] = [
     domain: "secrets-exposure",
     title: "Credentials or tokens in developer comments",
     description: "Source comments contain credential-like strings",
+    impact: "Your source code comments contain credential-like strings. Comments are included in many build outputs and are visible to anyone reading the code.",
     severity: "medium",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-615" },
@@ -354,6 +369,7 @@ export const secretsExposureRules: SecurityRule[] = [
                 },
                 [{ file, line: idx + 1, snippet: line.trim() }],
                 "Developer comments mentioning credentials have historically leaked to production.",
+                "Your source code comments contain credential-like strings. Comments are included in many build outputs and are visible to anyone reading the code.",
               ),
             );
           }
@@ -368,6 +384,7 @@ export const secretsExposureRules: SecurityRule[] = [
     domain: "secrets-exposure",
     title: "Env var referenced but missing from .env.example",
     description: "Source references process.env.X but .env.example does not list X",
+    impact: "Your code references an environment variable that is not documented in .env.example. When other developers or CI systems set up the project, this variable will be missing, causing silent failures or insecure defaults.",
     severity: "low",
     appliesTo: ["nextjs-supabase"],
     references: {},
@@ -386,6 +403,7 @@ export const secretsExposureRules: SecurityRule[] = [
               },
               env.referencedIn.slice(0, 1).map((f) => ({ file: f, snippet: env.name })),
               "Missing .env.example entries cause onboarding failures and hide the app's config surface.",
+              "Your code references an environment variable that is not documented in .env.example. When other developers or CI systems set up the project, this variable will be missing, causing silent failures or insecure defaults.",
             ),
           );
         }
@@ -399,6 +417,7 @@ export const secretsExposureRules: SecurityRule[] = [
     domain: "secrets-exposure",
     title: "Build output directory not gitignored",
     description: ".next or dist present without being in .gitignore",
+    impact: "Your build output directory is not gitignored. Compiled files often contain inlined environment variables and can expose secrets if committed.",
     severity: "info",
     appliesTo: ["nextjs-supabase"],
     references: {},
@@ -422,6 +441,7 @@ export const secretsExposureRules: SecurityRule[] = [
               },
               [{ file: join(model.meta.path, dir) }],
               `Build artifacts may leak source maps or compiled secrets if committed.`,
+              "Your build output directory is not gitignored. Compiled files often contain inlined environment variables and can expose secrets if committed.",
             ),
           );
         }
