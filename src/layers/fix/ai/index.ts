@@ -24,11 +24,15 @@ function stripMarkdownFences(text: string): string {
   const lines = text.split("\n");
   const firstImportIdx = lines.findIndex((l) => /^import\s/.test(l.trim()));
   if (firstImportIdx > 0) {
-    // Check if lines before the first import look like prose (not code)
-    const preamble = lines.slice(0, firstImportIdx).join("\n").trim();
-    const looksLikeProse = !preamble.includes("import ") && !preamble.includes("export ") && !preamble.startsWith("//");
-    if (looksLikeProse) {
-      return lines.slice(firstImportIdx).join("\n").trimEnd();
+    // Check if the first non-blank line is prose (doesn't start with a code token)
+    const firstNonBlank = lines.slice(0, firstImportIdx).find((l) => l.trim().length > 0);
+    if (firstNonBlank) {
+      const trimmed = firstNonBlank.trim();
+      const codeStarters = /^(import\s|export\s|const\s|let\s|var\s|function\s|class\s|type\s|interface\s|\/\/|\/\*|'use |"use )/;
+      if (!codeStarters.test(trimmed)) {
+        // First non-blank line is prose — strip everything before the first real import
+        return lines.slice(firstImportIdx).join("\n").trimEnd();
+      }
     }
   }
   return text;
@@ -200,6 +204,8 @@ export async function runAIFixes(
       // Strip markdown fences / preamble that models sometimes add despite instructions
       if (result.text) {
         result.text = stripMarkdownFences(result.text);
+        // Fix common Zod API mistake: .error.errors → .error.issues
+        result.text = result.text.replace(/\.error\.errors\b/g, ".error.issues");
       }
 
       if (result.error || !result.text) {
