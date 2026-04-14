@@ -25,6 +25,8 @@ import { getPromptTemplate } from "../layers/fix/ai/prompts.js";
 import { runFix } from "../layers/fix/index.js";
 import type { Finding, AIConfig } from "../model/types.js";
 import type { FixAttempt } from "../layers/fix/types.js";
+import { ScanEventEmitter } from "../dashboard/events.js";
+import type { ConvergeRoundSummary, ConvergeSummary } from "../dashboard/events.js";
 
 export interface FixCommandOptions {
   path: string;
@@ -38,6 +40,9 @@ export interface FixCommandOptions {
   aiConcurrency?: number;
   converge?: boolean;
   maxRounds?: number;
+  dashboard?: boolean;
+  dashboardPort?: number;
+  emitter?: ScanEventEmitter;
 }
 
 const AI_RULE_IDS = ["INPUT-005", "AUTH-002", "API-004"];
@@ -64,7 +69,7 @@ function registerAllFixers(): void {
   }
 }
 
-async function acquireFindings(options: FixCommandOptions): Promise<Finding[]> {
+async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEmitter): Promise<Finding[]> {
   if (options.from) {
     // Load findings from a JSON report file
     const reportPath = resolve(options.from);
@@ -82,7 +87,10 @@ async function acquireFindings(options: FixCommandOptions): Promise<Finding[]> {
   // Run a fresh scan to get findings (with context suppression, matching scan command)
   const config = await loadConfig(options.path);
 
-  const model = await runRecon(options.path, config.exclude);
+  emitter?.emitEvent({ type: "layer:start", layer: "recon", timestamp: Date.now() });
+  const reconStart = Date.now();
+  const model = await runRecon(options.path, config.exclude, emitter ?? undefined);
+  emitter?.emitEvent({ type: "layer:complete", layer: "recon", durationMs: Date.now() - reconStart, timestamp: Date.now() });
 
   const contextFromFile = await readContext(options.path);
   const context = contextFromFile ?? await inferContext(model);
@@ -99,8 +107,36 @@ async function acquireFindings(options: FixCommandOptions): Promise<Finding[]> {
   registerRules(businessLogicRules);
   registerRules(infrastructureRules);
 
-  const rawFindings = await runRules(model, context);
-  return applyContextSuppressions(rawFindings, context);
+  emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
+  const rulesStart = Date.now();
+  const rawFindings = await runRules(model, context, emitter ?? undefined);
+  emitter?.emitEvent({ type: "layer:complete", layer: "rules", durationMs: Date.now() - rulesStart, timestamp: Date.now() });
+
+  const findings = applyContextSuppressions(rawFindings, context);
+
+  // Emit suppressed findings to dashboard (runRules doesn't emit them)
+  if (emitter) {
+    for (const f of findings) {
+      emitter.emitEvent({
+        type: "finding",
+        data: {
+          id: f.id,
+          ruleId: f.ruleId,
+          severity: f.severity,
+          title: f.title,
+          description: f.description,
+          impact: f.impact,
+          file: f.evidence[0]?.file ?? "unknown",
+          line: f.evidence[0]?.line,
+          domain: f.domain,
+          layer: f.layer,
+          remediation: f.remediation,
+        },
+      });
+    }
+  }
+
+  return findings;
 }
 
 function buildAIConfig(options: FixCommandOptions, baseProvider: "anthropic" | "openai" | "mock"): AIConfig {
@@ -176,27 +212,53 @@ function formatFixResults(attempts: FixAttempt[], filesModified: string[], dryRu
   return lines.join("\n");
 }
 
-async function runSingleRound(options: FixCommandOptions): Promise<{
+async function runSingleRound(options: FixCommandOptions, emitter?: ScanEventEmitter, round?: number): Promise<{
   totalFindings: number;
   fixedCount: number;
   failedCount: number;
   skippedCount: number;
   filesModified: string[];
+  attempts: FixAttempt[];
 }> {
   const config = await loadConfig(options.path);
 
   registerAllFixers();
 
+  // Emit scan:start so the dashboard builds its graph structure
+  emitter?.emitEvent({ type: "scan:start", project: options.path, timestamp: Date.now() });
+
   let findings: Finding[];
   try {
-    findings = await acquireFindings(options);
+    // Pass emitter so recon events (routes, endpoints, data models) and
+    // finding events flow to the dashboard, building the lane graph
+    findings = await acquireFindings(options, emitter);
   } catch (err) {
     process.stderr.write(`Error acquiring findings: ${err instanceof Error ? err.message : String(err)}\n`);
-    return { totalFindings: 0, fixedCount: 0, failedCount: 0, skippedCount: 0, filesModified: [] };
+    return { totalFindings: 0, fixedCount: 0, failedCount: 0, skippedCount: 0, filesModified: [], attempts: [] };
+  }
+
+  // Emit scan:complete so the dashboard adopts orphaned findings and builds the graph
+  if (emitter) {
+    const sevCounts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 } as Record<string, number>;
+    for (const f of findings) {
+      if (sevCounts[f.severity] !== undefined) sevCounts[f.severity]++;
+    }
+    emitter.emitEvent({
+      type: "scan:complete",
+      summary: {
+        routes: 0,
+        endpoints: 0,
+        dataModels: 0,
+        externalServices: 0,
+        findings: sevCounts as any,
+        durationMs: 0,
+      },
+      timestamp: Date.now(),
+    });
   }
 
   if (findings.length === 0) {
-    return { totalFindings: 0, fixedCount: 0, failedCount: 0, skippedCount: 0, filesModified: [] };
+    return { totalFindings: 0, fixedCount: 0, failedCount: 0, skippedCount: 0, filesModified: [], attempts: [] };
   }
 
   const aiConfig = buildAIConfig(options, config.ai.provider);
@@ -207,6 +269,8 @@ async function runSingleRound(options: FixCommandOptions): Promise<{
     noAI: options.noAI ?? false,
     dryRun: options.dryRun ?? false,
     aiConfig,
+    emitter,
+    round,
   });
 
   const fixedCount = result.attempts.filter((a) => a.status === "fixed").length;
@@ -219,60 +283,86 @@ async function runSingleRound(options: FixCommandOptions): Promise<{
     failedCount,
     skippedCount,
     filesModified: result.filesModified,
+    attempts: result.attempts,
   };
 }
 
 export async function runFixCommand(options: FixCommandOptions): Promise<number> {
+  const emitter = options.emitter ?? (options.dashboard ? new ScanEventEmitter() : null);
+
+  // Start dashboard server if requested
+  let dashboardHandle: import("../dashboard/server.js").DashboardHandle | null = null;
+  if (options.dashboard && emitter) {
+    const { startDashboard } = await import("../dashboard/server.js");
+    dashboardHandle = await startDashboard(emitter, { port: options.dashboardPort, openBrowser: true });
+    process.stderr.write(`Dashboard: http://localhost:${dashboardHandle.port}\n`);
+  }
+
+  let exitCode: number;
+
   if (options.converge && !options.dryRun) {
-    return runConvergeLoop(options);
+    exitCode = await runConvergeLoop(options, emitter ?? undefined);
+  } else {
+    const config = await loadConfig(options.path);
+
+    registerAllFixers();
+
+    let findings: Finding[];
+    try {
+      findings = await acquireFindings(options);
+    } catch (err) {
+      process.stderr.write(`Error acquiring findings: ${err instanceof Error ? err.message : String(err)}\n`);
+      exitCode = 1;
+      if (dashboardHandle) await dashboardHandle.close();
+      return exitCode;
+    }
+
+    if (findings.length === 0) {
+      process.stdout.write("No findings to fix.\n");
+      exitCode = 0;
+      if (dashboardHandle) await dashboardHandle.close();
+      return exitCode;
+    }
+
+    const aiConfig = buildAIConfig(options, config.ai.provider);
+
+    const result = await runFix({
+      findings,
+      ruleFilter: options.rule && options.rule.length > 0 ? options.rule : undefined,
+      noAI: options.noAI ?? false,
+      dryRun: options.dryRun ?? false,
+      aiConfig,
+      emitter: emitter ?? undefined,
+      round: 1,
+    });
+
+    process.stdout.write(formatFixResults(result.attempts, result.filesModified, options.dryRun ?? false));
+    exitCode = 0;
   }
 
-  const config = await loadConfig(options.path);
-
-  registerAllFixers();
-
-  let findings: Finding[];
-  try {
-    findings = await acquireFindings(options);
-  } catch (err) {
-    process.stderr.write(`Error acquiring findings: ${err instanceof Error ? err.message : String(err)}\n`);
-    return 1;
+  // Keep process alive if dashboard is running
+  if (dashboardHandle) {
+    process.stderr.write(`\nDashboard running at http://localhost:${dashboardHandle.port}\nPress Ctrl+C to exit.\n`);
+    process.on("SIGINT", async () => {
+      await dashboardHandle!.close();
+      process.exit(0);
+    });
+    await new Promise(() => {}); // Block forever
   }
 
-  if (findings.length === 0) {
-    process.stdout.write("No findings to fix.\n");
-    return 0;
-  }
-
-  const aiConfig = buildAIConfig(options, config.ai.provider);
-
-  const result = await runFix({
-    findings,
-    ruleFilter: options.rule && options.rule.length > 0 ? options.rule : undefined,
-    noAI: options.noAI ?? false,
-    dryRun: options.dryRun ?? false,
-    aiConfig,
-  });
-
-  process.stdout.write(formatFixResults(result.attempts, result.filesModified, options.dryRun ?? false));
-
-  return 0;
+  return exitCode;
 }
 
-async function runConvergeLoop(options: FixCommandOptions): Promise<number> {
+async function runConvergeLoop(options: FixCommandOptions, emitter?: ScanEventEmitter): Promise<number> {
   const maxRounds = options.maxRounds ?? 5;
-  const roundSummaries: Array<{
-    round: number;
-    findingsBefore: number;
-    fixed: number;
-    failed: number;
-    skipped: number;
-    filesModified: string[];
-  }> = [];
+  const roundSummaries: ConvergeRoundSummary[] = [];
 
   let totalFixed = 0;
   let totalFilesModified = new Set<string>();
   let previousFindingCount = Infinity;
+  let stopReason: ConvergeSummary["stopReason"] = "max-rounds";
+
+  emitter?.emitEvent({ type: "converge:start", maxRounds, timestamp: Date.now() });
 
   process.stdout.write("\n╔══════════════════════════════════════╗\n");
   process.stdout.write("║   sentinel fix --converge            ║\n");
@@ -281,6 +371,8 @@ async function runConvergeLoop(options: FixCommandOptions): Promise<number> {
   for (let round = 1; round <= maxRounds; round++) {
     process.stdout.write(`── Round ${round}/${maxRounds} ──────────────────────────\n`);
 
+    emitter?.emitEvent({ type: "converge:round:start", round, maxRounds, timestamp: Date.now() });
+
     // Each round does a fresh scan (no --from) to pick up the current state
     const roundOptions: FixCommandOptions = {
       ...options,
@@ -288,30 +380,43 @@ async function runConvergeLoop(options: FixCommandOptions): Promise<number> {
       converge: false, // Prevent recursion
     };
 
-    const result = await runSingleRound(roundOptions);
+    const result = await runSingleRound(roundOptions, emitter, round);
 
-    roundSummaries.push({
+    const findingsAfter = result.totalFindings - result.fixedCount;
+    const roundSummary: ConvergeRoundSummary = {
       round,
       findingsBefore: result.totalFindings,
       fixed: result.fixedCount,
       failed: result.failedCount,
       skipped: result.skippedCount,
+      findingsAfter,
       filesModified: result.filesModified,
-    });
+    };
+    roundSummaries.push(roundSummary);
 
     totalFixed += result.fixedCount;
     for (const f of result.filesModified) totalFilesModified.add(f);
 
+    emitter?.emitEvent({
+      type: "converge:round:complete",
+      round,
+      maxRounds,
+      summary: roundSummary,
+      timestamp: Date.now(),
+    });
+
     process.stdout.write(`  Findings:  ${result.totalFindings}\n`);
     process.stdout.write(`  Fixed:     ${result.fixedCount}\n`);
-    process.stdout.write(`  Remaining: ${result.totalFindings - result.fixedCount}\n\n`);
+    process.stdout.write(`  Remaining: ${findingsAfter}\n\n`);
 
     // Convergence check: stop if no fixes were applied this round
     if (result.fixedCount === 0) {
       if (result.totalFindings === 0) {
         process.stdout.write("✓ Clean — zero findings.\n\n");
+        stopReason = "zero-findings";
       } else {
         process.stdout.write(`⊘ Converged — ${result.totalFindings} findings remain but none are auto-fixable.\n\n`);
+        stopReason = "no-fixes";
       }
       break;
     }
@@ -319,6 +424,7 @@ async function runConvergeLoop(options: FixCommandOptions): Promise<number> {
     // Safety: stop if finding count isn't decreasing (infinite loop protection)
     if (result.totalFindings >= previousFindingCount) {
       process.stdout.write(`⚠ Finding count not decreasing (${previousFindingCount} → ${result.totalFindings}). Stopping.\n\n`);
+      stopReason = "not-decreasing";
       break;
     }
 
@@ -326,17 +432,29 @@ async function runConvergeLoop(options: FixCommandOptions): Promise<number> {
 
     if (round === maxRounds) {
       process.stdout.write(`⚠ Max rounds (${maxRounds}) reached.\n\n`);
+      stopReason = "max-rounds";
     }
   }
 
   // Final summary
+  const firstRound = roundSummaries[0];
+  const lastRound = roundSummaries[roundSummaries.length - 1];
+  const remaining = lastRound ? lastRound.findingsAfter : 0;
+
+  const convergeSummary: ConvergeSummary = {
+    rounds: roundSummaries,
+    totalFixed,
+    initialFindings: firstRound?.findingsBefore ?? 0,
+    remainingFindings: remaining,
+    totalFilesModified: totalFilesModified.size,
+    stopReason,
+  };
+
+  emitter?.emitEvent({ type: "converge:complete", summary: convergeSummary, timestamp: Date.now() });
+
   process.stdout.write("══════════════════════════════════════\n");
   process.stdout.write("  Convergence Summary\n");
   process.stdout.write("══════════════════════════════════════\n\n");
-
-  const firstRound = roundSummaries[0];
-  const lastRound = roundSummaries[roundSummaries.length - 1];
-  const remaining = lastRound.findingsBefore - lastRound.fixed;
 
   process.stdout.write(`  Rounds:          ${roundSummaries.length}\n`);
   process.stdout.write(`  Initial:         ${firstRound?.findingsBefore ?? 0} findings\n`);

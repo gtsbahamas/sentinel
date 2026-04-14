@@ -84,6 +84,37 @@ export interface ScanSummary {
   durationMs: number;
 }
 
+// ── Converge / fix event data ────────────────────────────────────────────────
+
+export interface ConvergeRoundSummary {
+  round: number;
+  findingsBefore: number;
+  fixed: number;
+  failed: number;
+  skipped: number;
+  findingsAfter: number;
+  filesModified: string[];
+}
+
+export interface ConvergeSummary {
+  rounds: ConvergeRoundSummary[];
+  totalFixed: number;
+  initialFindings: number;
+  remainingFindings: number;
+  totalFilesModified: number;
+  stopReason: "zero-findings" | "no-fixes" | "not-decreasing" | "max-rounds";
+}
+
+export interface FixAttemptEventData {
+  findingId: string;
+  ruleId: string;
+  file: string;
+  strategy: "deterministic" | "ai";
+  status: "fixed" | "skipped" | "failed";
+  reason?: string;
+  round: number;
+}
+
 // ── Layer name ───────────────────────────────────────────────────────────────
 
 export type LayerName = "recon" | "rules" | "probe" | "ai";
@@ -103,7 +134,12 @@ export type ScanEvent =
   | { type: "recon:external"; data: ExternalServiceEventData }
   | { type: "finding"; data: FindingEventData }
   | { type: "edge"; data: EdgeEventData }
-  | { type: "log"; message: string; level: "info" | "warn" | "error" };
+  | { type: "log"; message: string; level: "info" | "warn" | "error" }
+  | { type: "converge:start"; maxRounds: number; timestamp: number }
+  | { type: "converge:round:start"; round: number; maxRounds: number; timestamp: number }
+  | { type: "converge:round:complete"; round: number; maxRounds: number; summary: ConvergeRoundSummary; timestamp: number }
+  | { type: "converge:complete"; summary: ConvergeSummary; timestamp: number }
+  | { type: "fix:attempt"; data: FixAttemptEventData; timestamp: number };
 
 // ── Emitter class ────────────────────────────────────────────────────────────
 

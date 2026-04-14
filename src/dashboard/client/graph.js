@@ -21,6 +21,9 @@ var SEV_GLOW = {
   info:     'var(--info-dim)',
 };
 
+var FIXED_COLOR = '#4aba8a';
+var FIXED_GLOW = 'rgba(74, 186, 138, 0.18)';
+
 var LANES = [
   { id: 'frontend', label: 'Frontend', statusColor: 'var(--info)' },
   { id: 'api',      label: 'API',      statusColor: 'var(--low)' },
@@ -139,6 +142,22 @@ function redrawLane(laneId) {
     var color = SEV_COLOR[sev] || SEV_COLOR.info;
     var glowColor = SEV_GLOW[sev] || SEV_GLOW.info;
 
+    // Compute fix ratio for converge mode
+    var totalFindings = node.findings ? node.findings.length : 0;
+    var fixedFindings = 0;
+    if (node.findings) {
+      for (var fi = 0; fi < node.findings.length; fi++) {
+        if (node.findings[fi].fixStatus === 'fixed') fixedFindings++;
+      }
+    }
+    var fixRatio = totalFindings > 0 ? fixedFindings / totalFindings : 0;
+
+    // Override colors for fixed nodes
+    if (fixRatio === 1 && totalFindings > 0) {
+      color = FIXED_COLOR;
+      glowColor = FIXED_GLOW;
+    }
+
     var isSelected = selId && selId === node.id;
     var isFaded = selId && selId !== node.id;
     var isFiltered = filters && !filters.has(sev) && sev !== 'info';
@@ -171,6 +190,20 @@ function redrawLane(laneId) {
       .attr('stroke', color)
       .attr('opacity', isSelected ? 0.6 : 0.25);
 
+    // Fix progress arc (partial fix indicator)
+    if (fixRatio > 0 && fixRatio < 1) {
+      var arcR = r + 3;
+      var arc = d3.arc()
+        .innerRadius(arcR - 1.5)
+        .outerRadius(arcR + 1.5)
+        .startAngle(0)
+        .endAngle(fixRatio * 2 * Math.PI);
+      g.append('path')
+        .attr('d', arc)
+        .attr('fill', FIXED_COLOR)
+        .attr('opacity', 0.8);
+    }
+
     // Inner circle
     g.append('circle')
       .attr('class', 'node-circle')
@@ -193,7 +226,32 @@ function redrawLane(laneId) {
       });
     }
 
-    if (instanceCount > 0) {
+    if (fixRatio === 1 && totalFindings > 0) {
+      // Fully fixed: show checkmark
+      g.append('text')
+        .attr('class', 'node-count')
+        .attr('y', 2)
+        .attr('fill', FIXED_COLOR)
+        .attr('font-size', '16px')
+        .text('\u2713');
+    } else if (fixedFindings > 0) {
+      // Partially fixed: show ratio
+      g.append('text')
+        .attr('class', 'node-count')
+        .attr('y', -3)
+        .attr('fill', color)
+        .text(fixedFindings + '/' + totalFindings);
+
+      g.append('text')
+        .attr('y', 8)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '8px')
+        .attr('fill', FIXED_COLOR)
+        .attr('opacity', 0.7)
+        .attr('font-family', 'Inter, sans-serif')
+        .attr('font-weight', '600')
+        .text('fixed');
+    } else if (instanceCount > 0) {
       g.append('text')
         .attr('class', 'node-count')
         .attr('y', -3)

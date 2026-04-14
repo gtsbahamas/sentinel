@@ -168,6 +168,8 @@ program
   .option("--ai-concurrency <n>", "Parallel AI fix requests", parseInt)
   .option("--converge", "Re-scan after fixing and repeat until no more fixes land")
   .option("--max-rounds <n>", "Maximum convergence rounds (default: 5)", parseInt)
+  .option("--dashboard", "Open real-time fix visualization in browser")
+  .option("--port <number>", "Dashboard server port (default: 4400)", parseInt)
   .action(async (rawPath, options) => {
     const path = await resolveTarget(rawPath);
     const exitCode = await runFixCommand({
@@ -182,6 +184,8 @@ program
       aiConcurrency: options.aiConcurrency,
       converge: options.converge,
       maxRounds: options.maxRounds,
+      dashboard: !!options.dashboard,
+      dashboardPort: options.port,
     });
     exitAfterDrain(exitCode);
   });

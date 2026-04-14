@@ -12,6 +12,11 @@ var state = {
   activeFilters: new Set(['critical', 'high', 'medium', 'low']),
   scanComplete: false,
   projectName: '',
+  isConverge: false,       // true when converge:start received
+  currentRound: 0,         // current round number
+  maxRounds: 0,            // total rounds allowed
+  roundSummaries: [],      // array of round summary objects
+  stopReason: null,        // 'zero-findings' | 'no-fixes' | 'not-decreasing' | 'max-rounds'
 };
 
 // ---- Lane Classification ----
@@ -104,6 +109,12 @@ function handleScanStart(event) {
 }
 
 function handleScanComplete(event) {
+  // During converge mode, scan:complete fires per round but we don't finalize
+  // the UI until converge:complete. Skip all processing here.
+  if (state.isConverge) {
+    return;
+  }
+
   state.scanComplete = true;
   state.mode = 'explore';
 
@@ -155,6 +166,8 @@ function handleReconEvent(event) {
 function handleFinding(event) {
   var finding = event.data;
   state.findings.push(finding);
+  finding.fixStatus = 'open';
+  finding.fixedInRound = null;
 
   // Try to attach to a matching node:
   // 1. Exact file match
@@ -199,6 +212,83 @@ function handleLog(event) {
   addScanLogEntry(event.level, event.message);
 }
 
+function handleConvergeStart(event) {
+  state.isConverge = true;
+  state.maxRounds = event.maxRounds;
+  state.currentRound = 0;
+  state.roundSummaries = [];
+  state.stopReason = null;
+  updateScanStatus('Converge starting (' + event.maxRounds + ' max rounds)...');
+  setScanDotClass('scanning');
+  addScanLogEntry('info', 'Converge started (max ' + event.maxRounds + ' rounds)');
+  if (typeof renderConvergeTracker === 'function') renderConvergeTracker();
+}
+
+function handleConvergeRoundStart(event) {
+  state.currentRound = event.round;
+  updateScanStatus('Converge Round ' + event.round + '/' + event.maxRounds + ' — Scanning...');
+  addScanLogEntry('info', '── Round ' + event.round + '/' + event.maxRounds + ' ──────────────────');
+  if (typeof renderConvergeTracker === 'function') renderConvergeTracker();
+}
+
+function handleConvergeRoundComplete(event) {
+  state.roundSummaries.push(event.summary);
+  updateScanStatus('Converge Round ' + event.round + '/' + event.maxRounds + ' — ' + event.summary.fixed + ' fixed');
+  addScanLogEntry('info', 'Round ' + event.round + ': ' + event.summary.findingsBefore + ' findings → ' + event.summary.fixed + ' fixed, ' + event.summary.findingsAfter + ' remain');
+  if (typeof renderConvergeTracker === 'function') renderConvergeTracker();
+}
+
+function handleConvergeComplete(event) {
+  state.scanComplete = true;
+  state.mode = 'explore';
+  state.stopReason = event.summary.stopReason;
+
+  var stopLabels = {
+    'zero-findings': 'Clean — zero findings',
+    'no-fixes': 'Converged — no more auto-fixable',
+    'not-decreasing': 'Stopped — finding count not decreasing',
+    'max-rounds': 'Max rounds reached'
+  };
+  var label = stopLabels[event.summary.stopReason] || 'Complete';
+
+  updateScanStatus(label + ' — ' + event.summary.totalFixed + ' fixed, ' + event.summary.remainingFindings + ' remaining');
+  setScanDotClass('complete');
+  addScanLogEntry('info', 'Converge complete: ' + label);
+
+  transitionToExploreMode();
+}
+
+function handleFixAttempt(event) {
+  var data = event.data;
+  if (data.status === 'fixed') {
+    // Find and update the matching finding
+    for (var i = 0; i < state.findings.length; i++) {
+      if (state.findings[i].id === data.findingId) {
+        state.findings[i].fixStatus = 'fixed';
+        state.findings[i].fixedInRound = data.round;
+        break;
+      }
+    }
+    // Update the node that contains this finding
+    for (var j = 0; j < state.nodes.length; j++) {
+      var node = state.nodes[j];
+      for (var k = 0; k < node.findings.length; k++) {
+        if (node.findings[k].id === data.findingId) {
+          node.findings[k].fixStatus = 'fixed';
+          node.findings[k].fixedInRound = data.round;
+          if (typeof updateNodeSeverity === 'function') updateNodeSeverity(node);
+          break;
+        }
+      }
+    }
+    addScanLogEntry('info', '✓ ' + data.ruleId + ' fixed in ' + data.file.split('/').pop());
+    setScanDotClass('fixing');
+  } else if (data.status === 'failed') {
+    addScanLogEntry('error', '✗ ' + data.ruleId + ' failed: ' + (data.reason || 'unknown'));
+  }
+  // Skip logging for 'skipped' to avoid noise
+}
+
 // ---- WebSocket Connection ----
 
 function connectWebSocket() {
@@ -225,6 +315,11 @@ function connectWebSocket() {
       case 'finding':         handleFinding(event); break;
       case 'edge':            handleEdge(event); break;
       case 'log':             handleLog(event); break;
+      case 'converge:start':        handleConvergeStart(event); break;
+      case 'converge:round:start':  handleConvergeRoundStart(event); break;
+      case 'converge:round:complete': handleConvergeRoundComplete(event); break;
+      case 'converge:complete':     handleConvergeComplete(event); break;
+      case 'fix:attempt':           handleFixAttempt(event); break;
     }
   };
 

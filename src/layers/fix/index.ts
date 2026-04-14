@@ -3,6 +3,7 @@ import type { Finding, AIConfig } from "../../model/types.js";
 import type { FixAttempt, FixResult } from "./types.js";
 import { getFixer } from "./registry.js";
 import { runAIFixes } from "./ai/index.js";
+import type { ScanEventEmitter } from "../../dashboard/events.js";
 
 export interface FixOptions {
   findings: Finding[];
@@ -10,6 +11,8 @@ export interface FixOptions {
   noAI: boolean;
   dryRun: boolean;
   aiConfig?: AIConfig;
+  emitter?: ScanEventEmitter;
+  round?: number;
 }
 
 type FixStrategy = "deterministic" | "ai" | "manual";
@@ -21,9 +24,28 @@ function classifyFinding(finding: Finding): FixStrategy {
   return fixer.type;
 }
 
+function emitFixAttempt(emitter: ScanEventEmitter | undefined, attempt: FixAttempt, round: number): void {
+  if (!emitter) return;
+  emitter.emitEvent({
+    type: "fix:attempt",
+    data: {
+      findingId: attempt.findingId,
+      ruleId: attempt.ruleId,
+      file: attempt.file,
+      strategy: attempt.strategy as "deterministic" | "ai",
+      status: attempt.status,
+      reason: attempt.reason,
+      round,
+    },
+    timestamp: Date.now(),
+  });
+}
+
 export async function runFix(options: FixOptions): Promise<FixResult> {
   const attempts: FixAttempt[] = [];
   const filesModified: string[] = [];
+  const emitter = options.emitter;
+  const round = options.round ?? 1;
 
   // 1. Filter findings by rule if --rule specified
   const findings =
@@ -45,14 +67,16 @@ export async function runFix(options: FixOptions): Promise<FixResult> {
 
   // Mark manual findings as skipped immediately
   for (const finding of manualFindings) {
-    attempts.push({
+    const attempt: FixAttempt = {
       findingId: finding.id,
       ruleId: finding.ruleId ?? "unknown",
       file: finding.evidence[0]?.file ?? "unknown",
       strategy: "manual",
       status: "skipped",
       reason: "No automated fixer available for this rule",
-    });
+    };
+    attempts.push(attempt);
+    emitFixAttempt(emitter, attempt, round);
   }
 
   // 3. Phase 1: Apply deterministic fixes, grouped by file
@@ -60,14 +84,16 @@ export async function runFix(options: FixOptions): Promise<FixResult> {
   for (const finding of deterministicFindings) {
     const file = finding.evidence[0]?.file;
     if (!file) {
-      attempts.push({
+      const attempt: FixAttempt = {
         findingId: finding.id,
         ruleId: finding.ruleId ?? "unknown",
         file: "unknown",
         strategy: "deterministic",
         status: "failed",
         reason: "Finding has no evidence file",
-      });
+      };
+      attempts.push(attempt);
+      emitFixAttempt(emitter, attempt, round);
       continue;
     }
     const group = deterministicByFile.get(file) ?? [];
@@ -81,14 +107,16 @@ export async function runFix(options: FixOptions): Promise<FixResult> {
       fileContent = await readFile(filePath, "utf-8");
     } catch (err) {
       for (const finding of fileFindings) {
-        attempts.push({
+        const attempt: FixAttempt = {
           findingId: finding.id,
           ruleId: finding.ruleId ?? "unknown",
           file: filePath,
           strategy: "deterministic",
           status: "failed",
           reason: `Could not read file: ${err instanceof Error ? err.message : String(err)}`,
-        });
+        };
+        attempts.push(attempt);
+        emitFixAttempt(emitter, attempt, round);
       }
       continue;
     }
@@ -99,49 +127,57 @@ export async function runFix(options: FixOptions): Promise<FixResult> {
     for (const finding of fileFindings) {
       const fixer = getFixer(finding.ruleId!);
       if (!fixer || !fixer.apply) {
-        attempts.push({
+        const attempt: FixAttempt = {
           findingId: finding.id,
           ruleId: finding.ruleId ?? "unknown",
           file: filePath,
           strategy: "deterministic",
           status: "skipped",
           reason: "Fixer has no apply function",
-        });
+        };
+        attempts.push(attempt);
+        emitFixAttempt(emitter, attempt, round);
         continue;
       }
 
       try {
         const patched = fixer.apply(currentContent, finding);
         if (patched === null) {
-          attempts.push({
+          const attempt: FixAttempt = {
             findingId: finding.id,
             ruleId: finding.ruleId!,
             file: filePath,
             strategy: "deterministic",
             status: "skipped",
             reason: "Fixer returned null (pattern not found or already fixed)",
-          });
+          };
+          attempts.push(attempt);
+          emitFixAttempt(emitter, attempt, round);
         } else {
           currentContent = patched;
           fileWasModified = true;
-          attempts.push({
+          const attempt: FixAttempt = {
             findingId: finding.id,
             ruleId: finding.ruleId!,
             file: filePath,
             strategy: "deterministic",
             status: "fixed",
             description: `Applied deterministic fix for ${finding.ruleId}`,
-          });
+          };
+          attempts.push(attempt);
+          emitFixAttempt(emitter, attempt, round);
         }
       } catch (err) {
-        attempts.push({
+        const attempt: FixAttempt = {
           findingId: finding.id,
           ruleId: finding.ruleId!,
           file: filePath,
           strategy: "deterministic",
           status: "failed",
           reason: `Fixer threw an error: ${err instanceof Error ? err.message : String(err)}`,
-        });
+        };
+        attempts.push(attempt);
+        emitFixAttempt(emitter, attempt, round);
       }
     }
 
@@ -180,14 +216,16 @@ export async function runFix(options: FixOptions): Promise<FixResult> {
     for (const finding of aiFindings) {
       const file = finding.evidence[0]?.file;
       if (!file) {
-        attempts.push({
+        const attempt: FixAttempt = {
           findingId: finding.id,
           ruleId: finding.ruleId ?? "unknown",
           file: "unknown",
           strategy: "ai",
           status: "failed",
           reason: "Finding has no evidence file",
-        });
+        };
+        attempts.push(attempt);
+        emitFixAttempt(emitter, attempt, round);
         continue;
       }
       const group = aiByFile.get(file) ?? [];
@@ -200,18 +238,23 @@ export async function runFix(options: FixOptions): Promise<FixResult> {
       dryRun: options.dryRun,
     });
 
-    attempts.push(...aiResult.attempts);
+    for (const attempt of aiResult.attempts) {
+      attempts.push(attempt);
+      emitFixAttempt(emitter, attempt, round);
+    }
     filesModified.push(...aiResult.filesModified);
   } else if (options.noAI && aiFindings.length > 0) {
     for (const finding of aiFindings) {
-      attempts.push({
+      const attempt: FixAttempt = {
         findingId: finding.id,
         ruleId: finding.ruleId ?? "unknown",
         file: finding.evidence[0]?.file ?? "unknown",
         strategy: "ai",
         status: "skipped",
         reason: "--no-ai flag set",
-      });
+      };
+      attempts.push(attempt);
+      emitFixAttempt(emitter, attempt, round);
     }
   }
 

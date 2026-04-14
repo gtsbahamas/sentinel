@@ -41,6 +41,57 @@ function addScanLogEntry(level, message) {
   if (scroll) scroll.scrollTop = scroll.scrollHeight;
 }
 
+// ---- Converge tracker (shown during converge mode) ----
+function renderConvergeTracker() {
+  var tracker = document.getElementById('convergeTracker');
+  if (!tracker) return;
+  if (typeof state === 'undefined' || !state.isConverge) {
+    tracker.style.display = 'none';
+    return;
+  }
+
+  tracker.style.display = 'block';
+
+  var round = state.currentRound || 0;
+  var max = state.maxRounds || 5;
+  var summaries = state.roundSummaries || [];
+  var initial = summaries.length > 0 ? summaries[0].findingsBefore : 0;
+  var totalFixed = 0;
+  var remaining = initial;
+  for (var i = 0; i < summaries.length; i++) {
+    totalFixed += summaries[i].fixed;
+    remaining = summaries[i].findingsAfter;
+  }
+
+  var pct = initial > 0 ? Math.round((totalFixed / initial) * 100) : 0;
+
+  // Build stepper dots
+  var dots = '';
+  for (var d = 1; d <= max; d++) {
+    var cls = 'converge-dot';
+    if (d < round) cls += ' done';
+    else if (d === round) cls += ' current';
+    dots += '<span class="' + cls + '" data-round="' + d + '">' + d + '</span>';
+    if (d < max) dots += '<span class="converge-line' + (d < round ? ' done' : '') + '"></span>';
+  }
+
+  // Progress bar
+  var barPct = initial > 0 ? Math.min(100, Math.round((totalFixed / initial) * 100)) : 0;
+
+  tracker.innerHTML =
+    '<div class="converge-header">' +
+      '<span class="converge-label">CONVERGE</span>' +
+      '<span class="converge-round">Round ' + round + ' of ' + max + '</span>' +
+    '</div>' +
+    '<div class="converge-bar-container">' +
+      '<div class="converge-bar-fill" style="width:' + barPct + '%"></div>' +
+    '</div>' +
+    '<div class="converge-stats">' +
+      (initial > 0 ? initial + ' → ' + remaining + ' findings (' + pct + '% reduced)' : 'Waiting...') +
+    '</div>' +
+    '<div class="converge-stepper">' + dots + '</div>';
+}
+
 // ---- Summary view (shown after scan:complete) ----
 function renderSummary() {
   var content = document.getElementById('detailContent');
@@ -97,13 +148,60 @@ function renderSummary() {
     '</div>';
   }).join('');
 
+  // Build convergence results section if in converge mode
+  var convergeHtml = '';
+  if (typeof state !== 'undefined' && state.isConverge && state.roundSummaries && state.roundSummaries.length > 0) {
+    var rs = state.roundSummaries;
+    var initial = rs[0].findingsBefore;
+    var totalFixed = 0;
+    for (var ci = 0; ci < rs.length; ci++) totalFixed += rs[ci].fixed;
+    var remaining = rs[rs.length - 1].findingsAfter;
+    var pctReduced = initial > 0 ? ((totalFixed / initial) * 100).toFixed(1) : '0';
+
+    var stopLabels = {
+      'zero-findings': 'Clean — zero findings remain',
+      'no-fixes': 'Converged — remaining findings not auto-fixable',
+      'not-decreasing': 'Stopped — finding count not decreasing',
+      'max-rounds': 'Max rounds reached'
+    };
+    var stopLabel = (state.stopReason && stopLabels[state.stopReason]) || '';
+
+    convergeHtml =
+      '<div class="converge-results">' +
+        '<div class="converge-results-title">Convergence Results</div>' +
+        '<div class="converge-results-grid">' +
+          '<div class="converge-stat"><div class="converge-stat-value">' + rs.length + '</div><div class="converge-stat-label">Rounds</div></div>' +
+          '<div class="converge-stat"><div class="converge-stat-value">' + totalFixed + '</div><div class="converge-stat-label">Total fixed</div></div>' +
+          '<div class="converge-stat"><div class="converge-stat-value">' + pctReduced + '%</div><div class="converge-stat-label">Reduction</div></div>' +
+          '<div class="converge-stat"><div class="converge-stat-value">' + remaining + '</div><div class="converge-stat-label">Remaining</div></div>' +
+        '</div>' +
+        (stopLabel ? '<div class="converge-stop-reason">' + stopLabel + '</div>' : '') +
+      '</div>';
+  }
+
+  // Build delta annotations for metric cards (converge mode)
+  var deltas = { critical: 0, high: 0, medium: 0, low: 0 };
+  if (typeof state !== 'undefined' && state.isConverge) {
+    state.findings.forEach(function(f) {
+      if (f.fixStatus === 'fixed' && deltas[f.severity] !== undefined) {
+        deltas[f.severity]++;
+      }
+    });
+  }
+
+  function deltaHtml(sev) {
+    if (!state.isConverge || deltas[sev] === 0) return '';
+    return '<div class="metric-delta">-' + deltas[sev] + ' fixed</div>';
+  }
+
   content.innerHTML =
     '<div class="summary-view">' +
+      convergeHtml +
       '<div class="summary-metrics">' +
-        '<div class="metric-card critical"><div class="metric-value">' + totals.critical + '</div><div class="metric-label">Critical instances</div></div>' +
-        '<div class="metric-card high"><div class="metric-value">' + totals.high + '</div><div class="metric-label">High severity</div></div>' +
-        '<div class="metric-card medium"><div class="metric-value">' + totals.medium + '</div><div class="metric-label">Medium severity</div></div>' +
-        '<div class="metric-card low"><div class="metric-value">' + totals.low + '</div><div class="metric-label">Low severity</div></div>' +
+        '<div class="metric-card critical"><div class="metric-value">' + totals.critical + '</div><div class="metric-label">Critical instances</div>' + deltaHtml('critical') + '</div>' +
+        '<div class="metric-card high"><div class="metric-value">' + totals.high + '</div><div class="metric-label">High severity</div>' + deltaHtml('high') + '</div>' +
+        '<div class="metric-card medium"><div class="metric-value">' + totals.medium + '</div><div class="metric-label">Medium severity</div>' + deltaHtml('medium') + '</div>' +
+        '<div class="metric-card low"><div class="metric-value">' + totals.low + '</div><div class="metric-label">Low severity</div>' + deltaHtml('low') + '</div>' +
       '</div>' +
       '<div>' +
         '<div class="summary-section-title">' + totalClasses + ' vulnerability classes / ' + totalInstances + ' instances</div>' +
