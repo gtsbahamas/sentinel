@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel — Security Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-base: #0d1117;
+    --bg-surface: #131920;
+    --bg-elevated: #1a2330;
+    --bg-hover: #1f2b3a;
+    --border: #1e2d3d;
+    --border-subtle: #172030;
+    --text-primary: #e2eaf4;
+    --text-secondary: #7a9ab5;
+    --text-muted: #445566;
+    --accent: #00c2a8;
+    --accent-dim: rgba(0, 194, 168, 0.12);
+    --accent-glow: rgba(0, 194, 168, 0.25);
+    --critical: #f44;
+    --critical-dim: rgba(255, 68, 68, 0.15);
+    --high: #f97316;
+    --high-dim: rgba(249, 115, 22, 0.15);
+    --medium: #f59e0b;
+    --medium-dim: rgba(245, 158, 11, 0.12);
+    --low: #64748b;
+    --low-dim: rgba(100, 116, 139, 0.12);
+    --font: 'Outfit', system-ui, sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: var(--font);
+    background: var(--bg-base);
+    color: var(--text-primary);
+    overflow: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 0 20px;
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+    position: relative;
+    z-index: 10;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+  }
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .scan-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-glow); }
+    50% { opacity: 0.6; box-shadow: 0 0 3px var(--accent-glow); }
+  }
+
+  .status-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    letter-spacing: 0.04em;
+  }
+
+  .status-label span {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .filters {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-muted);
+  }
+
+  .filter-btn.active { border-color: currentColor; }
+  .filter-btn.f-critical { color: var(--critical); }
+  .filter-btn.f-critical.active { background: var(--critical-dim); }
+  .filter-btn.f-high { color: var(--high); }
+  .filter-btn.f-high.active { background: var(--high-dim); }
+  .filter-btn.f-medium { color: var(--medium); }
+  .filter-btn.f-medium.active { background: var(--medium-dim); }
+  .filter-btn.f-low { color: var(--low); }
+  .filter-btn.f-low.active { background: var(--low-dim); }
+
+  .filter-btn:hover { opacity: 0.85; }
+
+  .filter-count {
+    min-width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    background: currentColor;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .filter-count span {
+    color: var(--bg-base);
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: grid;
+    grid-template-rows: 55% 45%;
+    height: calc(100vh - 52px);
+  }
+
+  /* ── GRAPH AREA ── */
+  .graph-area {
+    display: grid;
+    grid-template-rows: repeat(4, 1fr);
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-base);
+  }
+
+  .lane {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    border-bottom: 1px solid var(--border-subtle);
+    position: relative;
+  }
+
+  .lane:last-child { border-bottom: none; }
+
+  .lane-label-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 16px;
+    border-right: 1px solid var(--border);
+    background: var(--bg-surface);
+    position: relative;
+    z-index: 2;
+  }
+
+  .lane-name {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .lane-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+  }
+
+  .lane-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .lane-status-text {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  .lane-canvas {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .lane-canvas svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* lane bg tints */
+  .lane[data-lane="FRONTEND"] .lane-canvas { background: rgba(0, 194, 168, 0.015); }
+  .lane[data-lane="API"] .lane-canvas { background: rgba(249, 115, 22, 0.015); }
+  .lane[data-lane="DATABASE"] .lane-canvas { background: rgba(244, 68, 68, 0.02); }
+  .lane[data-lane="EXTERNAL"] .lane-canvas { background: rgba(100, 116, 139, 0.015); }
+
+  /* ── DETAIL PANEL ── */
+  .detail-panel {
+    border-top: 1px solid var(--border);
+    background: var(--bg-surface);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .panel-node-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .panel-node-name {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .panel-back {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: none;
+  }
+
+  .panel-back:hover { background: var(--bg-elevated); color: var(--text-primary); }
+
+  .panel-content {
+    overflow-y: auto;
+    padding: 16px 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .panel-content::-webkit-scrollbar { width: 4px; }
+  .panel-content::-webkit-scrollbar-track { background: transparent; }
+  .panel-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── SUMMARY VIEW ── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    height: 100%;
+  }
+
+  .summary-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 200px;
+  }
+
+  .stat-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .stat-num {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-label-sm {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .stat-divider {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin: 2px 0;
+  }
+
+  .stat-total {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .stat-total-num {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  .stat-total-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .summary-top-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .top-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    cursor: default;
+    transition: border-color 0.15s;
+  }
+
+  .top-item:hover { border-color: var(--border); }
+
+  .top-sev-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .top-item-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .top-item-instances {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    white-space: nowrap;
+  }
+
+  .sev-badge {
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .sev-critical { color: var(--critical); background: var(--critical-dim); }
+  .sev-high { color: var(--high); background: var(--high-dim); }
+  .sev-medium { color: var(--medium); background: var(--medium-dim); }
+  .sev-low { color: var(--low); background: var(--low-dim); }
+
+  /* ── FINDING CARDS ── */
+  .findings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .finding-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-elevated);
+    transition: border-color 0.15s;
+  }
+
+  .finding-card.expanded { border-color: var(--border); }
+
+  .finding-header {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s;
+  }
+
+  .finding-header:hover { background: var(--bg-hover); }
+
+  .finding-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .finding-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .finding-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .finding-instances {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .finding-chevron {
+    color: var(--text-muted);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .finding-card.expanded .finding-chevron { transform: rotate(180deg); }
+
+  .finding-body {
+    display: none;
+    padding: 0 16px 14px;
+  }
+
+  .finding-card.expanded .finding-body { display: block; }
+
+  .impact-text {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 10px;
+  }
+
+  .collapsible-section {
+    margin-bottom: 6px;
+  }
+
+  .collapsible-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    border: none;
+    background: none;
+    font-family: var(--font);
+    width: 100%;
+    text-align: left;
+    transition: color 0.12s;
+  }
+
+  .collapsible-trigger:hover { color: var(--text-primary); }
+
+  .collapsible-icon {
+    color: var(--text-muted);
+    transition: transform 0.18s;
+    flex-shrink: 0;
+  }
+
+  .collapsible-section.open .collapsible-icon { transform: rotate(90deg); }
+
+  .collapsible-body {
+    display: none;
+    padding: 8px 0 4px 18px;
+  }
+
+  .collapsible-section.open .collapsible-body { display: block; }
+
+  .remediation-text {
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+  }
+
+  .remediation-text code {
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    color: var(--accent);
+  }
+
+  .location-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .location-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    background: var(--bg-base);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .location-file {
+    font-size: 11px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    color: var(--text-secondary);
+  }
+
+  .location-line {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: auto;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+  }
+
+  /* ── D3 NODE STYLES ── */
+  .node-group { cursor: pointer; }
+
+  .node-bg {
+    transition: all 0.15s;
+  }
+
+  .node-group:hover .node-bg { filter: brightness(1.2); }
+
+  .node-label {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--text-secondary);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .node-count-text {
+    font-family: 'Outfit', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .connector-line {
+    stroke: var(--border);
+    stroke-width: 1;
+    fill: none;
+    pointer-events: none;
+  }
+
+  /* selected state */
+  .node-group.selected .node-bg {
+    filter: brightness(1.3);
+  }
+
+  /* ── HIDDEN UTIL ── */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 1L2 4v4c0 3.3 2.5 6.4 6 7 3.5-.6 6-3.7 6-7V4L8 1z" fill="#0d1117" stroke="#0d1117" stroke-width="0.5"/>
+        <path d="M8 2.5L3 5v3c0 2.7 2 5.2 5 5.8 3-.6 5-3.1 5-5.8V5L8 2.5z" fill="#00c2a8" opacity="0.9"/>
+        <path d="M6 8.5l1.5 1.5L10 7" stroke="#0d1117" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    SENTINEL
+  </div>
+
+  <div class="scan-status">
+    <div class="status-dot"></div>
+    <div class="status-label">Scan complete &mdash; <span>47 vulnerabilities</span> across 8 components &mdash; <span>scan-2026.04.13-17:21</span></div>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn f-critical active" data-sev="critical" onclick="toggleFilter(this)">
+      <div class="filter-count"><span id="count-critical">4</span></div>
+      CRITICAL
+    </button>
+    <button class="filter-btn f-high active" data-sev="high" onclick="toggleFilter(this)">
+      <div class="filter-count"><span id="count-high">12</span></div>
+      HIGH
+    </button>
+    <button class="filter-btn f-medium active" data-sev="medium" onclick="toggleFilter(this)">
+      <div class="filter-count"><span id="count-medium">21</span></div>
+      MEDIUM
+    </button>
+    <button class="filter-btn f-low active" data-sev="low" onclick="toggleFilter(this)">
+      <div class="filter-count"><span id="count-low">10</span></div>
+      LOW
+    </button>
+  </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<main class="main">
+
+  <!-- GRAPH TOP HALF -->
+  <div class="graph-area" id="graph-area">
+    <div class="lane" data-lane="FRONTEND">
+      <div class="lane-label-col">
+        <div class="lane-name">Frontend</div>
+        <div class="lane-status">
+          <div class="lane-indicator" style="background: var(--high)"></div>
+          <div class="lane-status-text">3 issues</div>
+        </div>
+      </div>
+      <div class="lane-canvas" id="lane-FRONTEND"></div>
+    </div>
+    <div class="lane" data-lane="API">
+      <div class="lane-label-col">
+        <div class="lane-name">API</div>
+        <div class="lane-status">
+          <div class="lane-indicator" style="background: var(--critical)"></div>
+          <div class="lane-status-text">2 issues</div>
+        </div>
+      </div>
+      <div class="lane-canvas" id="lane-API"></div>
+    </div>
+    <div class="lane" data-lane="DATABASE">
+      <div class="lane-label-col">
+        <div class="lane-name">Database</div>
+        <div class="lane-status">
+          <div class="lane-indicator" style="background: var(--critical)"></div>
+          <div class="lane-status-text">2 issues</div>
+        </div>
+      </div>
+      <div class="lane-canvas" id="lane-DATABASE"></div>
+    </div>
+    <div class="lane" data-lane="EXTERNAL">
+      <div class="lane-label-col">
+        <div class="lane-name">External</div>
+        <div class="lane-status">
+          <div class="lane-indicator" style="background: var(--medium)"></div>
+          <div class="lane-status-text">1 issue</div>
+        </div>
+      </div>
+      <div class="lane-canvas" id="lane-EXTERNAL"></div>
+    </div>
+  </div>
+
+  <!-- DETAIL BOTTOM HALF -->
+  <div class="detail-panel">
+    <div class="panel-header">
+      <div class="panel-title" id="panel-title">Summary</div>
+      <div class="panel-node-info hidden" id="panel-node-info">
+        <span id="panel-node-name" class="panel-node-name"></span>
+        <span id="panel-node-lane" style="color: var(--text-muted); font-size: 11px;"></span>
+      </div>
+      <button class="panel-back" id="panel-back" onclick="clearSelection()">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2L4 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        All nodes
+      </button>
+    </div>
+    <div class="panel-content" id="panel-content">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────
+const SEVERITY_COLOR = {
+  critical: '#f44',
+  high: '#f97316',
+  medium: '#f59e0b',
+  low: '#64748b'
+};
+
+const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+
+const NODES = [
+  {
+    id: 'auth-ui',
+    label: 'Auth UI',
+    lane: 'FRONTEND',
+    xRatio: 0.18,
+    worstSev: 'high',
+    totalIssues: 9,
+    findings: [
+      {
+        id: 'xss-reflect',
+        title: 'Reflected XSS via URL Parameter',
+        severity: 'high',
+        instances: 4,
+        impact: 'Attackers can inject and execute arbitrary JavaScript in victim browsers by crafting a malicious URL. This can be used to steal session tokens, redirect users, or silently exfiltrate data without the user being aware.',
+        remediation: 'Sanitize all URL parameters before rendering into the DOM. Replace direct <code>innerHTML</code> assignment with <code>textContent</code> or a trusted sanitizer library like DOMPurify. Apply Content Security Policy headers to restrict inline script execution.',
+        locations: [
+          { file: 'src/pages/login/LoginCallback.tsx', line: 47 },
+          { file: 'src/pages/login/LoginCallback.tsx', line: 83 },
+          { file: 'src/components/AuthError.tsx', line: 22 },
+          { file: 'src/utils/redirectHelper.ts', line: 15 },
+        ]
+      },
+      {
+        id: 'csrf-missing',
+        title: 'Missing CSRF Protection on Form',
+        severity: 'medium',
+        instances: 2,
+        impact: 'Without CSRF tokens, authenticated users can be tricked into submitting actions unknowingly via crafted third-party pages. An attacker could trigger password changes or account modifications on behalf of a logged-in user.',
+        remediation: 'Implement CSRF tokens using the SameSite cookie attribute set to <code>Strict</code> or <code>Lax</code>. Validate origin and referer headers server-side. Use framework-provided CSRF protection middleware.',
+        locations: [
+          { file: 'src/pages/login/LoginForm.tsx', line: 61 },
+          { file: 'src/pages/settings/ProfileForm.tsx', line: 38 },
+        ]
+      },
+      {
+        id: 'open-redirect',
+        title: 'Open Redirect in Post-Auth Flow',
+        severity: 'medium',
+        instances: 3,
+        impact: 'The application blindly redirects to any URL passed in the <code>next</code> query parameter after login. This can be abused for phishing — users trust the initial domain but get sent to a malicious site after authentication.',
+        remediation: 'Maintain an allowlist of valid redirect destinations. Validate the redirect URL is relative or matches an approved domain. Never redirect to arbitrary external URLs from post-auth callbacks.',
+        locations: [
+          { file: 'src/utils/redirectHelper.ts', line: 8 },
+          { file: 'src/utils/redirectHelper.ts', line: 31 },
+          { file: 'src/middleware/authGuard.ts', line: 104 },
+        ]
+      }
+    ]
+  },
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    lane: 'FRONTEND',
+    xRatio: 0.42,
+    worstSev: 'medium',
+    totalIssues: 5,
+    findings: [
+      {
+        id: 'sensitive-log',
+        title: 'Sensitive Data Logged to Console',
+        severity: 'medium',
+        instances: 3,
+        impact: 'API keys, user tokens, and personally identifiable information are written to the browser console during debug sessions. In production environments or when browser developer tools are accessed, this data is exposed.',
+        remediation: 'Remove all <code>console.log</code> calls containing sensitive data before production builds. Use environment-gated logging that suppresses output in production. Implement a centralized logging utility that redacts sensitive fields automatically.',
+        locations: [
+          { file: 'src/components/Dashboard/DataTable.tsx', line: 92 },
+          { file: 'src/hooks/useUserProfile.ts', line: 44 },
+          { file: 'src/services/api.ts', line: 17 },
+        ]
+      },
+      {
+        id: 'deps-outdated',
+        title: 'Vulnerable Dependencies (3 packages)',
+        severity: 'high',
+        instances: 3,
+        impact: 'Three production dependencies have known CVEs. The most severe (lodash 4.17.15) is vulnerable to prototype pollution (CVE-2021-23337), which can lead to denial of service or property injection attacks depending on how the library is used.',
+        remediation: 'Run <code>npm audit fix</code> to automatically update packages where possible. For packages requiring major version bumps, review changelogs and migrate manually. Pin dependency versions in <code>package-lock.json</code> and run audits in CI.',
+        locations: [
+          { file: 'package.json', line: 14 },
+          { file: 'package.json', line: 22 },
+          { file: 'package.json', line: 37 },
+        ]
+      }
+    ]
+  },
+  {
+    id: 'file-upload',
+    label: 'File Upload',
+    lane: 'FRONTEND',
+    xRatio: 0.70,
+    worstSev: 'critical',
+    totalIssues: 7,
+    findings: [
+      {
+        id: 'unrestricted-upload',
+        title: 'Unrestricted File Upload',
+        severity: 'critical',
+        instances: 1,
+        impact: 'The file upload endpoint accepts any file type and extension without validation. An attacker can upload executable scripts (.php, .jsp, .sh) that, if the server executes them, enables remote code execution and full server compromise.',
+        remediation: 'Validate file type by inspecting the MIME type and file magic bytes, not just the extension. Maintain an explicit allowlist of permitted types (e.g., images, PDFs). Store uploaded files outside the web root and serve via signed URLs. Strip EXIF metadata from images.',
+        locations: [
+          { file: 'src/api/upload/route.ts', line: 28 },
+        ]
+      },
+      {
+        id: 'path-traversal',
+        title: 'Path Traversal in File Naming',
+        severity: 'critical',
+        instances: 2,
+        impact: 'User-supplied filenames are used directly in filesystem operations without sanitization. By uploading a file named <code>../../etc/passwd</code>, an attacker may be able to read or overwrite arbitrary files on the server depending on filesystem permissions.',
+        remediation: 'Regenerate filenames server-side using a UUID or hash — never trust user-provided filenames. Use <code>path.basename()</code> to strip directory components. Validate that the resolved path stays within the intended upload directory.',
+        locations: [
+          { file: 'src/api/upload/route.ts', line: 52 },
+          { file: 'src/services/storage.ts', line: 19 },
+        ]
+      }
+    ]
+  },
+  {
+    id: 'auth-api',
+    label: 'Auth API',
+    lane: 'API',
+    xRatio: 0.22,
+    worstSev: 'critical',
+    totalIssues: 11,
+    findings: [
+      {
+        id: 'jwt-weak',
+        title: 'JWT Signed with Weak Secret',
+        severity: 'critical',
+        instances: 1,
+        impact: 'The JWT signing secret is a short, hardcoded string ("secret123") that can be brute-forced offline in minutes using tools like hashcat. An attacker who cracks the secret can forge arbitrary JWT tokens, effectively becoming any user including admins.',
+        remediation: 'Replace the secret with a cryptographically random value of at least 256 bits. Use environment variables to inject secrets at runtime — never hardcode. Consider migrating to RS256 (asymmetric) signing to separate signing and verification capabilities.',
+        locations: [
+          { file: 'src/api/auth/jwt.ts', line: 7 },
+        ]
+      },
+      {
+        id: 'brute-force',
+        title: 'No Rate Limiting on Login Endpoint',
+        severity: 'high',
+        instances: 1,
+        impact: 'The login endpoint accepts unlimited requests without throttling. An attacker can automate credential stuffing or brute-force attacks, attempting thousands of username/password combinations per minute without triggering any lockout.',
+        remediation: 'Implement rate limiting per IP and per account (e.g., max 10 attempts per minute). Add progressive delays after failed attempts. Consider CAPTCHA after N failures. Log and alert on anomalous login patterns.',
+        locations: [
+          { file: 'src/api/auth/login/route.ts', line: 1 },
+        ]
+      },
+      {
+        id: 'token-exposure',
+        title: 'Refresh Token Stored in localStorage',
+        severity: 'medium',
+        instances: 2,
+        impact: 'Storing refresh tokens in localStorage exposes them to any JavaScript running on the page, including third-party scripts and browser extensions. An XSS attack anywhere on the domain can silently steal long-lived tokens.',
+        remediation: 'Store refresh tokens in HttpOnly, Secure, SameSite=Strict cookies. These are inaccessible to JavaScript but automatically sent by the browser. Implement token rotation to limit the damage of any stolen token.',
+        locations: [
+          { file: 'src/services/auth.ts', line: 88 },
+          { file: 'src/hooks/useAuth.ts', line: 33 },
+        ]
+      }
+    ]
+  },
+  {
+    id: 'data-api',
+    label: 'Data API',
+    lane: 'API',
+    xRatio: 0.56,
+    worstSev: 'high',
+    totalIssues: 8,
+    findings: [
+      {
+        id: 'sql-injection',
+        title: 'SQL Injection via Search Parameter',
+        severity: 'critical',
+        instances: 3,
+        impact: 'The search endpoint constructs SQL queries using string concatenation with unescaped user input. An attacker can manipulate queries to extract any data from the database, bypass authentication, or in some configurations, execute arbitrary system commands.',
+        remediation: 'Replace string concatenation with parameterized queries or prepared statements. Use an ORM that handles parameterization automatically. Never concatenate user input directly into SQL strings. Add an application-level WAF as a secondary defense layer.',
+        locations: [
+          { file: 'src/api/search/route.ts', line: 34 },
+          { file: 'src/api/search/route.ts', line: 67 },
+          { file: 'src/lib/db/queries.ts', line: 112 },
+        ]
+      },
+      {
+        id: 'idor',
+        title: 'Insecure Direct Object Reference',
+        severity: 'high',
+        instances: 4,
+        impact: 'API endpoints accept resource IDs from the URL without verifying the authenticated user owns or has access to those resources. Any authenticated user can access any other user\'s data by enumerating sequential IDs.',
+        remediation: 'Implement authorization checks on every data access operation. Verify resource ownership server-side: <code>WHERE id = ? AND user_id = ?</code>. Consider UUIDs over sequential integers to prevent enumeration. Add automated tests that verify cross-user access is denied.',
+        locations: [
+          { file: 'src/api/records/[id]/route.ts', line: 18 },
+          { file: 'src/api/documents/[id]/route.ts', line: 24 },
+          { file: 'src/api/exports/[id]/route.ts', line: 11 },
+          { file: 'src/api/shares/[id]/route.ts', line: 29 },
+        ]
+      }
+    ]
+  },
+  {
+    id: 'user-db',
+    label: 'Users DB',
+    lane: 'DATABASE',
+    xRatio: 0.25,
+    worstSev: 'critical',
+    totalIssues: 6,
+    findings: [
+      {
+        id: 'plaintext-passwords',
+        title: 'Passwords Stored in Plaintext',
+        severity: 'critical',
+        instances: 1,
+        impact: 'User passwords are stored directly in the database without hashing. A database breach — through SQL injection, stolen credentials, or insider threat — immediately exposes every user\'s password, which are frequently reused across services.',
+        remediation: 'Immediately migrate to bcrypt, argon2id, or scrypt with an appropriate work factor. For existing plaintext passwords, force a password reset on next login. Never log or store plaintext passwords anywhere in the system.',
+        locations: [
+          { file: 'migrations/0001_create_users.sql', line: 12 },
+          { file: 'src/api/auth/register/route.ts', line: 44 },
+        ]
+      },
+      {
+        id: 'no-encryption',
+        title: 'PII Stored Without Encryption at Rest',
+        severity: 'high',
+        instances: 4,
+        impact: 'Sensitive personally identifiable information (SSN, date of birth, payment details) is stored unencrypted in the database. A database export or backup theft exposes this data immediately without needing to break any encryption.',
+        remediation: 'Implement column-level encryption for sensitive fields using AES-256-GCM. Store encryption keys in a separate key management service (AWS KMS, HashiCorp Vault). Ensure backups are also encrypted. Document your encryption scheme for compliance purposes.',
+        locations: [
+          { file: 'migrations/0003_add_profile_fields.sql', line: 8 },
+          { file: 'migrations/0003_add_profile_fields.sql', line: 14 },
+          { file: 'migrations/0003_add_profile_fields.sql', line: 19 },
+          { file: 'migrations/0003_add_profile_fields.sql', line: 25 },
+        ]
+      }
+    ]
+  },
+  {
+    id: 'config-db',
+    label: 'Config DB',
+    lane: 'DATABASE',
+    xRatio: 0.58,
+    worstSev: 'medium',
+    totalIssues: 4,
+    findings: [
+      {
+        id: 'default-creds',
+        title: 'Default Database Credentials',
+        severity: 'high',
+        instances: 1,
+        impact: 'The database is accessible using the vendor default username and password. Attackers routinely scan for databases with default credentials as a first step in infrastructure attacks. This requires zero exploitation skill.',
+        remediation: 'Immediately rotate database credentials. Use a secrets manager (AWS Secrets Manager, Doppler, 1Password Secrets Automation) to inject credentials at runtime. Audit all database users and remove any unused accounts. Enable database audit logging.',
+        locations: [
+          { file: '.env.example', line: 3 },
+          { file: 'docker-compose.yml', line: 18 },
+        ]
+      },
+      {
+        id: 'no-audit-log',
+        title: 'Missing Database Audit Logging',
+        severity: 'medium',
+        instances: 1,
+        impact: 'No query audit logging is configured. Without audit trails, it\'s impossible to detect data exfiltration, unauthorized access, or compliance violations after the fact. Forensic investigation of incidents becomes extremely difficult.',
+        remediation: 'Enable PostgreSQL audit logging (pgaudit extension). Log all DDL and DML operations on tables containing sensitive data. Forward logs to a centralized, tamper-resistant SIEM. Retain logs for at least 90 days per common compliance requirements.',
+        locations: [
+          { file: 'supabase/config.toml', line: 44 },
+        ]
+      }
+    ]
+  },
+  {
+    id: 'third-party',
+    label: '3rd Party APIs',
+    lane: 'EXTERNAL',
+    xRatio: 0.35,
+    worstSev: 'medium',
+    totalIssues: 7,
+    findings: [
+      {
+        id: 'api-keys-client',
+        title: 'API Keys Exposed in Client Bundle',
+        severity: 'high',
+        instances: 3,
+        impact: 'Third-party API keys for payment processing, email, and analytics services are bundled into the client-side JavaScript. Anyone who views the page source or network traffic can extract these keys and use them to incur charges, send unauthorized emails, or access usage data.',
+        remediation: 'Move all API calls involving secret keys to server-side routes. Use environment variables prefixed with <code>NEXT_PUBLIC_</code> only for truly public, non-secret configuration. Rotate any currently exposed keys immediately and audit usage logs for abuse.',
+        locations: [
+          { file: 'src/lib/stripe.ts', line: 3 },
+          { file: 'src/lib/sendgrid.ts', line: 5 },
+          { file: 'src/components/Analytics.tsx', line: 12 },
+        ]
+      },
+      {
+        id: 'ssrf-webhook',
+        title: 'SSRF via Webhook URL Input',
+        severity: 'medium',
+        instances: 2,
+        impact: 'The webhook configuration accepts arbitrary URLs that the server then makes HTTP requests to. An attacker can supply internal network addresses (e.g., <code>http://169.254.169.254/metadata</code>) to probe internal services or cloud metadata endpoints.',
+        remediation: 'Validate webhook URLs against an allowlist of approved external domains. Block requests to private IP ranges (10.x.x.x, 172.16.x.x, 192.168.x.x, 127.x.x.x) and cloud metadata endpoints. Use a dedicated outbound proxy for webhook deliveries.',
+        locations: [
+          { file: 'src/api/webhooks/configure/route.ts', line: 41 },
+          { file: 'src/services/webhookDelivery.ts', line: 88 },
+        ]
+      }
+    ]
+  }
+];
+
+// Aggregate stats
+const allFindings = NODES.flatMap(n => n.findings);
+const totalInstances = NODES.reduce((s, n) => s + n.totalIssues, 0);
+
+// Active severity filters
+const activeFilters = new Set(['critical', 'high', 'medium', 'low']);
+
+// Selected node
+let selectedNode = null;
+
+// ─────────────────────────────────────────────
+// FILTER TOGGLE
+// ─────────────────────────────────────────────
+function toggleFilter(btn) {
+  const sev = btn.dataset.sev;
+  if (activeFilters.has(sev)) {
+    activeFilters.delete(sev);
+    btn.classList.remove('active');
+  } else {
+    activeFilters.add(sev);
+    btn.classList.add('active');
+  }
+  renderGraph();
+  if (selectedNode) {
+    showNodeDetail(selectedNode);
+  } else {
+    showSummary();
+  }
+}
+
+// ─────────────────────────────────────────────
+// GRAPH RENDERING
+// ─────────────────────────────────────────────
+const LANES = ['FRONTEND', 'API', 'DATABASE', 'EXTERNAL'];
+
+function renderGraph() {
+  LANES.forEach(lane => {
+    const container = document.getElementById(`lane-${lane}`);
+    container.innerHTML = '';
+    const nodes = NODES.filter(n => n.lane === lane);
+    if (nodes.length === 0) return;
+
+    const w = container.clientWidth || 800;
+    const h = container.clientHeight || 80;
+
+    const svg = d3.select(container)
+      .append('svg')
+      .attr('width', w)
+      .attr('height', h);
+
+    // Draw connection lines first (behind nodes)
+    const lineGroup = svg.append('g').attr('class', 'lines');
+
+    nodes.forEach((node, i) => {
+      if (i < nodes.length - 1) {
+        const next = nodes[i + 1];
+        const x1 = node.xRatio * w;
+        const x2 = next.xRatio * w;
+        const cy = h / 2;
+        lineGroup.append('line')
+          .attr('class', 'connector-line')
+          .attr('x1', x1 + 24).attr('y1', cy)
+          .attr('x2', x2 - 24).attr('y2', cy);
+      }
+    });
+
+    // Draw nodes
+    nodes.forEach(node => {
+      const visible = activeFilters.has(node.worstSev);
+      const cx = node.xRatio * w;
+      const cy = h / 2;
+      const r = 22;
+      const color = SEVERITY_COLOR[node.worstSev];
+
+      const g = svg.append('g')
+        .attr('class', 'node-group' + (selectedNode && selectedNode.id === node.id ? ' selected' : ''))
+        .attr('transform', `translate(${cx}, ${cy})`)
+        .style('opacity', visible ? 1 : 0.2)
+        .attr('data-id', node.id)
+        .on('click', () => {
+          if (!activeFilters.has(node.worstSev)) return;
+          if (selectedNode && selectedNode.id === node.id) {
+            clearSelection();
+          } else {
+            selectNode(node);
+          }
+        });
+
+      // Outer ring
+      g.append('circle')
+        .attr('r', r + 4)
+        .attr('fill', 'none')
+        .attr('stroke', color)
+        .attr('stroke-width', 1)
+        .attr('opacity', 0.25);
+
+      // Main circle
+      g.append('circle')
+        .attr('class', 'node-bg')
+        .attr('r', r)
+        .attr('fill', color)
+        .attr('fill-opacity', 0.18)
+        .attr('stroke', color)
+        .attr('stroke-width', 1.5);
+
+      // Issue count
+      g.append('text')
+        .attr('class', 'node-count-text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '0.35em')
+        .attr('fill', color)
+        .text(node.totalIssues);
+
+      // Label below
+      g.append('text')
+        .attr('class', 'node-label')
+        .attr('text-anchor', 'middle')
+        .attr('y', r + 14)
+        .text(node.label);
+    });
+  });
+}
+
+// ─────────────────────────────────────────────
+// SELECTION
+// ─────────────────────────────────────────────
+function selectNode(node) {
+  selectedNode = node;
+  // Update selected class on node groups
+  d3.selectAll('.node-group').classed('selected', d => false);
+  d3.selectAll('.node-group').each(function() {
+    if (this.getAttribute('data-id') === node.id) {
+      this.classList.add('selected');
+    }
+  });
+  showNodeDetail(node);
+}
+
+function clearSelection() {
+  selectedNode = null;
+  d3.selectAll('.node-group').classed('selected', false);
+  showSummary();
+}
+
+// ─────────────────────────────────────────────
+// PANEL: SUMMARY
+// ─────────────────────────────────────────────
+function showSummary() {
+  document.getElementById('panel-title').textContent = 'Summary';
+  document.getElementById('panel-node-info').classList.add('hidden');
+  document.getElementById('panel-back').style.display = 'none';
+
+  const sevCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+  allFindings.forEach(f => { sevCounts[f.severity] += f.instances; });
+
+  const topFindings = [...allFindings]
+    .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
+    .slice(0, 6);
+
+  const content = document.getElementById('panel-content');
+  content.innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-stats">
+        <div class="stat-card">
+          <div class="stat-total">
+            <div class="stat-total-num">${totalInstances}</div>
+            <div class="stat-total-label">total instances</div>
+          </div>
+          <div class="stat-divider">${allFindings.length} vulnerability classes across ${NODES.length} components</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-row">
+            <div class="stat-item">
+              <div class="stat-num" style="color: var(--critical)">${sevCounts.critical}</div>
+              <div class="stat-label-sm" style="color: var(--critical)">Critical</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-num" style="color: var(--high)">${sevCounts.high}</div>
+              <div class="stat-label-sm" style="color: var(--high)">High</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-num" style="color: var(--medium)">${sevCounts.medium}</div>
+              <div class="stat-label-sm" style="color: var(--medium)">Medium</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-num" style="color: var(--low)">${sevCounts.low}</div>
+              <div class="stat-label-sm" style="color: var(--low)">Low</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="summary-top-list">
+        ${topFindings.map(f => `
+          <div class="top-item">
+            <div class="top-sev-dot" style="background: ${SEVERITY_COLOR[f.severity]}"></div>
+            <div class="top-item-name">${f.title}</div>
+            <div class="top-item-instances">${f.instances} instance${f.instances !== 1 ? 's' : ''}</div>
+            <div class="sev-badge sev-${f.severity}">${f.severity}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// PANEL: NODE DETAIL
+// ─────────────────────────────────────────────
+function showNodeDetail(node) {
+  document.getElementById('panel-title').textContent = 'Findings';
+  document.getElementById('panel-node-info').classList.remove('hidden');
+  document.getElementById('panel-node-name').textContent = node.label;
+  document.getElementById('panel-node-lane').textContent = node.lane;
+  document.getElementById('panel-back').style.display = 'flex';
+
+  const filteredFindings = node.findings.filter(f => activeFilters.has(f.severity));
+
+  const content = document.getElementById('panel-content');
+
+  if (filteredFindings.length === 0) {
+    content.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 20px 0;">No findings match the current severity filters.</div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <div class="findings-grid">
+      ${filteredFindings.map((f, idx) => renderFindingCard(f, idx)).join('')}
+    </div>
+  `;
+
+  // Auto-expand first card
+  const firstCard = content.querySelector('.finding-card');
+  if (firstCard) toggleFinding(firstCard);
+}
+
+function renderFindingCard(f, idx) {
+  return `
+    <div class="finding-card" id="card-${f.id}" onclick="toggleFinding(this.closest('.finding-card'))">
+      <div class="finding-header">
+        <div class="finding-meta">
+          <div class="finding-label">Vulnerability</div>
+          <div class="finding-title">${f.title}</div>
+        </div>
+        <div class="finding-instances">${f.instances} instance${f.instances !== 1 ? 's' : ''}</div>
+        <div class="sev-badge sev-${f.severity}">${f.severity}</div>
+        <svg class="finding-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="finding-body">
+        <div class="impact-text">${f.impact}</div>
+        <div class="collapsible-section" id="rem-${f.id}">
+          <button class="collapsible-trigger" onclick="event.stopPropagation(); toggleCollapsible('rem-${f.id}')">
+            <svg class="collapsible-icon" width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Remediation
+          </button>
+          <div class="collapsible-body">
+            <div class="remediation-text">${f.remediation}</div>
+          </div>
+        </div>
+        <div class="collapsible-section" id="loc-${f.id}">
+          <button class="collapsible-trigger" onclick="event.stopPropagation(); toggleCollapsible('loc-${f.id}')">
+            <svg class="collapsible-icon" width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Locations (${f.locations.length})
+          </button>
+          <div class="collapsible-body">
+            <div class="location-list">
+              ${f.locations.map(loc => `
+                <div class="location-item">
+                  <span class="location-file">${loc.file}</span>
+                  <span class="location-line">:${loc.line}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleFinding(card) {
+  if (!card) return;
+  card.classList.toggle('expanded');
+}
+
+function toggleCollapsible(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+function init() {
+  renderGraph();
+  showSummary();
+}
+
+// Re-render on resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    renderGraph();
+  }, 100);
+});
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

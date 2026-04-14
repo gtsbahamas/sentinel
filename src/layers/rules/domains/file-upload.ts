@@ -309,11 +309,15 @@ export const fileUploadRules: SecurityRule[] = [
         }
 
         // Policies on storage.objects: `create policy "name" on storage.objects`
-        const policyRegex = /create\s+policy[\s\S]*?on\s+storage\.objects[\s\S]*?(?:bucket_id\s*=\s*['"]([^'"]+)['"])?/gi;
+        const policyRegex = /create\s+policy[\s\S]*?on\s+storage\.objects/gi;
         let pm: RegExpExecArray | null;
         while ((pm = policyRegex.exec(sql)) !== null) {
           policiesExist = true;
-          if (pm[1]) policyNames.add(pm[1]);
+        }
+        // Separately extract bucket_id references from storage policies
+        const bucketIdRefs = sql.matchAll(/bucket_id\s*=\s*['"]([^'"]+)['"]/gi);
+        for (const bm of bucketIdRefs) {
+          if (bm[1]) policyNames.add(bm[1]);
         }
       }
 
@@ -355,7 +359,7 @@ export const fileUploadRules: SecurityRule[] = [
       const findings: Finding[] = [];
       for (const u of model.fileUploads) {
         const source = await safeReadFile(u.file);
-        if (/\.zip|\.tar|unzipper|tar-stream|adm-zip/.test(source)) {
+        if (/\.zip["'\s,)|]|\.tar\.gz|\.tar["'\s,)|]|\.tgz|unzipper|tar-stream|adm-zip/.test(source)) {
           findings.push(
             mkFinding(
               "UPLOAD-009",

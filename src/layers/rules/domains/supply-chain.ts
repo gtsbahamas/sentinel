@@ -444,7 +444,7 @@ export const supplyChainRules: SecurityRule[] = [
         versionsByName.get(name)!.add(entry.version);
       }
       for (const [name, versions] of versionsByName.entries()) {
-        if (versions.size >= 3) {
+        if (versions.size >= 4) {
           findings.push(
             mkFinding(
               "SUPPLY-009",

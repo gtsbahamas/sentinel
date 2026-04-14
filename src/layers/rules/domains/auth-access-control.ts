@@ -100,10 +100,17 @@ export const authAccessControlRules: SecurityRule[] = [
       }
 
       if (migrationContent) {
-        const enableRls = migrationContent.match(/alter\s+table\s+(\w+)\s+enable\s+row\s+level\s+security/gi) ?? [];
+        const enableRls = migrationContent.match(/alter\s+table\s+(?:[\w.]+\.)?(\w+)\s+enable\s+row\s+level\s+security/gi) ?? [];
         const enabledTables = new Set(
-          enableRls.map((m) => m.match(/alter\s+table\s+(\w+)/i)?.[1]).filter(Boolean) as string[],
+          enableRls.map((m) => m.match(/alter\s+table\s+(?:[\w.]+\.)?(\w+)\s+enable/i)?.[1]).filter(Boolean) as string[],
         );
+
+        // Collect names defined as VIEWs — views don't support RLS.
+        const viewMatches = migrationContent.matchAll(/create\s+(?:or\s+replace\s+)?view\s+(?:[\w.]+\.)?(\w+)/gi);
+        const viewNames = new Set<string>();
+        for (const vm of viewMatches) {
+          if (vm[1]) viewNames.add(vm[1]);
+        }
 
         const tableRefs = new Set<string>();
         for (const endpoint of model.endpoints) {
@@ -112,8 +119,20 @@ export const authAccessControlRules: SecurityRule[] = [
           for (const m of matches) tableRefs.add(m[1]);
         }
 
+        // Collect the actual migration files to use as evidence instead of
+        // pointing at the directory (which causes EISDIR when the fixer reads it).
+        const migrationFiles = await fg(["**/*.sql"], {
+          cwd: `${model.meta.path}/supabase/migrations`,
+          absolute: true,
+        }).catch(() => [] as string[]);
+
         for (const table of tableRefs) {
+          // Views don't support RLS — skip them.
+          if (viewNames.has(table)) continue;
           if (!enabledTables.has(table)) {
+            // Use the first migration file as evidence, or skip if none exist
+            const evidenceFile = migrationFiles[0];
+            if (!evidenceFile) continue;
             findings.push(
               mkFinding(
                 "AUTH-002",
@@ -122,7 +141,7 @@ export const authAccessControlRules: SecurityRule[] = [
                 "Supabase table is queried from code but RLS is not enabled in migrations.",
                 "Your app queries a Supabase table that has no Row Level Security policies. Any authenticated user can read or modify any row in this table, not just their own data.",
                 `Run: ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY; and add appropriate policies.`,
-                [{ file: `${model.meta.path}/supabase/migrations/` }],
+                [{ file: evidenceFile }],
                 { cwe: "CWE-284" },
               ),
             );

@@ -19,7 +19,7 @@ export async function discoverUploadHandlers(files: string[]): Promise<UploadHan
     const acceptsMultipart = UPLOAD_SIGNALS.some((rx) => rx.test(source));
     if (!acceptsMultipart) continue;
 
-    const hasMimeValidation = /content-?type|mimetype|\.type\s*===|\.type\s*==\s*/i.test(source);
+    const hasMimeValidation = /content-?type|mimetype|\.type\s*[=!]==?\s*|allowedTypes|\.includes\s*\(\s*\w+\.type\)|\.type\.toLowerCase|accept\s*=\s*["']|file\.type/i.test(source);
     const hasSizeLimit = /\.size\s*[<>=]|MAX_|SIZE_LIMIT|maxSize/i.test(source);
     const usesUserFilename = /formData\.get\(\s*["']filename["']|\.name\s*\|\|\s*["']|userFilename/.test(source);
 

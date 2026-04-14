@@ -235,7 +235,7 @@ export const inputInjectionRules: SecurityRule[] = [
     check(model) {
       return scanLines(
         model,
-        /(window\.location|location\.href)\s*=\s*[^"'`]/,
+        /(window\.location|location\.href)\s*=\s*(?!\s*["'`\/])[^;]/,
         (file, line, match) =>
           mkFinding(
             "INPUT-006",

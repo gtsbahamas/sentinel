@@ -1,0 +1,282 @@
+<h2>Dashboard Layout: Scan Mode + Exploration Mode</h2>
+<p class="subtitle">Top: during scan. Bottom: after scan completes.</p>
+
+<!-- SCAN MODE -->
+<div class="mockup">
+  <div class="mockup-header">Scan Mode (live animation)</div>
+  <div class="mockup-body" style="background:#0a1628; padding:0; color:#e2e8f0; font-family:'DM Sans', system-ui, sans-serif; overflow:hidden;">
+
+    <!-- Top bar -->
+    <div style="background:#0d1f33; border-bottom:1px solid #1e3a5f; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-size:14px; font-weight:700; color:#e2e8f0;">SENTINEL</div>
+        <div style="font-size:11px; color:#64748b;">my-saas-project</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <div style="width:8px; height:8px; background:#f59e0b; border-radius:50%; animation:pulse 1.5s infinite;"></div>
+        <div style="font-size:11px; color:#f59e0b;">Scanning...</div>
+      </div>
+    </div>
+
+    <div style="display:flex; height:340px;">
+      <!-- Main Graph Area (70%) -->
+      <div style="flex:7; padding:16px; position:relative;">
+
+        <!-- Lane Headers with status -->
+        <div style="display:flex; gap:4px; margin-bottom:12px;">
+          <div style="flex:1; text-align:center; font-size:9px; padding:4px; background:#0d2137; border-radius:4px;">
+            <span style="color:#4ade80;">FRONTEND</span>
+            <span style="color:#4ade80; margin-left:4px;">✓ 6 routes</span>
+          </div>
+          <div style="flex:1; text-align:center; font-size:9px; padding:4px; background:#0d2137; border-radius:4px;">
+            <span style="color:#f59e0b;">API</span>
+            <span style="color:#f59e0b; margin-left:4px;">● scanning...</span>
+          </div>
+          <div style="flex:1; text-align:center; font-size:9px; padding:4px; background:#0d2137; border-radius:4px;">
+            <span style="color:#64748b;">DATABASE</span>
+            <span style="color:#64748b; margin-left:4px;">○ pending</span>
+          </div>
+          <div style="flex:1; text-align:center; font-size:9px; padding:4px; background:#0d2137; border-radius:4px;">
+            <span style="color:#64748b;">EXTERNAL</span>
+            <span style="color:#64748b; margin-left:4px;">○ pending</span>
+          </div>
+        </div>
+
+        <!-- Lane columns with nodes -->
+        <div style="display:flex; gap:4px; height:260px;">
+          <!-- Frontend lane -->
+          <div style="flex:1; background:#0d2137; border-radius:6px; padding:8px; position:relative; border:1px solid #1e3a5f;">
+            <div style="position:absolute; left:50%; transform:translateX(-50%); top:15px;">
+              <div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:8px;">/</div>
+            </div>
+            <div style="position:absolute; left:30%; transform:translateX(-50%); top:65px;">
+              <div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:7px;">login</div>
+            </div>
+            <div style="position:absolute; left:70%; transform:translateX(-50%); top:60px;">
+              <div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:7px;">dash</div>
+            </div>
+            <div style="position:absolute; left:40%; transform:translateX(-50%); top:115px;">
+              <div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:7px;">set</div>
+            </div>
+            <div style="position:absolute; left:60%; transform:translateX(-50%); top:165px;">
+              <div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:7px;">profile</div>
+            </div>
+            <div style="position:absolute; left:35%; transform:translateX(-50%); top:210px;">
+              <div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:7px;">signup</div>
+            </div>
+          </div>
+
+          <!-- API lane (being scanned, some findings) -->
+          <div style="flex:1; background:#0d2137; border-radius:6px; padding:8px; position:relative; border:1px solid #f59e0b40;">
+            <div style="position:absolute; left:50%; transform:translateX(-50%); top:20px;">
+              <div style="background:#7c2d12; border:2px solid #f97316; border-radius:4px; width:38px; height:26px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#fed7aa; position:relative;">
+                auth
+                <span style="position:absolute; top:-6px; right:-6px; background:#f97316; color:white; border-radius:50%; width:14px; height:14px; font-size:7px; display:flex; align-items:center; justify-content:center;">2</span>
+              </div>
+            </div>
+            <div style="position:absolute; left:35%; transform:translateX(-50%); top:75px;">
+              <div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:4px; width:38px; height:26px; display:flex; align-items:center; justify-content:center; font-size:7px;">users</div>
+            </div>
+            <div style="position:absolute; left:65%; transform:translateX(-50%); top:130px;">
+              <div style="background:#991b1b; border:2px solid #ef4444; border-radius:4px; width:38px; height:26px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#fca5a5; position:relative; box-shadow:0 0 12px rgba(239,68,68,0.4);">
+                upload
+                <span style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:white; border-radius:50%; width:14px; height:14px; font-size:7px; display:flex; align-items:center; justify-content:center;">3</span>
+              </div>
+            </div>
+            <div style="position:absolute; left:45%; transform:translateX(-50%); top:185px; opacity:0.5;">
+              <div style="background:#1e3a5f; border:1px dashed #475569; border-radius:4px; width:38px; height:26px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#64748b;">...</div>
+            </div>
+          </div>
+
+          <!-- Database lane (pending) -->
+          <div style="flex:1; background:#0d2137; border-radius:6px; padding:8px; position:relative; border:1px solid #1e3a5f; opacity:0.5;">
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:10px; color:#475569;">awaiting<br>scan</div>
+          </div>
+
+          <!-- External lane (pending) -->
+          <div style="flex:1; background:#0d2137; border-radius:6px; padding:8px; position:relative; border:1px solid #1e3a5f; opacity:0.5;">
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:10px; color:#475569;">awaiting<br>scan</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar (30%) -->
+      <div style="flex:3; background:#0d1f33; border-left:1px solid #1e3a5f; padding:12px; display:flex; flex-direction:column; gap:10px; overflow-y:auto;">
+
+        <!-- Stats -->
+        <div style="background:#0a1628; border:1px solid #1e3a5f; border-radius:6px; padding:10px;">
+          <div style="font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Summary</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+            <div style="text-align:center;">
+              <div style="font-size:20px; font-weight:700; color:#7bb3e0;">6</div>
+              <div style="font-size:8px; color:#64748b;">Routes</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:20px; font-weight:700; color:#7bb3e0;">3</div>
+              <div style="font-size:8px; color:#64748b;">Endpoints</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:20px; font-weight:700; color:#ef4444;">1</div>
+              <div style="font-size:8px; color:#ef4444;">Critical</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:20px; font-weight:700; color:#f97316;">2</div>
+              <div style="font-size:8px; color:#f97316;">High</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div style="background:#0a1628; border:1px solid #1e3a5f; border-radius:6px; padding:10px; flex:1; overflow-y:auto;">
+          <div style="font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Activity</div>
+          <div style="display:flex; flex-direction:column; gap:4px; font-size:9px;">
+            <div style="color:#4ade80;">✓ Discovered 6 frontend routes</div>
+            <div style="color:#7bb3e0;">→ Found endpoint POST /api/auth</div>
+            <div style="color:#f97316;">⚠ /api/auth: weak password validation</div>
+            <div style="color:#f97316;">⚠ /api/auth: no rate limiting</div>
+            <div style="color:#7bb3e0;">→ Found endpoint GET /api/users</div>
+            <div style="color:#7bb3e0;">→ Found endpoint POST /api/upload</div>
+            <div style="color:#ef4444;">✗ /api/upload: no auth check (critical)</div>
+            <div style="color:#ef4444;">✗ /api/upload: no file type validation</div>
+            <div style="color:#f97316;">⚠ /api/upload: no size limit</div>
+            <div style="color:#94a3b8; opacity:0.6;">Scanning more endpoints...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="height:24px;"></div>
+
+<!-- EXPLORATION MODE -->
+<div class="mockup">
+  <div class="mockup-header">Exploration Mode (after scan completes)</div>
+  <div class="mockup-body" style="background:#0a1628; padding:0; color:#e2e8f0; font-family:'DM Sans', system-ui, sans-serif; overflow:hidden;">
+
+    <!-- Top bar -->
+    <div style="background:#0d1f33; border-bottom:1px solid #1e3a5f; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-size:14px; font-weight:700; color:#e2e8f0;">SENTINEL</div>
+        <div style="font-size:11px; color:#64748b;">my-saas-project</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="display:flex; gap:4px;">
+          <button style="background:#1e293b; border:1px solid #475569; color:#e2e8f0; padding:3px 10px; border-radius:4px; font-size:10px; cursor:pointer;">All</button>
+          <button style="background:#991b1b; border:1px solid #ef4444; color:#fca5a5; padding:3px 10px; border-radius:4px; font-size:10px; cursor:pointer;">Critical (1)</button>
+          <button style="background:#7c2d12; border:1px solid #f97316; color:#fed7aa; padding:3px 10px; border-radius:4px; font-size:10px; cursor:pointer;">High (4)</button>
+          <button style="background:#1e293b; border:1px solid #475569; color:#94a3b8; padding:3px 10px; border-radius:4px; font-size:10px; cursor:pointer;">Medium (2)</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <div style="width:8px; height:8px; background:#4ade80; border-radius:50%;"></div>
+          <div style="font-size:11px; color:#4ade80;">Scan Complete</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; height:340px;">
+      <!-- Main Graph Area (70%) - all lanes populated -->
+      <div style="flex:7; padding:16px; position:relative;">
+        <div style="display:flex; gap:4px; margin-bottom:12px;">
+          <div style="flex:1; text-align:center; font-size:9px; padding:4px; background:#0d2137; border-radius:4px;">
+            <span style="color:#4ade80;">FRONTEND</span> <span style="color:#4ade80;">✓ 6</span>
+          </div>
+          <div style="flex:1; text-align:center; font-size:9px; padding:4px; background:#0d2137; border-radius:4px;">
+            <span style="color:#ef4444;">API</span> <span style="color:#ef4444;">✓ 5 (3 issues)</span>
+          </div>
+          <div style="flex:1; text-align:center; font-size:9px; padding:4px; background:#0d2137; border-radius:4px;">
+            <span style="color:#f97316;">DATABASE</span> <span style="color:#f97316;">✓ 4 (1 issue)</span>
+          </div>
+          <div style="flex:1; text-align:center; font-size:9px; padding:4px; background:#0d2137; border-radius:4px;">
+            <span style="color:#4ade80;">EXTERNAL</span> <span style="color:#4ade80;">✓ 3</span>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:4px; height:260px;">
+          <!-- All lanes populated, upload node selected (highlighted) -->
+          <div style="flex:1; background:#0d2137; border-radius:6px; padding:8px; border:1px solid #1e3a5f; position:relative;">
+            <div style="position:absolute; left:50%; transform:translateX(-50%); top:15px;"><div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:8px;">/</div></div>
+            <div style="position:absolute; left:30%; transform:translateX(-50%); top:60px;"><div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:7px;">login</div></div>
+            <div style="position:absolute; left:70%; transform:translateX(-50%); top:55px;"><div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:7px;">dash</div></div>
+            <div style="position:absolute; left:40%; transform:translateX(-50%); top:110px;"><div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:7px;">set</div></div>
+            <div style="position:absolute; left:65%; transform:translateX(-50%); top:160px;"><div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:7px;">prof</div></div>
+            <div style="position:absolute; left:35%; transform:translateX(-50%); top:205px;"><div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:7px;">sign</div></div>
+          </div>
+
+          <div style="flex:1; background:#0d2137; border-radius:6px; padding:8px; border:1px solid #1e3a5f; position:relative;">
+            <div style="position:absolute; left:50%; transform:translateX(-50%); top:20px;"><div style="background:#7c2d12; border:2px solid #f97316; border-radius:4px; width:36px; height:24px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#fed7aa; position:relative;">auth<span style="position:absolute;top:-5px;right:-5px;background:#f97316;color:white;border-radius:50%;width:12px;height:12px;font-size:7px;display:flex;align-items:center;justify-content:center;">2</span></div></div>
+            <div style="position:absolute; left:35%; transform:translateX(-50%); top:75px;"><div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:4px; width:36px; height:24px; display:flex; align-items:center; justify-content:center; font-size:7px;">users</div></div>
+            <!-- Selected node -->
+            <div style="position:absolute; left:65%; transform:translateX(-50%); top:130px;"><div style="background:#991b1b; border:3px solid #fbbf24; border-radius:4px; width:36px; height:24px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#fca5a5; position:relative; box-shadow:0 0 16px rgba(251,191,36,0.5);">upload<span style="position:absolute;top:-5px;right:-5px;background:#ef4444;color:white;border-radius:50%;width:12px;height:12px;font-size:7px;display:flex;align-items:center;justify-content:center;">3</span></div></div>
+            <div style="position:absolute; left:40%; transform:translateX(-50%); top:180px;"><div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:4px; width:36px; height:24px; display:flex; align-items:center; justify-content:center; font-size:7px;">pay</div></div>
+            <div style="position:absolute; left:60%; transform:translateX(-50%); top:225px;"><div style="background:#0f4c75; border:1.5px solid #7bb3e0; border-radius:4px; width:36px; height:24px; display:flex; align-items:center; justify-content:center; font-size:7px;">hook</div></div>
+          </div>
+
+          <div style="flex:1; background:#0d2137; border-radius:6px; padding:8px; border:1px solid #1e3a5f; position:relative;">
+            <div style="position:absolute; left:50%; transform:translateX(-50%); top:30px;"><div style="background:#14532d; border:1.5px solid #4ade80; border-radius:10px; width:40px; height:22px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#a3e4b8;">users</div></div>
+            <div style="position:absolute; left:40%; transform:translateX(-50%); top:90px;"><div style="background:#14532d; border:1.5px solid #4ade80; border-radius:10px; width:40px; height:22px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#a3e4b8;">posts</div></div>
+            <div style="position:absolute; left:60%; transform:translateX(-50%); top:150px;"><div style="background:#7f1d1d; border:2px solid #ef4444; border-radius:10px; width:40px; height:22px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#fca5a5; position:relative;">files<span style="position:absolute;top:-5px;right:-5px;background:#ef4444;color:white;border-radius:50%;width:12px;height:12px;font-size:7px;display:flex;align-items:center;justify-content:center;">1</span></div></div>
+            <div style="position:absolute; left:45%; transform:translateX(-50%); top:210px;"><div style="background:#14532d; border:1.5px solid #4ade80; border-radius:10px; width:40px; height:22px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#a3e4b8;">settings</div></div>
+          </div>
+
+          <div style="flex:1; background:#0d2137; border-radius:6px; padding:8px; border:1px solid #1e3a5f; position:relative;">
+            <div style="position:absolute; left:50%; transform:translateX(-50%); top:40px;"><div style="background:#4a1d96; border:1.5px solid #a78bfa; width:22px; height:22px; transform:rotate(45deg); display:flex; align-items:center; justify-content:center;"><span style="transform:rotate(-45deg); font-size:7px; color:#c4b5fd;">AI</span></div></div>
+            <div style="position:absolute; left:45%; transform:translateX(-50%); top:110px;"><div style="background:#4a1d96; border:1.5px solid #a78bfa; width:22px; height:22px; transform:rotate(45deg); display:flex; align-items:center; justify-content:center;"><span style="transform:rotate(-45deg); font-size:7px; color:#c4b5fd;">S3</span></div></div>
+            <div style="position:absolute; left:55%; transform:translateX(-50%); top:180px;"><div style="background:#4a1d96; border:1.5px solid #a78bfa; width:22px; height:22px; transform:rotate(45deg); display:flex; align-items:center; justify-content:center;"><span style="transform:rotate(-45deg); font-size:7px; color:#c4b5fd;">n8n</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar - showing selected node details -->
+      <div style="flex:3; background:#0d1f33; border-left:1px solid #1e3a5f; padding:12px; display:flex; flex-direction:column; gap:10px; overflow-y:auto;">
+
+        <!-- Selected node header -->
+        <div style="background:#991b1b; border:1px solid #ef4444; border-radius:6px; padding:10px;">
+          <div style="font-size:9px; color:#fca5a5; text-transform:uppercase; letter-spacing:1px;">Selected Node</div>
+          <div style="font-size:14px; font-weight:700; color:#fca5a5; margin-top:4px;">POST /api/upload</div>
+          <div style="font-size:10px; color:#f87171; margin-top:2px;">src/pages/api/upload.ts</div>
+          <div style="display:flex; gap:4px; margin-top:6px;">
+            <span style="background:#7f1d1d; padding:2px 6px; border-radius:3px; font-size:8px; color:#fca5a5;">No Auth</span>
+            <span style="background:#7f1d1d; padding:2px 6px; border-radius:3px; font-size:8px; color:#fca5a5;">No Validation</span>
+          </div>
+        </div>
+
+        <!-- Findings for this node -->
+        <div style="background:#0a1628; border:1px solid #1e3a5f; border-radius:6px; padding:10px; flex:1;">
+          <div style="font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Findings (3)</div>
+
+          <div style="background:#1a0505; border:1px solid #991b1b; border-radius:4px; padding:8px; margin-bottom:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:10px; font-weight:600; color:#fca5a5;">No authentication check</span>
+              <span style="background:#991b1b; padding:1px 5px; border-radius:3px; font-size:8px; color:#fca5a5;">CRITICAL</span>
+            </div>
+            <div style="font-size:9px; color:#94a3b8; margin-top:4px;">Endpoint accepts requests without verifying user identity. Any client can upload files.</div>
+            <div style="font-size:8px; color:#475569; margin-top:4px; font-family:monospace;">→ upload.ts:14</div>
+          </div>
+
+          <div style="background:#1a0a00; border:1px solid #7c2d12; border-radius:4px; padding:8px; margin-bottom:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:10px; font-weight:600; color:#fed7aa;">No file type validation</span>
+              <span style="background:#7c2d12; padding:1px 5px; border-radius:3px; font-size:8px; color:#fed7aa;">HIGH</span>
+            </div>
+            <div style="font-size:9px; color:#94a3b8; margin-top:4px;">Accepts any file type without MIME validation. Risk of malicious file upload.</div>
+            <div style="font-size:8px; color:#475569; margin-top:4px; font-family:monospace;">→ upload.ts:22</div>
+          </div>
+
+          <div style="background:#1a0a00; border:1px solid #7c2d12; border-radius:4px; padding:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:10px; font-weight:600; color:#fed7aa;">No upload size limit</span>
+              <span style="background:#7c2d12; padding:1px 5px; border-radius:3px; font-size:8px; color:#fed7aa;">HIGH</span>
+            </div>
+            <div style="font-size:9px; color:#94a3b8; margin-top:4px;">No maximum file size configured. Risk of storage exhaustion or denial of service.</div>
+            <div style="font-size:8px; color:#475569; margin-top:4px; font-family:monospace;">→ upload.ts:18</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+</style>

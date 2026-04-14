@@ -389,9 +389,48 @@ export const secretsExposureRules: SecurityRule[] = [
     appliesTo: ["nextjs-supabase"],
     references: {},
     check(model) {
+      // Well-known platform env vars that don't need .env.example documentation.
+      // These are either auto-injected by the platform (Vercel, Netlify) or are
+      // standard Supabase/Next.js conventions obvious to any developer.
+      const WELL_KNOWN_ENV_VARS = new Set([
+        // Supabase
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_JWT_SECRET",
+        // Next.js / Vercel
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_SITE_URL",
+        "NEXT_PUBLIC_BASE_URL",
+        "NEXTAUTH_URL",
+        "NEXTAUTH_SECRET",
+        "VERCEL",
+        "VERCEL_ENV",
+        "VERCEL_URL",
+        "VERCEL_PROJECT_PRODUCTION_URL",
+        "VERCEL_GIT_COMMIT_SHA",
+        "VERCEL_GIT_COMMIT_REF",
+        // Node.js
+        "NODE_ENV",
+        "PORT",
+        // Common SaaS
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_PUBLISHABLE_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+        // Netlify
+        "NETLIFY",
+        "URL",
+        "DEPLOY_URL",
+        "CONTEXT",
+      ]);
       const findings: Finding[] = [];
       for (const env of model.envVars) {
-        if (!env.inExample) {
+        if (!env.inExample && !WELL_KNOWN_ENV_VARS.has(env.name)) {
           findings.push(
             mkFinding(
               {
@@ -429,7 +468,17 @@ export const secretsExposureRules: SecurityRule[] = [
         : [];
       const buildDirs = [".next", "dist", "out", "build"];
       for (const dir of buildDirs) {
-        if (existsSync(join(model.meta.path, dir)) && !gitignoreEntries.includes(dir) && !gitignoreEntries.includes(`${dir}/`)) {
+        // Check common gitignore patterns: "dir", "dir/", "/dir", "/dir/"
+        const isIgnored = gitignoreEntries.some((entry) => {
+          const normalized = entry.replace(/^\//, "").replace(/\/$/, "");
+          return normalized === dir;
+        });
+        if (existsSync(join(model.meta.path, dir)) && !isIgnored) {
+          // Point evidence at .gitignore (or package.json as fallback) instead
+          // of the build directory itself, which causes EISDIR on read.
+          const evidenceFile = existsSync(gitignorePath)
+            ? gitignorePath
+            : join(model.meta.path, "package.json");
           findings.push(
             mkFinding(
               {
@@ -439,7 +488,7 @@ export const secretsExposureRules: SecurityRule[] = [
                 remediation: `Add ${dir}/ to .gitignore.`,
                 references: {},
               },
-              [{ file: join(model.meta.path, dir) }],
+              [{ file: evidenceFile, snippet: `Missing: ${dir}/` }],
               `Build artifacts may leak source maps or compiled secrets if committed.`,
               "Your build output directory is not gitignored. Compiled files often contain inlined environment variables and can expose secrets if committed.",
             ),

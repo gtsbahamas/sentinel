@@ -174,6 +174,10 @@ export const apiSecurityRules: SecurityRule[] = [
         const source = await safeReadFile(endpoint.file).catch(() => "");
         if (!/\.from\s*\([^)]*\)\s*\.select/.test(source)) continue;
         if (/\.(range|limit)\s*\(/.test(source)) continue;
+        // Single-row fetches are inherently bounded
+        if (/\.single\s*\(/.test(source)) continue;
+        // Skip endpoints that already have rate limiting applied
+        if (/rateLimit|rateLimitMap|checkRateLimit|rate-limit|rateLimiter/i.test(source)) continue;
         findings.push(
           mkFinding(
             "API-004",

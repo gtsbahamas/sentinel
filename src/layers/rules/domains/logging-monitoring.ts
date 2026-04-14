@@ -264,6 +264,13 @@ export const loggingMonitoringRules: SecurityRule[] = [
         /componentDidCatch\s*\(|getDerivedStateFromError\s*\(/.test(source),
       );
       if (hasCustomBoundary) return findings;
+      // Point evidence at the root layout file where the error boundary should
+      // be added.  Fall back to package.json if no layout is found.
+      const layoutCandidates = await fg(
+        ["**/app/layout.tsx", "**/app/layout.jsx", "**/app/layout.ts", "**/app/layout.js", "src/App.tsx", "src/App.jsx"],
+        { cwd: model.meta.path, absolute: true, ignore: ["**/node_modules/**", "**/.next/**"] },
+      );
+      const evidenceFile = layoutCandidates[0] ?? `${model.meta.path}/package.json`;
       findings.push(
         mkFinding(
           "LOG-006",
@@ -272,7 +279,7 @@ export const loggingMonitoringRules: SecurityRule[] = [
           "React errors without a boundary unmount the entire tree and can reveal component internals.",
           "Your React app has no error boundary. A rendering error in any component crashes the entire page to a white screen, with no recovery path and no error report sent to your monitoring.",
           "Add an app-level error.tsx (Next.js) or ErrorBoundary component with a generic fallback.",
-          [{ file: model.meta.path }],
+          [{ file: evidenceFile }],
           {},
         ),
       );
@@ -292,11 +299,16 @@ export const loggingMonitoringRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
-      const piiLog = /console\.(log|info|warn|error|debug)\s*\([^)]*\b(email|phone|firstName|lastName|ssn|dob|birthdate)\b/i;
+      const piiWords = /\b(email|phone|firstName|lastName|ssn|dob|birthdate)\b/i;
+      const consoleCall = /console\.(log|info|warn|error|debug)\s*\(/;
       for (const { file, source } of files) {
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
-          if (!piiLog.test(line)) return;
+          if (!consoleCall.test(line)) return;
+          // Strip string literals so we only match PII as variable/property references,
+          // not the word "email" inside a log message string like "[DEMO MODE] Email suppressed".
+          const stripped = line.replace(/(["'`])(?:(?!\1).)*\1/g, "''");
+          if (!piiWords.test(stripped)) return;
           findings.push(
             mkFinding(
               "LOG-007",
@@ -362,7 +374,7 @@ export const loggingMonitoringRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const authRoutes = model.endpoints.filter((e) =>
-        /login|signin|signup|register|forgot|reset|verify/i.test(e.path),
+        /login|signin|signup|register|forgot|reset-password|password-reset|verify/i.test(e.path),
       );
       // "Structured" logging means a real logger import or audit call — not
       // console.log (which is itself flagged by LOG-002 as insufficient).

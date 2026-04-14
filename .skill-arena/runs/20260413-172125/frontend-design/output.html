@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SENTINEL — Security Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base: #0d1117;
+      --bg-surface: #131b27;
+      --bg-raised: #1a2537;
+      --bg-hover: #1f2d42;
+      --border: #1e2e45;
+      --border-light: #253548;
+
+      --text-primary: #e2eaf4;
+      --text-secondary: #7a92b0;
+      --text-muted: #4a6280;
+
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+
+      --sev-critical: #ef4444;
+      --sev-critical-bg: rgba(239,68,68,0.12);
+      --sev-critical-border: rgba(239,68,68,0.3);
+
+      --sev-high: #f97316;
+      --sev-high-bg: rgba(249,115,22,0.12);
+      --sev-high-border: rgba(249,115,22,0.3);
+
+      --sev-medium: #f59e0b;
+      --sev-medium-bg: rgba(245,158,11,0.12);
+      --sev-medium-border: rgba(245,158,11,0.3);
+
+      --sev-low: #22d3ee;
+      --sev-low-bg: rgba(34,211,238,0.08);
+      --sev-low-border: rgba(34,211,238,0.25);
+
+      --lane-frontend: rgba(59,130,246,0.05);
+      --lane-api: rgba(168,85,247,0.05);
+      --lane-db: rgba(16,185,129,0.05);
+      --lane-external: rgba(245,158,11,0.05);
+
+      --font-ui: 'Space Grotesk', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+      --font-display: 'Syne', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      overflow: hidden;
+    }
+
+    /* ─── LAYOUT ─── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ─── TOP BAR ─── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 0 24px;
+      height: 52px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-surface);
+      position: relative;
+      z-index: 10;
+    }
+
+    .topbar::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+      opacity: 0.4;
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .scan-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      margin-left: auto;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22d3ee;
+      box-shadow: 0 0 8px #22d3ee;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 8px #22d3ee; }
+      50% { opacity: 0.5; box-shadow: 0 0 3px #22d3ee; }
+    }
+
+    .divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border-light);
+    }
+
+    .scan-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* Severity filters */
+    .sev-filters {
+      display: flex;
+      gap: 6px;
+    }
+
+    .sev-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.18s ease;
+      font-family: var(--font-ui);
+    }
+
+    .sev-btn .count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+
+    .sev-btn.critical {
+      background: var(--sev-critical-bg);
+      border-color: var(--sev-critical-border);
+      color: var(--sev-critical);
+    }
+    .sev-btn.critical.active, .sev-btn.critical:hover { background: rgba(239,68,68,0.22); }
+
+    .sev-btn.high {
+      background: var(--sev-high-bg);
+      border-color: var(--sev-high-border);
+      color: var(--sev-high);
+    }
+    .sev-btn.high.active, .sev-btn.high:hover { background: rgba(249,115,22,0.22); }
+
+    .sev-btn.medium {
+      background: var(--sev-medium-bg);
+      border-color: var(--sev-medium-border);
+      color: var(--sev-medium);
+    }
+    .sev-btn.medium.active, .sev-btn.medium:hover { background: rgba(245,158,11,0.22); }
+
+    .sev-btn.low {
+      background: var(--sev-low-bg);
+      border-color: var(--sev-low-border);
+      color: var(--sev-low);
+    }
+    .sev-btn.low.active, .sev-btn.low:hover { background: rgba(34,211,238,0.14); }
+
+    .sev-btn.dimmed { opacity: 0.35; }
+
+    /* ─── MAIN SPLIT ─── */
+    .main-split {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ─── GRAPH AREA ─── */
+    .graph-area {
+      flex: 0 0 55%;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+      background: var(--bg-base);
+    }
+
+    /* Decorative grid overlay */
+    .graph-area::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.25;
+      pointer-events: none;
+    }
+
+    .lane-labels {
+      flex-shrink: 0;
+      width: 120px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      position: relative;
+      z-index: 2;
+    }
+
+    .lane-label {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    .lane-label:last-child { border-bottom: none; }
+
+    .lane-label-name {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--text-secondary);
+    }
+
+    .lane-label.frontend .lane-label-name { color: #60a5fa; }
+    .lane-label.api .lane-label-name { color: #c084fc; }
+    .lane-label.database .lane-label-name { color: #34d399; }
+    .lane-label.external .lane-label-name { color: #fbbf24; }
+
+    .lane-status {
+      font-size: 10px;
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-muted);
+    }
+
+    .lane-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+
+    .frontend .lane-dot { background: #60a5fa; }
+    .api .lane-dot { background: #c084fc; }
+    .database .lane-dot { background: #34d399; }
+    .external .lane-dot { background: #fbbf24; }
+
+    .graph-svg-container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #graph-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Lane background bands */
+    .lane-band {
+      rx: 0;
+    }
+
+    /* Node styles via D3 */
+    .node-group { cursor: pointer; }
+
+    .node-ring {
+      fill: none;
+      stroke-width: 1.5;
+      animation: node-ring-pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes node-ring-pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.7; }
+    }
+
+    .node-circle {
+      transition: filter 0.2s ease;
+    }
+
+    .node-group:hover .node-circle {
+      filter: brightness(1.3);
+    }
+
+    .node-group.selected .node-circle {
+      filter: brightness(1.4);
+    }
+
+    .node-label-text {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 500;
+      fill: var(--text-primary);
+      pointer-events: none;
+    }
+
+    .node-sub-text {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      fill: var(--text-muted);
+      pointer-events: none;
+    }
+
+    /* Connection lines */
+    .conn-line {
+      fill: none;
+      stroke-width: 1;
+      opacity: 0.25;
+    }
+
+    .conn-line.active {
+      opacity: 0.6;
+      stroke-dasharray: none;
+    }
+
+    /* Severity badge on node */
+    .node-badge {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 700;
+    }
+
+    /* ─── DIVIDER RESIZE ─── */
+    .panel-divider {
+      height: 4px;
+      background: var(--border);
+      flex-shrink: 0;
+      cursor: row-resize;
+      position: relative;
+      transition: background 0.2s ease;
+    }
+
+    .panel-divider::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 2px;
+      background: var(--border-light);
+      border-radius: 1px;
+    }
+
+    .panel-divider:hover { background: var(--accent-blue); }
+
+    /* ─── DETAIL PANEL ─── */
+    .detail-panel {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+    }
+
+    .detail-header {
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .detail-header-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+    }
+
+    .detail-header-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .detail-header-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-left: auto;
+    }
+
+    .detail-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 24px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-content: flex-start;
+    }
+
+    .detail-scroll::-webkit-scrollbar { width: 4px; }
+    .detail-scroll::-webkit-scrollbar-track { background: transparent; }
+    .detail-scroll::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+
+    /* ─── SUMMARY VIEW ─── */
+    .summary-view {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .summary-stats {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      min-width: 120px;
+    }
+
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .stat-card.critical .stat-value { color: var(--sev-critical); }
+    .stat-card.high .stat-value { color: var(--sev-high); }
+    .stat-card.medium .stat-value { color: var(--sev-medium); }
+    .stat-card.low .stat-value { color: var(--sev-low); }
+    .stat-card.total .stat-value { color: var(--text-primary); }
+
+    .summary-top-vulns h4 {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+    }
+
+    .top-vuln-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .top-vuln-row:last-child { border-bottom: none; }
+
+    .top-vuln-sev {
+      width: 4px;
+      height: 28px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .top-vuln-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      flex: 1;
+    }
+
+    .top-vuln-node {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .top-vuln-count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* ─── VULNERABILITY CARDS ─── */
+    .vuln-card {
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      width: 280px;
+      flex-shrink: 0;
+      transition: border-color 0.2s ease;
+    }
+
+    .vuln-card.critical { border-left: 3px solid var(--sev-critical); }
+    .vuln-card.high { border-left: 3px solid var(--sev-high); }
+    .vuln-card.medium { border-left: 3px solid var(--sev-medium); }
+    .vuln-card.low { border-left: 3px solid var(--sev-low); }
+
+    .vuln-card-header {
+      padding: 12px 14px 10px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .vuln-label-badge {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      color: var(--text-muted);
+      background: var(--bg-base);
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-bottom: 5px;
+      display: inline-block;
+    }
+
+    .vuln-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .vuln-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .sev-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .sev-tag.critical { background: var(--sev-critical-bg); color: var(--sev-critical); border: 1px solid var(--sev-critical-border); }
+    .sev-tag.high { background: var(--sev-high-bg); color: var(--sev-high); border: 1px solid var(--sev-high-border); }
+    .sev-tag.medium { background: var(--sev-medium-bg); color: var(--sev-medium); border: 1px solid var(--sev-medium-border); }
+    .sev-tag.low { background: var(--sev-low-bg); color: var(--sev-low); border: 1px solid var(--sev-low-border); }
+
+    .instance-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* Impact section (visible by default) */
+    .vuln-impact {
+      padding: 0 14px 10px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      border-top: 1px solid var(--border);
+      padding-top: 9px;
+    }
+
+    .vuln-impact-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    /* Collapsible sections */
+    .collapsible {
+      border-top: 1px solid var(--border);
+    }
+
+    .collapsible-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      user-select: none;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .collapsible-trigger:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .chevron {
+      transition: transform 0.2s ease;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .collapsible.open .chevron { transform: rotate(180deg); }
+
+    .collapsible-body {
+      display: none;
+      padding: 8px 14px 10px;
+    }
+
+    .collapsible.open .collapsible-body { display: block; }
+
+    .remediation-text {
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-family: var(--font-ui);
+    }
+
+    .remediation-code {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      margin-top: 6px;
+      color: #6ee7b7;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .location-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .location-item {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent-cyan);
+      padding: 3px 6px;
+      background: var(--bg-base);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .location-item::before {
+      content: '→';
+      color: var(--text-muted);
+      font-size: 9px;
+    }
+
+    /* ─── EMPTY STATE ─── */
+    .empty-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      padding: 4px 0;
+    }
+
+    /* ─── TOOLTIP ─── */
+    #tooltip {
+      position: fixed;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-family: var(--font-ui);
+      color: var(--text-primary);
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      max-width: 220px;
+    }
+
+    #tooltip.visible { opacity: 1; }
+    #tooltip .tt-name { font-weight: 600; margin-bottom: 4px; }
+    #tooltip .tt-row { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .vuln-card { animation: fadeInUp 0.25s ease forwards; }
+    .vuln-card:nth-child(2) { animation-delay: 0.05s; }
+    .vuln-card:nth-child(3) { animation-delay: 0.1s; }
+    .vuln-card:nth-child(4) { animation-delay: 0.15s; }
+    .vuln-card:nth-child(5) { animation-delay: 0.2s; }
+
+    /* ─── GLOW EFFECTS ─── */
+    .node-glow-critical { filter: drop-shadow(0 0 8px rgba(239,68,68,0.6)); }
+    .node-glow-high { filter: drop-shadow(0 0 8px rgba(249,115,22,0.6)); }
+    .node-glow-medium { filter: drop-shadow(0 0 8px rgba(245,158,11,0.5)); }
+    .node-glow-low { filter: drop-shadow(0 0 8px rgba(34,211,238,0.4)); }
+    .node-glow-clean { filter: drop-shadow(0 0 6px rgba(34,211,238,0.3)); }
+
+    /* node selection ring animation */
+    @keyframes selection-ring {
+      from { stroke-dashoffset: 100; }
+      to { stroke-dashoffset: 0; }
+    }
+
+    .selection-ring {
+      stroke-dasharray: 100;
+      animation: selection-ring 0.4s ease forwards;
+    }
+  </style>
+</head>
+<body>
+
+<div id="tooltip">
+  <div class="tt-name"></div>
+  <div class="tt-rows"></div>
+</div>
+
+<div class="app">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">⬡</div>
+      SENTINEL
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="sev-filters">
+      <button class="sev-btn critical active" data-sev="critical" onclick="toggleSev(this)">
+        CRITICAL <span class="count">3</span>
+      </button>
+      <button class="sev-btn high active" data-sev="high" onclick="toggleSev(this)">
+        HIGH <span class="count">7</span>
+      </button>
+      <button class="sev-btn medium active" data-sev="medium" onclick="toggleSev(this)">
+        MEDIUM <span class="count">12</span>
+      </button>
+      <button class="sev-btn low active" data-sev="low" onclick="toggleSev(this)">
+        LOW <span class="count">9</span>
+      </button>
+    </div>
+
+    <div style="margin-left:auto; display:flex; align-items:center; gap:16px;">
+      <div class="scan-status">
+        <div class="status-dot"></div>
+        SCAN COMPLETE
+      </div>
+      <div class="scan-meta">v2.4.1 · acme-corp/webapp · 2026-04-13 17:21</div>
+    </div>
+  </div>
+
+  <!-- MAIN SPLIT -->
+  <div class="main-split">
+    <!-- GRAPH AREA -->
+    <div class="graph-area">
+      <div class="lane-labels">
+        <div class="lane-label frontend">
+          <div class="lane-label-name">FRONTEND</div>
+          <div class="lane-status">
+            <span class="lane-dot"></span>
+            3 nodes · 2 issues
+          </div>
+        </div>
+        <div class="lane-label api">
+          <div class="lane-label-name">API</div>
+          <div class="lane-status">
+            <span class="lane-dot"></span>
+            2 nodes · 4 issues
+          </div>
+        </div>
+        <div class="lane-label database">
+          <div class="lane-label-name">DATABASE</div>
+          <div class="lane-status">
+            <span class="lane-dot"></span>
+            1 node · 3 issues
+          </div>
+        </div>
+        <div class="lane-label external">
+          <div class="lane-label-name">EXTERNAL</div>
+          <div class="lane-status">
+            <span class="lane-dot"></span>
+            2 nodes · 2 issues
+          </div>
+        </div>
+      </div>
+      <div class="graph-svg-container">
+        <svg id="graph-svg"></svg>
+      </div>
+    </div>
+
+    <!-- DIVIDER -->
+    <div class="panel-divider"></div>
+
+    <!-- DETAIL PANEL -->
+    <div class="detail-panel">
+      <div class="detail-header" id="detail-header">
+        <span class="detail-header-label">Overview</span>
+        <span class="detail-header-title" id="detail-title">Scan Summary</span>
+        <span class="detail-header-tag" id="detail-tag" style="display:none;"></span>
+      </div>
+      <div class="detail-scroll" id="detail-scroll">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════════════════════════════
+
+const LANES = ['frontend', 'api', 'database', 'external'];
+
+const NODES = [
+  {
+    id: 'n1', lane: 'frontend', label: 'LoginForm', sub: 'components/auth',
+    severity: 'high', vulnCount: 2, clean: false,
+    vulnerabilities: [
+      {
+        id: 'v1', title: 'Reflected XSS via error parameter', severity: 'high', instances: 4,
+        impact: 'Attackers can inject arbitrary JavaScript into the error message parameter, stealing session tokens or redirecting users to phishing pages. Any user who clicks a crafted link is immediately compromised.',
+        remediation: 'Sanitize all user-controlled input before rendering. Use textContent instead of innerHTML, or apply DOMPurify before insertion.',
+        remediationCode: '// Replace innerHTML with sanitized output\nimport DOMPurify from "dompurify";\nelement.innerHTML = DOMPurify.sanitize(userInput);',
+        locations: ['src/components/auth/LoginForm.tsx:142', 'src/components/auth/LoginForm.tsx:198', 'src/components/auth/ErrorBanner.tsx:34', 'src/components/auth/ErrorBanner.tsx:67']
+      },
+      {
+        id: 'v2', title: 'Form submission over HTTP fallback', severity: 'medium', instances: 1,
+        impact: 'Login credentials can be intercepted on mixed-content pages when HTTPS is not enforced. Applies to environments where a reverse proxy strips TLS.',
+        remediation: 'Add HSTS headers and enforce HTTPS in the server config. Use the secure and httpOnly cookie flags.',
+        remediationCode: 'Strict-Transport-Security: max-age=63072000; includeSubDomains; preload',
+        locations: ['src/components/auth/LoginForm.tsx:88']
+      }
+    ]
+  },
+  {
+    id: 'n2', lane: 'frontend', label: 'FileUpload', sub: 'components/media',
+    severity: 'critical', vulnCount: 1, clean: false,
+    vulnerabilities: [
+      {
+        id: 'v3', title: 'Unrestricted client-side MIME type check', severity: 'critical', instances: 6,
+        impact: 'Client-side file type validation is trivially bypassed by renaming malicious files. An attacker can upload executable content that gets stored and served, enabling stored XSS or server-side code execution.',
+        remediation: 'Validate file types server-side using magic bytes, not extension or Content-Type header. Quarantine uploads before serving.',
+        remediationCode: '// Server-side magic byte check (Node.js)\nconst fileType = await FileType.fromBuffer(buffer);\nif (!ALLOWED_TYPES.includes(fileType?.mime)) throw new Error("Invalid file type");',
+        locations: ['src/components/media/FileUpload.tsx:54', 'src/components/media/FileUpload.tsx:78', 'src/api/routes/upload.ts:23', 'src/api/routes/upload.ts:45', 'src/api/routes/upload.ts:91', 'src/middleware/fileValidation.ts:12']
+      }
+    ]
+  },
+  {
+    id: 'n3', lane: 'frontend', label: 'Dashboard', sub: 'pages/home',
+    severity: 'low', vulnCount: 1, clean: false,
+    vulnerabilities: [
+      {
+        id: 'v4', title: 'Sensitive data exposed in localStorage', severity: 'low', instances: 3,
+        impact: 'API tokens stored in localStorage are accessible to any JavaScript on the page, including third-party scripts. XSS vulnerabilities in any loaded script can exfiltrate these tokens.',
+        remediation: 'Store sensitive tokens in httpOnly cookies or in-memory only. Avoid localStorage for authentication tokens.',
+        remediationCode: '// Use sessionStorage or in-memory at minimum\n// Prefer httpOnly cookie via Set-Cookie header\n// Do NOT use: localStorage.setItem("auth_token", token)',
+        locations: ['src/pages/home/Dashboard.tsx:31', 'src/utils/auth.ts:88', 'src/hooks/useSession.ts:15']
+      }
+    ]
+  },
+  {
+    id: 'n4', lane: 'api', label: 'AuthAPI', sub: 'api/auth',
+    severity: 'critical', vulnCount: 2, clean: false,
+    vulnerabilities: [
+      {
+        id: 'v5', title: 'Missing rate limiting on /auth/login', severity: 'critical', instances: 1,
+        impact: 'Without rate limiting, the login endpoint is vulnerable to credential stuffing and brute force attacks. An attacker can attempt thousands of password combinations per minute without triggering any defense.',
+        remediation: 'Implement rate limiting per IP and per account. Use exponential backoff with temporary lockout after N failed attempts.',
+        remediationCode: 'import rateLimit from "express-rate-limit";\nconst loginLimiter = rateLimit({ windowMs: 15*60*1000, max: 10, skipSuccessfulRequests: true });\napp.use("/auth/login", loginLimiter);',
+        locations: ['src/api/auth/login.ts:1']
+      },
+      {
+        id: 'v6', title: 'JWT secret hardcoded in source', severity: 'critical', instances: 2,
+        impact: 'A hardcoded JWT secret allows anyone with source code access — including ex-employees or compromised contractors — to forge valid authentication tokens for any user, including administrators.',
+        remediation: 'Move the JWT secret to an environment variable. Rotate the secret immediately and invalidate all existing sessions.',
+        remediationCode: '// REMOVE: const JWT_SECRET = "super_secret_key_123"\n// USE:\nconst JWT_SECRET = process.env.JWT_SECRET;\nif (!JWT_SECRET) throw new Error("JWT_SECRET not configured");',
+        locations: ['src/api/auth/jwt.ts:4', 'src/api/auth/middleware.ts:11']
+      }
+    ]
+  },
+  {
+    id: 'n5', lane: 'api', label: 'DataAPI', sub: 'api/resources',
+    severity: 'high', vulnCount: 2, clean: false,
+    vulnerabilities: [
+      {
+        id: 'v7', title: 'Missing authorization on GET /api/users/:id', severity: 'high', instances: 3,
+        impact: 'Any authenticated user can retrieve the profile of any other user by iterating user IDs. This exposes PII including email addresses, phone numbers, and billing information.',
+        remediation: 'Add authorization middleware that verifies the requesting user owns the resource or has admin privileges. Never trust client-supplied IDs without ownership verification.',
+        remediationCode: '// Add before handler\nif (req.user.id !== req.params.id && !req.user.isAdmin) {\n  return res.status(403).json({ error: "Forbidden" });\n}',
+        locations: ['src/api/resources/users.ts:34', 'src/api/resources/users.ts:67', 'src/api/resources/profile.ts:12']
+      },
+      {
+        id: 'v8', title: 'Unvalidated redirect in OAuth callback', severity: 'medium', instances: 2,
+        impact: 'The OAuth callback accepts an arbitrary redirect_uri without validation, enabling open redirect attacks. Attackers can steal authorization codes by redirecting to attacker-controlled URLs.',
+        remediation: 'Maintain a whitelist of allowed redirect URIs. Validate the redirect_uri against the registered URIs for the OAuth client.',
+        remediationCode: 'const ALLOWED_REDIRECTS = ["https://app.acme.com/callback"];\nif (!ALLOWED_REDIRECTS.includes(redirectUri)) {\n  throw new Error("Invalid redirect URI");\n}',
+        locations: ['src/api/auth/oauth.ts:89', 'src/api/auth/oauth.ts:134']
+      }
+    ]
+  },
+  {
+    id: 'n6', lane: 'database', label: 'PostgreSQL', sub: 'db/primary',
+    severity: 'critical', vulnCount: 3, clean: false,
+    vulnerabilities: [
+      {
+        id: 'v9', title: 'SQL injection via search parameter', severity: 'critical', instances: 5,
+        impact: 'Direct string concatenation in the search query allows attackers to manipulate the SQL query structure. Exploitation can lead to full database dump, authentication bypass, or data destruction.',
+        remediation: 'Use parameterized queries or an ORM with query binding. Never concatenate user input directly into SQL strings.',
+        remediationCode: '// VULNERABLE:\n`SELECT * FROM users WHERE name = "${search}"`\n\n// SAFE:\ndb.query("SELECT * FROM users WHERE name = $1", [search])',
+        locations: ['src/db/queries/users.ts:23', 'src/db/queries/products.ts:45', 'src/db/queries/orders.ts:18', 'src/db/queries/reports.ts:67', 'src/api/search/handler.ts:12']
+      },
+      {
+        id: 'v10', title: 'Excessive database user privileges', severity: 'high', instances: 1,
+        impact: 'The application database user has superuser privileges. A successful SQL injection attack grants the attacker full control over all databases on the server, not just the application database.',
+        remediation: 'Create a least-privilege database user with only SELECT, INSERT, UPDATE, DELETE on required tables. Revoke all other permissions.',
+        remediationCode: 'CREATE USER app_user WITH PASSWORD \'strong_password\';\nGRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;\nREVOKE ALL ON SCHEMA pg_catalog FROM app_user;',
+        locations: ['infra/terraform/database.tf:34']
+      },
+      {
+        id: 'v11', title: 'Unencrypted PII in audit_log table', severity: 'medium', instances: 8,
+        impact: 'Personally identifiable information stored in plaintext in audit logs violates GDPR Article 25 (data protection by design) and creates unnecessary breach risk. Any database compromise exposes complete user history.',
+        remediation: 'Encrypt sensitive fields using column-level encryption or a vault. Hash identifying fields where searching is not required.',
+        remediationCode: '-- Encrypt PII column\nALTER TABLE audit_log ADD COLUMN user_email_enc BYTEA;\nUPDATE audit_log SET user_email_enc = pgp_sym_encrypt(user_email, current_setting(\'app.encryption_key\'));\nALTER TABLE audit_log DROP COLUMN user_email;',
+        locations: ['src/db/migrations/020_audit_log.sql:12', 'src/db/migrations/020_audit_log.sql:34', 'src/db/queries/audit.ts:15', 'src/db/queries/audit.ts:28', 'src/db/queries/audit.ts:42', 'src/db/queries/audit.ts:55', 'src/db/queries/audit.ts:68', 'src/db/queries/audit.ts:81']
+      }
+    ]
+  },
+  {
+    id: 'n7', lane: 'external', label: 'PaymentsAPI', sub: 'stripe/webhook',
+    severity: 'high', vulnCount: 1, clean: false,
+    vulnerabilities: [
+      {
+        id: 'v12', title: 'Webhook signature not verified', severity: 'high', instances: 2,
+        impact: 'The Stripe webhook endpoint does not verify the Stripe-Signature header. Any attacker can POST forged payment events to trigger subscription upgrades, refunds, or other financial actions without a real payment.',
+        remediation: 'Use stripe.webhooks.constructEvent() with the webhook signing secret to verify all incoming webhook payloads before processing.',
+        remediationCode: 'const sig = req.headers["stripe-signature"];\ntry {\n  const event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);\n  // process event\n} catch (err) {\n  return res.status(400).send(`Webhook Error: ${err.message}`);\n}',
+        locations: ['src/api/webhooks/stripe.ts:18', 'src/api/webhooks/stripe.ts:42']
+      }
+    ]
+  },
+  {
+    id: 'n8', lane: 'external', label: 'S3 Bucket', sub: 'aws/storage',
+    severity: 'medium', vulnCount: 1, clean: true,
+    vulnerabilities: [
+      {
+        id: 'v13', title: 'Public read access on user-upload bucket', severity: 'medium', instances: 1,
+        impact: 'The S3 bucket containing user-uploaded files has public read access enabled. Any user who guesses or brute-forces a file key can access other users\' uploaded documents without authentication.',
+        remediation: 'Remove public access from the S3 bucket. Generate time-limited pre-signed URLs for serving files to authenticated users.',
+        remediationCode: '// Generate presigned URL server-side\nconst url = await s3.getSignedUrlPromise("getObject", {\n  Bucket: process.env.S3_BUCKET,\n  Key: fileKey,\n  Expires: 300  // 5 minutes\n});',
+        locations: ['infra/terraform/s3.tf:22']
+      }
+    ]
+  }
+];
+
+const CONNECTIONS = [
+  { source: 'n1', target: 'n4' },
+  { source: 'n2', target: 'n4' },
+  { source: 'n3', target: 'n5' },
+  { source: 'n4', target: 'n6' },
+  { source: 'n5', target: 'n6' },
+  { source: 'n5', target: 'n7' },
+  { source: 'n5', target: 'n8' },
+];
+
+// ════════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════════
+let selectedNode = null;
+let activeSeverities = new Set(['critical', 'high', 'medium', 'low']);
+
+// ════════════════════════════════════════════════════════════════
+//  SEVERITY FILTER TOGGLE
+// ════════════════════════════════════════════════════════════════
+function toggleSev(btn) {
+  const sev = btn.dataset.sev;
+  if (activeSeverities.has(sev)) {
+    activeSeverities.delete(sev);
+    btn.classList.remove('active');
+    btn.classList.add('dimmed');
+  } else {
+    activeSeverities.add(sev);
+    btn.classList.add('active');
+    btn.classList.remove('dimmed');
+  }
+  updateNodeVisibility();
+}
+
+function updateNodeVisibility() {
+  d3.selectAll('.node-group')
+    .style('opacity', d => activeSeverities.has(d.severity) ? 1 : 0.12);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GRAPH
+// ════════════════════════════════════════════════════════════════
+const SEV_COLORS = {
+  critical: '#ef4444',
+  high:     '#f97316',
+  medium:   '#f59e0b',
+  low:      '#22d3ee',
+  clean:    '#34d399'
+};
+
+const LANE_COLORS = {
+  frontend: 'rgba(59,130,246,0.06)',
+  api:      'rgba(168,85,247,0.06)',
+  database: 'rgba(16,185,129,0.06)',
+  external: 'rgba(245,158,11,0.06)',
+};
+
+const LANE_STRIPES = {
+  frontend: 'rgba(59,130,246,0.14)',
+  api:      'rgba(168,85,247,0.14)',
+  database: 'rgba(16,185,129,0.14)',
+  external: 'rgba(245,158,11,0.14)',
+};
+
+function buildGraph() {
+  const container = document.querySelector('.graph-svg-container');
+  const svg = d3.select('#graph-svg');
+  svg.selectAll('*').remove();
+
+  const W = container.clientWidth;
+  const H = container.clientHeight;
+  const laneH = H / LANES.length;
+  const labelW = 0; // we're in the svg container, lane labels are in the sibling
+
+  // Build node positions
+  const laneNodes = {};
+  LANES.forEach(l => { laneNodes[l] = []; });
+  NODES.forEach(n => laneNodes[n.lane].push(n));
+
+  LANES.forEach((lane, li) => {
+    const nodes = laneNodes[lane];
+    const laneTop = li * laneH;
+    nodes.forEach((n, ni) => {
+      const padding = 80;
+      const spread = W - padding * 2;
+      n.x = padding + (nodes.length === 1 ? spread / 2 : (ni / (nodes.length - 1)) * spread);
+      n.y = laneTop + laneH / 2 + (ni % 2 === 0 ? 0 : (ni % 4 < 2 ? -laneH * 0.15 : laneH * 0.15));
+    });
+  });
+
+  const defs = svg.append('defs');
+
+  // Lane background patterns
+  LANES.forEach((lane, i) => {
+    const grd = defs.append('linearGradient')
+      .attr('id', `lane-grad-${lane}`)
+      .attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1)
+      .attr('gradientUnits', 'objectBoundingBox');
+    grd.append('stop').attr('offset', '0%').attr('stop-color', LANE_COLORS[lane]);
+    grd.append('stop').attr('offset', '100%').attr('stop-color', 'transparent');
+  });
+
+  // Draw lane bands
+  LANES.forEach((lane, i) => {
+    svg.append('rect')
+      .attr('x', 0).attr('y', i * laneH)
+      .attr('width', W).attr('height', laneH)
+      .attr('fill', LANE_COLORS[lane]);
+
+    // Lane separator
+    if (i > 0) {
+      svg.append('line')
+        .attr('x1', 0).attr('y1', i * laneH)
+        .attr('x2', W).attr('y2', i * laneH)
+        .attr('stroke', 'rgba(255,255,255,0.04)')
+        .attr('stroke-width', 1);
+    }
+  });
+
+  // Connection paths (bezier curves)
+  const nodeMap = {};
+  NODES.forEach(n => nodeMap[n.id] = n);
+
+  CONNECTIONS.forEach(c => {
+    const s = nodeMap[c.source];
+    const t = nodeMap[c.target];
+    if (!s || !t) return;
+
+    const midY = (s.y + t.y) / 2;
+
+    svg.append('path')
+      .attr('class', 'conn-line')
+      .attr('d', `M${s.x},${s.y} C${s.x},${midY} ${t.x},${midY} ${t.x},${t.y}`)
+      .attr('stroke', '#3b82f6')
+      .attr('stroke-dasharray', '3,4');
+  });
+
+  // Node groups
+  const tooltip = document.getElementById('tooltip');
+
+  const nodeGroups = svg.selectAll('.node-group')
+    .data(NODES)
+    .enter()
+    .append('g')
+    .attr('class', 'node-group')
+    .attr('transform', d => `translate(${d.x},${d.y})`)
+    .style('cursor', 'pointer')
+    .on('mouseenter', function(event, d) {
+      const tt = tooltip;
+      tt.classList.add('visible');
+      tt.querySelector('.tt-name').textContent = d.label;
+      const vulnList = d.vulnerabilities.map(v => `<div class="tt-row"><span style="color:${SEV_COLORS[v.severity]}">${v.severity.toUpperCase()}</span> ${v.title}</div>`).join('');
+      tt.querySelector('.tt-rows').innerHTML = vulnList;
+    })
+    .on('mousemove', function(event) {
+      tooltip.style.left = (event.clientX + 14) + 'px';
+      tooltip.style.top  = (event.clientY - 10) + 'px';
+    })
+    .on('mouseleave', function() {
+      tooltip.classList.remove('visible');
+    })
+    .on('click', function(event, d) {
+      // Deselect if same node
+      if (selectedNode === d.id) {
+        selectedNode = null;
+        d3.selectAll('.node-group').classed('selected', false);
+        d3.selectAll('.selection-ring').remove();
+        renderSummary();
+      } else {
+        selectedNode = d.id;
+        d3.selectAll('.node-group').classed('selected', false);
+        d3.selectAll('.selection-ring').remove();
+        d3.select(this).classed('selected', true);
+
+        // Add selection ring
+        const r = d.severity === 'critical' ? 28 : 24;
+        d3.select(this).append('circle')
+          .attr('class', 'selection-ring')
+          .attr('r', r + 8)
+          .attr('fill', 'none')
+          .attr('stroke', SEV_COLORS[d.severity])
+          .attr('stroke-width', 1.5)
+          .attr('opacity', 0.6);
+
+        renderNodeDetail(d);
+      }
+    });
+
+  // Glow circles
+  nodeGroups.append('circle')
+    .attr('r', d => (d.severity === 'critical' ? 28 : 24) + 12)
+    .attr('fill', d => SEV_COLORS[d.severity])
+    .attr('opacity', d => d.severity === 'critical' ? 0.08 : 0.05);
+
+  // Outer ring (pulsing)
+  nodeGroups.append('circle')
+    .attr('class', 'node-ring')
+    .attr('r', d => d.severity === 'critical' ? 34 : 30)
+    .attr('stroke', d => SEV_COLORS[d.severity])
+    .attr('opacity', d => d.severity === 'critical' ? 0.5 : 0.2);
+
+  // Main circle
+  nodeGroups.append('circle')
+    .attr('class', 'node-circle')
+    .attr('r', d => d.severity === 'critical' ? 22 : 18)
+    .attr('fill', d => `${SEV_COLORS[d.severity]}1a`)
+    .attr('stroke', d => SEV_COLORS[d.severity])
+    .attr('stroke-width', 1.5);
+
+  // Severity indicator dot
+  nodeGroups.append('circle')
+    .attr('r', 4)
+    .attr('cy', d => -(d.severity === 'critical' ? 22 : 18) + 2)
+    .attr('fill', d => SEV_COLORS[d.severity]);
+
+  // Node label
+  nodeGroups.append('text')
+    .attr('class', 'node-label-text')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '0.35em')
+    .text(d => d.label);
+
+  // Node sublabel
+  nodeGroups.append('text')
+    .attr('class', 'node-sub-text')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '1.8em')
+    .text(d => d.sub);
+
+  // Vulnerability count badge
+  nodeGroups.append('text')
+    .attr('class', 'node-badge')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '-1.6em')
+    .attr('fill', d => SEV_COLORS[d.severity])
+    .text(d => d.vulnCount > 0 ? `${d.vulnCount}` : '');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PANEL RENDERING
+// ════════════════════════════════════════════════════════════════
+
+function renderSummary() {
+  const header = document.getElementById('detail-header');
+  const tag = document.getElementById('detail-tag');
+  const title = document.getElementById('detail-title');
+  const scroll = document.getElementById('detail-scroll');
+
+  document.querySelector('.detail-header-label').textContent = 'Overview';
+  title.textContent = 'Scan Summary';
+  tag.style.display = 'none';
+
+  // Count severities across all vulns
+  const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+  let totalInstances = 0;
+  let totalVulnClasses = 0;
+
+  NODES.forEach(n => n.vulnerabilities.forEach(v => {
+    counts[v.severity]++;
+    totalInstances += v.instances;
+    totalVulnClasses++;
+  }));
+
+  const topVulns = NODES.flatMap(n => n.vulnerabilities.map(v => ({...v, node: n.label, nodeLane: n.lane})))
+    .sort((a, b) => {
+      const order = { critical: 0, high: 1, medium: 2, low: 3 };
+      return order[a.severity] - order[b.severity];
+    })
+    .slice(0, 5);
+
+  const sevBarColor = { critical: 'var(--sev-critical)', high: 'var(--sev-high)', medium: 'var(--sev-medium)', low: 'var(--sev-low)' };
+
+  scroll.innerHTML = `
+    <div class="summary-view">
+      <div class="summary-stats">
+        <div class="stat-card total">
+          <div class="stat-value">${totalVulnClasses}</div>
+          <div class="stat-label">VULN CLASSES</div>
+        </div>
+        <div class="stat-card total" style="min-width:140px;">
+          <div class="stat-value">${totalInstances}</div>
+          <div class="stat-label">TOTAL INSTANCES</div>
+        </div>
+        <div class="stat-card critical">
+          <div class="stat-value">${counts.critical}</div>
+          <div class="stat-label">CRITICAL</div>
+        </div>
+        <div class="stat-card high">
+          <div class="stat-value">${counts.high}</div>
+          <div class="stat-label">HIGH</div>
+        </div>
+        <div class="stat-card medium">
+          <div class="stat-value">${counts.medium}</div>
+          <div class="stat-label">MEDIUM</div>
+        </div>
+        <div class="stat-card low">
+          <div class="stat-value">${counts.low}</div>
+          <div class="stat-label">LOW</div>
+        </div>
+      </div>
+
+      <div class="summary-top-vulns">
+        <h4>Top Findings</h4>
+        ${topVulns.map(v => `
+          <div class="top-vuln-row">
+            <div class="top-vuln-sev" style="background:${sevBarColor[v.severity]};"></div>
+            <div class="top-vuln-name">${v.title}</div>
+            <div class="top-vuln-node">${v.node}</div>
+            <div class="top-vuln-count">${v.instances}× instances</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderNodeDetail(node) {
+  document.querySelector('.detail-header-label').textContent = node.lane.toUpperCase();
+  document.getElementById('detail-title').textContent = node.label;
+
+  const tag = document.getElementById('detail-tag');
+  const sev = node.severity;
+  const sevColors = {
+    critical: ['var(--sev-critical-bg)', 'var(--sev-critical)', 'var(--sev-critical-border)'],
+    high: ['var(--sev-high-bg)', 'var(--sev-high)', 'var(--sev-high-border)'],
+    medium: ['var(--sev-medium-bg)', 'var(--sev-medium)', 'var(--sev-medium-border)'],
+    low: ['var(--sev-low-bg)', 'var(--sev-low)', 'var(--sev-low-border)']
+  };
+  const [bg, fg, border] = sevColors[sev];
+  tag.style.display = 'block';
+  tag.style.background = bg;
+  tag.style.color = fg;
+  tag.style.border = `1px solid ${border}`;
+  tag.style.fontFamily = 'var(--font-mono)';
+  tag.style.fontSize = '10px';
+  tag.style.padding = '2px 8px';
+  tag.style.borderRadius = '3px';
+  tag.textContent = sev.toUpperCase();
+
+  const scroll = document.getElementById('detail-scroll');
+  scroll.innerHTML = '';
+
+  node.vulnerabilities.forEach((vuln, vi) => {
+    const card = document.createElement('div');
+    card.className = `vuln-card ${vuln.severity}`;
+    card.style.animationDelay = `${vi * 0.05}s`;
+    card.style.opacity = '0';
+
+    const locItems = vuln.locations.map(l => `<li class="location-item">${l}</li>`).join('');
+
+    card.innerHTML = `
+      <div class="vuln-card-header">
+        <div style="flex:1;">
+          <div class="vuln-label-badge">Vulnerability</div>
+          <div class="vuln-title">${vuln.title}</div>
+          <div class="vuln-meta">
+            <span class="sev-tag ${vuln.severity}">${vuln.severity.toUpperCase()}</span>
+            <span class="instance-count">${vuln.instances} instance${vuln.instances !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="vuln-impact">
+        <div class="vuln-impact-label">Impact</div>
+        ${vuln.impact}
+      </div>
+
+      <div class="collapsible" id="rem-${vuln.id}">
+        <div class="collapsible-trigger" onclick="toggleCollapsible('rem-${vuln.id}')">
+          Remediation
+          <span class="chevron">▾</span>
+        </div>
+        <div class="collapsible-body">
+          <div class="remediation-text">${vuln.remediation}</div>
+          <pre class="remediation-code">${vuln.remediationCode}</pre>
+        </div>
+      </div>
+
+      <div class="collapsible" id="loc-${vuln.id}">
+        <div class="collapsible-trigger" onclick="toggleCollapsible('loc-${vuln.id}')">
+          Locations (${vuln.locations.length})
+          <span class="chevron">▾</span>
+        </div>
+        <div class="collapsible-body">
+          <ul class="location-list">${locItems}</ul>
+        </div>
+      </div>
+    `;
+
+    scroll.appendChild(card);
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+      card.style.opacity = '1';
+    });
+  });
+}
+
+function toggleCollapsible(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  buildGraph();
+  renderSummary();
+});
+
+window.addEventListener('resize', () => {
+  buildGraph();
+  if (selectedNode) {
+    const node = NODES.find(n => n.id === selectedNode);
+    if (node) {
+      d3.selectAll('.node-group')
+        .filter(d => d.id === selectedNode)
+        .classed('selected', true);
+    }
+  }
+});
+</script>
+</body>
+</html>

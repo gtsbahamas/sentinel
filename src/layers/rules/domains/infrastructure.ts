@@ -269,6 +269,8 @@ export const infrastructureRules: SecurityRule[] = [
         lines.forEach((line, idx) => {
           if (!re.test(line)) return;
           if (isCommentLine(line)) return;
+          // SVG xmlns attributes use http:// as a namespace identifier, not a network request
+          if (/xmlns\s*=\s*["']http:\/\//.test(line)) return;
           findings.push(
             mkFinding(
               "INFRA-006",

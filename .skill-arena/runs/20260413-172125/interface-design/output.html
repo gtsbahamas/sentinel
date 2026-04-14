@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel — Security Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #e2e4e9;
+    --ink-dim: #8b8fa8;
+    --ink-faint: #4a4d5e;
+    --parchment: #0f1117;
+    --surface: #161921;
+    --surface-raised: #1c1f2e;
+    --surface-hover: #22263a;
+    --border: #252838;
+    --border-subtle: #1d2030;
+
+    --critical: #e05a5a;
+    --critical-glow: rgba(224, 90, 90, 0.18);
+    --critical-dim: rgba(224, 90, 90, 0.08);
+    --high: #e09d4a;
+    --high-glow: rgba(224, 157, 74, 0.18);
+    --high-dim: rgba(224, 157, 74, 0.08);
+    --medium: #d4b84a;
+    --medium-glow: rgba(212, 184, 74, 0.18);
+    --medium-dim: rgba(212, 184, 74, 0.08);
+    --low: #6ab3a8;
+    --low-glow: rgba(106, 179, 168, 0.18);
+    --low-dim: rgba(106, 179, 168, 0.08);
+    --info: #6a8ab3;
+    --info-dim: rgba(106, 138, 179, 0.08);
+
+    --lane-frontend: rgba(106, 138, 179, 0.05);
+    --lane-api: rgba(106, 179, 168, 0.05);
+    --lane-database: rgba(212, 184, 74, 0.05);
+    --lane-external: rgba(179, 106, 106, 0.05);
+
+    --radius: 6px;
+    --radius-lg: 10px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--parchment);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow: hidden;
+  }
+
+  .shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 0 20px;
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    text-decoration: none;
+  }
+  .logo-mark {
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, #3d6cad 0%, #2a4a7a 100%);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-mark svg { display: block; }
+  .logo-text {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+    text-transform: uppercase;
+  }
+  .logo-text span {
+    color: var(--ink-dim);
+    font-weight: 400;
+    margin-left: 4px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: none;
+  }
+
+  .topbar-sep {
+    width: 1px;
+    height: 28px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .scan-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink-dim);
+  }
+  .scan-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--low);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .scan-dot::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: var(--low-glow);
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.3); }
+  }
+  .scan-label { color: var(--ink); font-weight: 500; }
+
+  .topbar-fill { flex: 1; }
+
+  .severity-filters {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .filter-label {
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-right: 6px;
+  }
+  .filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+  }
+  .filter-btn .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .filter-btn.active-critical { background: var(--critical-dim); border-color: var(--critical); color: var(--critical); }
+  .filter-btn.active-high { background: var(--high-dim); border-color: var(--high); color: var(--high); }
+  .filter-btn.active-medium { background: var(--medium-dim); border-color: var(--medium); color: var(--medium); }
+  .filter-btn.active-low { background: var(--low-dim); border-color: var(--low); color: var(--low); }
+  .filter-btn.inactive { background: transparent; border-color: var(--border); color: var(--ink-faint); opacity: 0.6; }
+  .filter-btn:hover:not(.active-critical):not(.active-high):not(.active-medium):not(.active-low) {
+    border-color: var(--ink-faint);
+    color: var(--ink-dim);
+    opacity: 1;
+  }
+
+  .rescan-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface-raised);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--ink-dim);
+    transition: all 0.15s;
+  }
+  .rescan-btn:hover { border-color: var(--ink-faint); color: var(--ink); }
+
+  /* ─── MAIN SPLIT ─── */
+  .main-split {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ─── GRAPH AREA ─── */
+  .graph-area {
+    flex: 0 0 55%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-bottom: 2px solid var(--border);
+    position: relative;
+  }
+
+  .lanes-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .lane {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid var(--border-subtle);
+    min-height: 0;
+    overflow: visible;
+  }
+  .lane:last-child { border-bottom: none; }
+
+  .lane-label-col {
+    width: 110px;
+    flex-shrink: 0;
+    padding: 0 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    border-right: 1px solid var(--border-subtle);
+    height: 100%;
+    justify-content: center;
+  }
+
+  .lane-name {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .lane-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--ink-faint);
+  }
+  .lane-status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .lane-bg {
+    position: absolute;
+    inset: 0;
+    left: 110px;
+    opacity: 1;
+    pointer-events: none;
+  }
+  .lane[data-lane="frontend"] .lane-bg { background: var(--lane-frontend); }
+  .lane[data-lane="api"] .lane-bg { background: var(--lane-api); }
+  .lane[data-lane="database"] .lane-bg { background: var(--lane-database); }
+  .lane[data-lane="external"] .lane-bg { background: var(--lane-external); }
+
+  .lane-svg {
+    flex: 1;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* ─── NODES ─── */
+  .node-group { cursor: pointer; }
+  .node-ring {
+    fill: none;
+    stroke-width: 1.5;
+    transition: all 0.2s;
+  }
+  .node-circle {
+    transition: all 0.2s;
+  }
+  .node-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    fill: var(--ink-dim);
+    text-anchor: middle;
+    pointer-events: none;
+    transition: fill 0.2s;
+  }
+  .node-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+
+  .node-group.faded .node-circle { opacity: 0.2; }
+  .node-group.faded .node-ring { opacity: 0.15; }
+  .node-group.faded .node-label { opacity: 0.3; }
+  .node-group.faded .node-count { opacity: 0.2; }
+
+  .node-group.selected .node-label { fill: var(--ink); }
+
+  /* ─── EDGES ─── */
+  .edge {
+    fill: none;
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+    opacity: 0.25;
+    transition: opacity 0.2s;
+  }
+  .edge.active { opacity: 0.7; stroke-dasharray: none; }
+  .edge.faded { opacity: 0.06; }
+
+  /* ─── DETAIL AREA ─── */
+  .detail-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+  }
+  .detail-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .detail-subtitle {
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin-left: auto;
+  }
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--ink-faint);
+    transition: all 0.15s;
+    margin-left: auto;
+  }
+  .back-btn:hover { border-color: var(--ink-faint); color: var(--ink-dim); }
+
+  .detail-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 20px 20px;
+    scroll-behavior: smooth;
+  }
+  .detail-scroll::-webkit-scrollbar { width: 5px; }
+  .detail-scroll::-webkit-scrollbar-track { background: transparent; }
+  .detail-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+  /* ─── SUMMARY VIEW ─── */
+  .summary-view {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .summary-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .metric-card {
+    padding: 12px 14px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+  .metric-value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .metric-label {
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+  .metric-card.critical .metric-value { color: var(--critical); }
+  .metric-card.high .metric-value { color: var(--high); }
+  .metric-card.medium .metric-value { color: var(--medium); }
+  .metric-card.low .metric-value { color: var(--low); }
+
+  .summary-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+
+  .vuln-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .vuln-summary-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .vuln-summary-row:hover { border-color: var(--ink-faint); background: var(--surface-hover); }
+  .vuln-summary-name {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .vuln-summary-instances {
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ─── SEVERITY TAG ─── */
+  .sev-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 99px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid;
+    flex-shrink: 0;
+  }
+  .sev-tag.critical { color: var(--critical); border-color: var(--critical); background: var(--critical-dim); }
+  .sev-tag.high { color: var(--high); border-color: var(--high); background: var(--high-dim); }
+  .sev-tag.medium { color: var(--medium); border-color: var(--medium); background: var(--medium-dim); }
+  .sev-tag.low { color: var(--low); border-color: var(--low); background: var(--low-dim); }
+
+  /* ─── NODE DETAIL VIEW ─── */
+  .node-detail-view {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .node-detail-intro {
+    padding: 12px 14px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .node-detail-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 15px;
+  }
+  .node-detail-meta { flex: 1; }
+  .node-detail-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .node-detail-desc {
+    font-size: 12px;
+    color: var(--ink-dim);
+  }
+  .node-detail-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+  }
+  .node-stat {
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .node-stat strong { color: var(--ink-dim); font-weight: 600; }
+
+  /* ─── VULN CARDS ─── */
+  .vuln-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .vuln-card:hover { border-color: var(--ink-faint); }
+
+  .vuln-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    background: var(--surface-raised);
+    user-select: none;
+  }
+  .vuln-card-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 3px;
+  }
+  .vuln-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+    flex: 1;
+  }
+  .vuln-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .instance-badge {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--ink-faint);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .chevron {
+    color: var(--ink-faint);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .vuln-card.expanded .chevron { transform: rotate(90deg); }
+
+  .vuln-card-body {
+    display: none;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--surface);
+  }
+  .vuln-card.expanded .vuln-card-body { display: block; }
+
+  .impact-section {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .impact-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  .impact-text {
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.6;
+  }
+  .impact-text strong { color: var(--ink); font-weight: 600; }
+
+  .collapsible-section {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .collapsible-section:last-child { border-bottom: none; }
+  .collapsible-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+    transition: color 0.15s;
+    user-select: none;
+  }
+  .collapsible-toggle:hover { color: var(--ink-dim); }
+  .collapsible-icon {
+    font-size: 9px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .collapsible-section.open .collapsible-icon { transform: rotate(90deg); }
+  .collapsible-content {
+    display: none;
+    padding: 2px 14px 12px;
+  }
+  .collapsible-section.open .collapsible-content { display: block; }
+
+  .remediation-text {
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.65;
+    white-space: pre-line;
+  }
+  .code-snippet {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--parchment);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    color: var(--low);
+    margin-top: 6px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .location-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .location-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    background: var(--parchment);
+    border: 1px solid var(--border-subtle);
+  }
+  .location-file {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-dim);
+    flex: 1;
+  }
+  .location-line {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+  }
+
+  /* ─── SCROLL HELPERS ─── */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+  }
+
+  /* Empty selection hint */
+  .click-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--ink-faint);
+    padding: 4px 0 0;
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <a class="logo" href="#">
+      <div class="logo-mark">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1.5L13.5 4.5V11.5L8 14.5L2.5 11.5V4.5L8 1.5Z" stroke="#7aa8d4" stroke-width="1.5" stroke-linejoin="round"/>
+          <circle cx="8" cy="8" r="2.5" fill="#7aa8d4" opacity="0.7"/>
+        </svg>
+      </div>
+      <span class="logo-text">Sentinel<span>security coach</span></span>
+    </a>
+
+    <div class="topbar-sep"></div>
+
+    <div class="scan-status">
+      <div class="scan-dot"></div>
+      <span>Scan completed &mdash;</span>
+      <span class="scan-label">ecommerce-api · 2m ago</span>
+    </div>
+
+    <div class="topbar-fill"></div>
+
+    <div class="severity-filters">
+      <span class="filter-label">Show</span>
+      <button class="filter-btn active-critical" data-severity="critical" onclick="toggleFilter('critical', this)">
+        <span class="dot" style="background:var(--critical)"></span>Critical
+      </button>
+      <button class="filter-btn active-high" data-severity="high" onclick="toggleFilter('high', this)">
+        <span class="dot" style="background:var(--high)"></span>High
+      </button>
+      <button class="filter-btn active-medium" data-severity="medium" onclick="toggleFilter('medium', this)">
+        <span class="dot" style="background:var(--medium)"></span>Medium
+      </button>
+      <button class="filter-btn active-low" data-severity="low" onclick="toggleFilter('low', this)">
+        <span class="dot" style="background:var(--low)"></span>Low
+      </button>
+    </div>
+
+    <div class="topbar-sep"></div>
+
+    <button class="rescan-btn">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path d="M1.5 6A4.5 4.5 0 0 1 9.5 2.8M10.5 6A4.5 4.5 0 0 1 2.5 9.2M9.5 2.8V1M9.5 2.8H11M2.5 9.2V11M2.5 9.2H1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      Rescan
+    </button>
+  </header>
+
+  <!-- MAIN SPLIT -->
+  <div class="main-split">
+
+    <!-- GRAPH AREA -->
+    <div class="graph-area">
+      <div class="lanes-container" id="lanesContainer"></div>
+    </div>
+
+    <!-- DETAIL AREA -->
+    <div class="detail-area">
+      <div class="detail-header">
+        <span class="detail-title" id="detailTitle">Scan Summary</span>
+        <div id="backBtnWrapper" style="display:none; margin-left:auto;">
+          <button class="back-btn" onclick="clearSelection()">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M6.5 2L3.5 5L6.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Back to summary
+          </button>
+        </div>
+      </div>
+      <div class="detail-scroll" id="detailScroll">
+        <div id="detailContent"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+
+const SCAN_DATA = {
+  nodes: [
+    {
+      id: 'checkout',
+      label: 'Checkout API',
+      lane: 'api',
+      desc: 'Payment processing endpoints',
+      icon: '⚡',
+      maxSeverity: 'critical',
+      vulns: ['sqli', 'idor'],
+    },
+    {
+      id: 'auth',
+      label: 'Auth Service',
+      lane: 'api',
+      desc: 'Login, registration, token management',
+      icon: '🔑',
+      maxSeverity: 'high',
+      vulns: ['ratelimit', 'jwt'],
+    },
+    {
+      id: 'products',
+      label: 'Products',
+      lane: 'api',
+      desc: 'Product catalog and search endpoints',
+      icon: '📦',
+      maxSeverity: 'medium',
+      vulns: ['xss'],
+    },
+    {
+      id: 'userdb',
+      label: 'User Store',
+      lane: 'database',
+      desc: 'PostgreSQL — users, sessions, PII',
+      icon: '🗄',
+      maxSeverity: 'critical',
+      vulns: ['sqli'],
+    },
+    {
+      id: 'orderdb',
+      label: 'Order Store',
+      lane: 'database',
+      desc: 'PostgreSQL — orders, payments, history',
+      icon: '🗄',
+      maxSeverity: 'high',
+      vulns: ['idor'],
+    },
+    {
+      id: 'storefront',
+      label: 'Storefront',
+      lane: 'frontend',
+      desc: 'React app — product, cart, checkout UI',
+      icon: '🖥',
+      maxSeverity: 'medium',
+      vulns: ['xss', 'csrf'],
+    },
+    {
+      id: 'dashboard',
+      label: 'Admin UI',
+      lane: 'frontend',
+      desc: 'Internal ops dashboard',
+      icon: '🖥',
+      maxSeverity: 'low',
+      vulns: ['csrf'],
+    },
+    {
+      id: 'stripe',
+      label: 'Stripe',
+      lane: 'external',
+      desc: 'Payment gateway integration',
+      icon: '💳',
+      maxSeverity: 'high',
+      vulns: ['webhook'],
+    },
+    {
+      id: 'sendgrid',
+      label: 'SendGrid',
+      lane: 'external',
+      desc: 'Transactional email provider',
+      icon: '📧',
+      maxSeverity: 'low',
+      vulns: ['ratelimit'],
+    },
+  ],
+
+  edges: [
+    { from: 'storefront', to: 'checkout' },
+    { from: 'storefront', to: 'auth' },
+    { from: 'storefront', to: 'products' },
+    { from: 'dashboard', to: 'auth' },
+    { from: 'checkout', to: 'userdb' },
+    { from: 'checkout', to: 'orderdb' },
+    { from: 'checkout', to: 'stripe' },
+    { from: 'auth', to: 'userdb' },
+    { from: 'auth', to: 'sendgrid' },
+    { from: 'products', to: 'orderdb' },
+  ],
+
+  vulnDefs: {
+    sqli: {
+      id: 'sqli',
+      title: 'SQL Injection',
+      severity: 'critical',
+      instances: 4,
+      impact: `An attacker can send crafted input that breaks out of your SQL query and runs arbitrary database commands. In your checkout flow, this could mean <strong>reading all user records</strong>, <strong>dumping payment data</strong>, or deleting your entire order history. No login required — just a malformed search string or order ID.`,
+      remediation: `Use parameterized queries everywhere. Never concatenate user input into SQL strings.`,
+      remediationCode: `// ❌ Vulnerable
+const q = \`SELECT * FROM orders WHERE id = \${req.params.id}\`;
+
+// ✅ Safe
+const q = 'SELECT * FROM orders WHERE id = $1';
+await pool.query(q, [req.params.id]);`,
+      locations: [
+        { file: 'src/routes/checkout.ts', line: 84 },
+        { file: 'src/routes/checkout.ts', line: 117 },
+        { file: 'src/db/userStore.ts', line: 32 },
+        { file: 'src/db/userStore.ts', line: 58 },
+      ]
+    },
+    idor: {
+      id: 'idor',
+      title: 'Insecure Direct Object Reference',
+      severity: 'high',
+      instances: 3,
+      impact: `Your API returns data for any order ID you provide — it doesn't verify the order belongs to the requesting user. A logged-in customer can increment the order ID in the URL and <strong>read any other customer's purchase history</strong>, shipping address, and partial payment info.`,
+      remediation: `Always scope queries by the authenticated user. Verify ownership before returning or modifying any resource.`,
+      remediationCode: `// ❌ Vulnerable
+const order = await getOrder(req.params.orderId);
+
+// ✅ Safe
+const order = await getOrder(req.params.orderId);
+if (order.userId !== req.user.id) return res.status(403).json({ error: 'Forbidden' });`,
+      locations: [
+        { file: 'src/routes/checkout.ts', line: 201 },
+        { file: 'src/routes/orders.ts', line: 44 },
+        { file: 'src/routes/orders.ts', line: 89 },
+      ]
+    },
+    xss: {
+      id: 'xss',
+      title: 'Cross-Site Scripting (XSS)',
+      severity: 'medium',
+      instances: 5,
+      impact: `User-supplied content — product names, search terms, review text — is rendered without sanitization. An attacker who controls a product name or a URL parameter can <strong>inject script tags that run in your customers' browsers</strong>, stealing session cookies or silently redirecting to phishing pages.`,
+      remediation: `Escape all user-controlled output. For React: avoid dangerouslySetInnerHTML. Use DOMPurify for rich text.`,
+      remediationCode: `// ❌ Vulnerable
+<div dangerouslySetInnerHTML={{ __html: product.description }} />
+
+// ✅ Safe
+import DOMPurify from 'dompurify';
+<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description) }} />`,
+      locations: [
+        { file: 'src/components/ProductCard.tsx', line: 34 },
+        { file: 'src/components/SearchResults.tsx', line: 58 },
+        { file: 'src/components/ReviewList.tsx', line: 22 },
+        { file: 'src/pages/product/[id].tsx', line: 104 },
+        { file: 'src/pages/search.tsx', line: 67 },
+      ]
+    },
+    csrf: {
+      id: 'csrf',
+      title: 'CSRF Token Missing',
+      severity: 'medium',
+      instances: 2,
+      impact: `Your state-changing endpoints accept requests without verifying they came from your own UI. A malicious site can trick a logged-in user into submitting a form — placing an order, changing their email address, or modifying account settings — <strong>entirely without their knowledge</strong>.`,
+      remediation: `Use CSRF tokens for all state-changing requests, or enforce SameSite=Strict on session cookies.`,
+      remediationCode: `// Using cookie-based SameSite protection
+res.cookie('session', token, {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict' // ← prevents CSRF
+});`,
+      locations: [
+        { file: 'src/routes/account.ts', line: 29 },
+        { file: 'src/pages/checkout/confirm.tsx', line: 71 },
+      ]
+    },
+    ratelimit: {
+      id: 'ratelimit',
+      title: 'No Rate Limiting on Auth',
+      severity: 'high',
+      instances: 2,
+      impact: `Your login and OTP verification endpoints have no request throttling. An attacker can automate thousands of login attempts per minute, enabling <strong>credential stuffing</strong> (testing leaked email/password combos) or <strong>brute-forcing OTP codes</strong>. Your email provider also has no send-rate guard, making you susceptible to account enumeration abuse.`,
+      remediation: `Apply rate limits to login, registration, and any SMS/email dispatch. Lock accounts after N failures.`,
+      remediationCode: `import rateLimit from 'express-rate-limit';
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 10, // 10 attempts per window
+  message: { error: 'Too many attempts, try later' }
+});
+
+app.post('/auth/login', loginLimiter, loginHandler);`,
+      locations: [
+        { file: 'src/routes/auth.ts', line: 15 },
+        { file: 'src/routes/auth.ts', line: 88 },
+      ]
+    },
+    jwt: {
+      id: 'jwt',
+      title: 'Weak JWT Validation',
+      severity: 'high',
+      instances: 2,
+      impact: `Your token verification doesn't enforce algorithm — an attacker can downgrade to the "none" algorithm and forge a valid-looking JWT for any user without knowing the secret. Additionally, tokens don't expire promptly, meaning <strong>stolen tokens stay valid for days</strong>.`,
+      remediation: `Pin the expected algorithm in your JWT verification call. Set short expiry (15–60 min) and implement refresh token rotation.`,
+      remediationCode: `// ❌ Vulnerable
+const decoded = jwt.verify(token, secret);
+
+// ✅ Safe
+const decoded = jwt.verify(token, secret, {
+  algorithms: ['HS256'], // reject 'none' and RS256 confusion
+  maxAge: '15m'
+});`,
+      locations: [
+        { file: 'src/middleware/auth.ts', line: 21 },
+        { file: 'src/routes/auth.ts', line: 54 },
+      ]
+    },
+    webhook: {
+      id: 'webhook',
+      title: 'Webhook Signature Not Verified',
+      severity: 'high',
+      instances: 1,
+      impact: `Your Stripe webhook handler processes events without verifying the Stripe signature. Any external party that knows your webhook URL can send a fake "payment_intent.succeeded" event, causing your system to <strong>fulfill orders that were never paid for</strong>.`,
+      remediation: `Verify the webhook signature using Stripe's provided secret and the raw request body.`,
+      remediationCode: `// ❌ Vulnerable
+app.post('/webhooks/stripe', express.json(), handler);
+
+// ✅ Safe
+app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WH_SECRET);
+  // now safe to process
+});`,
+      locations: [
+        { file: 'src/routes/webhooks.ts', line: 12 },
+      ]
+    },
+  }
+};
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+
+let selectedNode = null;
+let activeFilters = new Set(['critical', 'high', 'medium', 'low']);
+
+// ─── SEVERITY CONFIG ─────────────────────────────────────────────────────────
+
+const SEV_COLOR = {
+  critical: 'var(--critical)',
+  high: 'var(--high)',
+  medium: 'var(--medium)',
+  low: 'var(--low)',
+};
+const SEV_GLOW = {
+  critical: 'var(--critical-glow)',
+  high: 'var(--high-glow)',
+  medium: 'var(--medium-glow)',
+  low: 'var(--low-glow)',
+};
+
+// ─── LANES CONFIG ─────────────────────────────────────────────────────────────
+
+const LANES = [
+  { id: 'frontend', label: 'Frontend', statusLabel: '2 components', statusColor: 'var(--info)' },
+  { id: 'api',      label: 'API',      statusLabel: '3 services', statusColor: 'var(--low)' },
+  { id: 'database', label: 'Database', statusLabel: '2 stores', statusColor: 'var(--medium)' },
+  { id: 'external', label: 'External', statusLabel: '2 providers', statusColor: 'var(--ink-faint)' },
+];
+
+// ─── BUILD LANES + GRAPH ──────────────────────────────────────────────────────
+
+function buildLanes() {
+  const container = document.getElementById('lanesContainer');
+  container.innerHTML = '';
+
+  LANES.forEach(lane => {
+    const laneNodes = SCAN_DATA.nodes.filter(n => n.lane === lane.id);
+
+    const div = document.createElement('div');
+    div.className = 'lane';
+    div.dataset.lane = lane.id;
+    div.innerHTML = `
+      <div class="lane-label-col">
+        <span class="lane-name">${lane.label}</span>
+        <span class="lane-status">
+          <span class="lane-status-dot" style="background:${lane.statusColor}"></span>
+          ${lane.statusLabel}
+        </span>
+      </div>
+      <div class="lane-bg"></div>
+      <svg class="lane-svg" id="svg-${lane.id}" overflow="visible"></svg>
+    `;
+    container.appendChild(div);
+  });
+
+  requestAnimationFrame(() => {
+    drawGraph();
+  });
+}
+
+function drawGraph() {
+  LANES.forEach(lane => {
+    const svg = d3.select(`#svg-${lane.id}`);
+    svg.selectAll('*').remove();
+
+    const el = document.getElementById(`svg-${lane.id}`);
+    const width = el.clientWidth;
+    const height = el.clientHeight;
+
+    const laneNodes = SCAN_DATA.nodes.filter(n => n.lane === lane.id);
+    if (!laneNodes.length) return;
+
+    // Position nodes evenly across the lane width
+    const spacing = width / (laneNodes.length + 1);
+    laneNodes.forEach((node, i) => {
+      node._x = spacing * (i + 1);
+      node._y = height / 2;
+      node._svg = lane.id;
+    });
+
+    // Draw edges within this lane (none actually cross lanes — but we draw inter-lane edges too)
+    // We'll draw all edges in a separate SVG overlay approach — here just draw within-lane lines
+    // For now draw them in each lane's SVG for simplicity
+    SCAN_DATA.edges.forEach(edge => {
+      const fromNode = SCAN_DATA.nodes.find(n => n.id === edge.from);
+      const toNode = SCAN_DATA.nodes.find(n => n.id === edge.to);
+      if (!fromNode || !toNode) return;
+
+      // Only draw edges where both endpoints are in this lane (cross-lane edges need special treatment)
+      if (fromNode.lane === lane.id && toNode.lane === lane.id) {
+        svg.append('line')
+          .attr('class', 'edge')
+          .attr('id', `edge-${edge.from}-${edge.to}`)
+          .attr('x1', fromNode._x)
+          .attr('y1', fromNode._y)
+          .attr('x2', toNode._x)
+          .attr('y2', toNode._y)
+          .attr('stroke', 'var(--ink-faint)');
+      }
+    });
+
+    // Draw nodes
+    laneNodes.forEach(node => {
+      const isVisible = activeFilters.has(node.maxSeverity);
+      const color = SEV_COLOR[node.maxSeverity];
+      const glowColor = SEV_GLOW[node.maxSeverity];
+      const r = 20;
+
+      const g = svg.append('g')
+        .attr('class', `node-group${selectedNode && selectedNode.id !== node.id ? ' faded' : ''}${selectedNode && selectedNode.id === node.id ? ' selected' : ''}`)
+        .attr('id', `node-${node.id}`)
+        .attr('transform', `translate(${node._x}, ${node._y})`)
+        .style('opacity', isVisible ? 1 : 0.12)
+        .on('click', () => onNodeClick(node));
+
+      // Glow
+      if (selectedNode && selectedNode.id === node.id) {
+        g.append('circle')
+          .attr('r', r + 8)
+          .attr('fill', glowColor)
+          .attr('stroke', 'none');
+      }
+
+      // Ring
+      g.append('circle')
+        .attr('class', 'node-ring')
+        .attr('r', r + 3)
+        .attr('stroke', color)
+        .attr('opacity', selectedNode && selectedNode.id === node.id ? 0.6 : 0.25);
+
+      // Circle
+      g.append('circle')
+        .attr('class', 'node-circle')
+        .attr('r', r)
+        .attr('fill', selectedNode && selectedNode.id === node.id ? `${color}22` : 'var(--surface-raised)')
+        .attr('stroke', color)
+        .attr('stroke-width', selectedNode && selectedNode.id === node.id ? 2 : 1.5);
+
+      // Count text
+      const vulnCount = node.vulns.length;
+      g.append('text')
+        .attr('class', 'node-count')
+        .attr('y', -3)
+        .attr('fill', color)
+        .text(node.vulns.reduce((sum, vId) => {
+          const vd = SCAN_DATA.vulnDefs[vId];
+          return sum + (vd ? vd.instances : 0);
+        }, 0));
+
+      // Sev indicator dot
+      const sevText = node.maxSeverity[0].toUpperCase();
+      g.append('text')
+        .attr('y', 8)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '8px')
+        .attr('fill', color)
+        .attr('opacity', 0.7)
+        .attr('font-family', 'Inter, sans-serif')
+        .attr('font-weight', '600')
+        .text(sevText);
+
+      // Label below
+      g.append('text')
+        .attr('class', 'node-label')
+        .attr('y', r + 14)
+        .text(node.label);
+    });
+  });
+}
+
+// ─── INTERACTIONS ─────────────────────────────────────────────────────────────
+
+function onNodeClick(node) {
+  if (selectedNode && selectedNode.id === node.id) {
+    clearSelection();
+    return;
+  }
+  selectedNode = node;
+  drawGraph();
+  renderNodeDetail(node);
+  document.getElementById('detailTitle').textContent = node.label;
+  document.getElementById('backBtnWrapper').style.display = 'flex';
+}
+
+function clearSelection() {
+  selectedNode = null;
+  drawGraph();
+  renderSummary();
+  document.getElementById('detailTitle').textContent = 'Scan Summary';
+  document.getElementById('backBtnWrapper').style.display = 'none';
+}
+
+function toggleFilter(severity, btn) {
+  if (activeFilters.has(severity)) {
+    if (activeFilters.size === 1) return; // keep at least one
+    activeFilters.delete(severity);
+    btn.className = 'filter-btn inactive';
+  } else {
+    activeFilters.add(severity);
+    btn.className = `filter-btn active-${severity}`;
+  }
+  drawGraph();
+}
+
+// ─── SUMMARY RENDER ───────────────────────────────────────────────────────────
+
+function renderSummary() {
+  const content = document.getElementById('detailContent');
+
+  const totals = { critical: 0, high: 0, medium: 0, low: 0 };
+  Object.values(SCAN_DATA.vulnDefs).forEach(v => {
+    totals[v.severity] = (totals[v.severity] || 0) + v.instances;
+  });
+
+  const totalVulnClasses = Object.keys(SCAN_DATA.vulnDefs).length;
+  const totalInstances = Object.values(totals).reduce((a, b) => a + b, 0);
+
+  const topVulns = Object.values(SCAN_DATA.vulnDefs)
+    .sort((a, b) => {
+      const order = { critical: 0, high: 1, medium: 2, low: 3 };
+      return order[a.severity] - order[b.severity];
+    });
+
+  content.innerHTML = `
+    <div class="summary-view">
+      <div class="summary-metrics">
+        <div class="metric-card critical">
+          <div class="metric-value">${totals.critical}</div>
+          <div class="metric-label">Critical instances</div>
+        </div>
+        <div class="metric-card high">
+          <div class="metric-value">${totals.high}</div>
+          <div class="metric-label">High severity</div>
+        </div>
+        <div class="metric-card medium">
+          <div class="metric-value">${totals.medium}</div>
+          <div class="metric-label">Medium severity</div>
+        </div>
+        <div class="metric-card low">
+          <div class="metric-value">${totals.low}</div>
+          <div class="metric-label">Low severity</div>
+        </div>
+      </div>
+      <div>
+        <div class="summary-section-title">${totalVulnClasses} vulnerability classes · ${totalInstances} instances — click a node to see what's exposed</div>
+        <div class="vuln-list">
+          ${topVulns.map(v => `
+            <div class="vuln-summary-row" onclick="showVulnFromSummary('${v.id}')">
+              <span class="sev-tag ${v.severity}">${v.severity}</span>
+              <span class="vuln-summary-name">${v.title}</span>
+              <span class="vuln-summary-instances">${v.instances} instance${v.instances !== 1 ? 's' : ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="click-hint">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1"/><path d="M6 4v4M4 6h4" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+        Click any node in the graph to see its specific findings
+      </div>
+    </div>
+  `;
+}
+
+function showVulnFromSummary(vulnId) {
+  // Find a node with this vuln and select it
+  const node = SCAN_DATA.nodes.find(n => n.vulns.includes(vulnId));
+  if (node) onNodeClick(node);
+}
+
+// ─── NODE DETAIL RENDER ───────────────────────────────────────────────────────
+
+function renderNodeDetail(node) {
+  const content = document.getElementById('detailContent');
+  const scroll = document.getElementById('detailScroll');
+
+  const vulnCards = node.vulns.map(vId => {
+    const v = SCAN_DATA.vulnDefs[vId];
+    if (!v) return '';
+
+    return `
+      <div class="vuln-card" id="vcard-${v.id}">
+        <div class="vuln-card-header" onclick="toggleCard('${v.id}')">
+          <div style="flex:1; min-width:0;">
+            <div class="vuln-card-label">Vulnerability</div>
+            <div class="vuln-card-title">${v.title}</div>
+          </div>
+          <div class="vuln-card-meta">
+            <span class="instance-badge">${v.instances}×</span>
+            <span class="sev-tag ${v.severity}">${v.severity}</span>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="vuln-card-body">
+          <div class="impact-section">
+            <div class="impact-label">What happens if this is exploited</div>
+            <div class="impact-text">${v.impact}</div>
+          </div>
+          <div class="collapsible-section" id="rem-${v.id}">
+            <div class="collapsible-toggle" onclick="toggleSection('rem-${v.id}')">
+              <svg class="collapsible-icon" width="8" height="12" viewBox="0 0 8 12" fill="none">
+                <path d="M2 2L6 6L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Remediation
+            </div>
+            <div class="collapsible-content">
+              <div class="remediation-text">${v.remediation}</div>
+              ${v.remediationCode ? `<pre class="code-snippet">${escapeHtml(v.remediationCode)}</pre>` : ''}
+            </div>
+          </div>
+          <div class="collapsible-section" id="loc-${v.id}">
+            <div class="collapsible-toggle" onclick="toggleSection('loc-${v.id}')">
+              <svg class="collapsible-icon" width="8" height="12" viewBox="0 0 8 12" fill="none">
+                <path d="M2 2L6 6L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Locations (${v.locations.length})
+            </div>
+            <div class="collapsible-content">
+              <div class="location-list">
+                ${v.locations.map(loc => `
+                  <div class="location-item">
+                    <span class="location-file">${loc.file}</span>
+                    <span class="location-line">L${loc.line}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const totalInstances = node.vulns.reduce((sum, vId) => {
+    const v = SCAN_DATA.vulnDefs[vId];
+    return sum + (v ? v.instances : 0);
+  }, 0);
+
+  content.innerHTML = `
+    <div class="node-detail-view">
+      <div class="node-detail-intro">
+        <div class="node-detail-icon" style="background:${SEV_COLOR[node.maxSeverity]}18; color:${SEV_COLOR[node.maxSeverity]}">
+          ${node.icon}
+        </div>
+        <div class="node-detail-meta">
+          <div class="node-detail-name">${node.label}</div>
+          <div class="node-detail-desc">${node.desc}</div>
+          <div class="node-detail-stats">
+            <span class="node-stat"><strong>${node.vulns.length}</strong> vulnerability class${node.vulns.length !== 1 ? 'es' : ''}</span>
+            <span class="node-stat">·</span>
+            <span class="node-stat"><strong>${totalInstances}</strong> instances</span>
+            <span class="node-stat">·</span>
+            <span class="sev-tag ${node.maxSeverity}" style="font-size:9px; padding:1px 6px;">${node.maxSeverity} risk</span>
+          </div>
+        </div>
+      </div>
+      ${vulnCards}
+    </div>
+  `;
+
+  // Auto-expand first card
+  const firstCard = document.querySelector('.vuln-card');
+  if (firstCard) firstCard.classList.add('expanded');
+
+  scroll.scrollTop = 0;
+}
+
+// ─── CARD TOGGLES ─────────────────────────────────────────────────────────────
+
+function toggleCard(vulnId) {
+  const card = document.getElementById(`vcard-${vulnId}`);
+  if (!card) return;
+  card.classList.toggle('expanded');
+}
+
+function toggleSection(sectionId) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  section.classList.toggle('open');
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+
+buildLanes();
+renderSummary();
+
+// Redraw on resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    drawGraph();
+  }, 100);
+});
+</script>
+</body>
+</html>

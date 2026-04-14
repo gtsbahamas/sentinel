@@ -1,0 +1,124 @@
+<h2>Sentinel Dashboard: Architecture</h2>
+<p class="subtitle">How the scan engine connects to the D3 visualization</p>
+
+<div class="mockup">
+  <div class="mockup-header">System Architecture</div>
+  <div class="mockup-body" style="background:#0a1628; padding:32px; color:#e2e8f0; font-family:'DM Sans', system-ui, sans-serif;">
+
+    <!-- CLI Layer -->
+    <div style="text-align:center; margin-bottom:8px;">
+      <span style="background:#1e293b; border:1px solid #475569; padding:6px 16px; border-radius:6px; font-size:13px; font-family:monospace;">$ sentinel scan ./my-project --dashboard</span>
+    </div>
+    <div style="text-align:center; color:#475569; margin-bottom:16px;">↓</div>
+
+    <!-- Server Box -->
+    <div style="border:2px solid #0f4c75; border-radius:10px; padding:20px; margin-bottom:16px; background:#0d1f33;">
+      <div style="font-size:11px; color:#7bb3e0; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:12px;">Sentinel Process (Node.js)</div>
+
+      <div style="display:flex; gap:12px;">
+        <!-- Scan Engine -->
+        <div style="flex:1; background:#1a2e44; border:1px solid #2d5a8e; border-radius:6px; padding:12px;">
+          <div style="font-size:10px; color:#94a3b8; margin-bottom:8px;">SCAN ENGINE</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="background:#0f4c75; padding:4px 8px; border-radius:3px; font-size:10px; text-align:center;">Recon Layer</div>
+            <div style="text-align:center; color:#475569; font-size:10px;">↓ events</div>
+            <div style="background:#0f4c75; padding:4px 8px; border-radius:3px; font-size:10px; text-align:center;">Rules Layer</div>
+            <div style="text-align:center; color:#475569; font-size:10px;">↓ events</div>
+            <div style="background:#0f4c75; padding:4px 8px; border-radius:3px; font-size:10px; text-align:center;">Probe Layer</div>
+            <div style="text-align:center; color:#475569; font-size:10px;">↓ events</div>
+            <div style="background:#0f4c75; padding:4px 8px; border-radius:3px; font-size:10px; text-align:center;">AI Layer</div>
+          </div>
+        </div>
+
+        <!-- Event Emitter -->
+        <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;">
+          <div style="color:#f59e0b; font-size:18px;">→</div>
+          <div style="font-size:8px; color:#f59e0b; text-align:center; writing-mode:vertical-rl; transform:rotate(180deg);">EventEmitter</div>
+          <div style="color:#f59e0b; font-size:18px;">→</div>
+        </div>
+
+        <!-- Server Stack -->
+        <div style="flex:1; background:#1a2e44; border:1px solid #2d5a8e; border-radius:6px; padding:12px;">
+          <div style="font-size:10px; color:#94a3b8; margin-bottom:8px;">DASHBOARD SERVER</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="background:#14532d; border:1px solid #4ade80; padding:4px 8px; border-radius:3px; font-size:10px; text-align:center;">Express (static files)</div>
+            <div style="background:#4a1d96; border:1px solid #a78bfa; padding:4px 8px; border-radius:3px; font-size:10px; text-align:center;">WebSocket Server</div>
+            <div style="background:#1e293b; border:1px solid #475569; padding:4px 8px; border-radius:3px; font-size:10px; text-align:center;">localhost:4400</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WebSocket Arrow -->
+    <div style="text-align:center; color:#a78bfa; margin-bottom:16px;">
+      <div style="font-size:10px; margin-bottom:4px;">WebSocket (ws://localhost:4400/ws)</div>
+      <div style="font-size:18px;">↕</div>
+      <div style="font-size:10px;">JSON events streamed in real-time</div>
+    </div>
+
+    <!-- Browser Box -->
+    <div style="border:2px solid #14532d; border-radius:10px; padding:20px; background:#0d1f33;">
+      <div style="font-size:11px; color:#4ade80; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:12px;">Browser (http://localhost:4400)</div>
+
+      <div style="display:flex; gap:8px;">
+        <!-- Graph Area -->
+        <div style="flex:2; background:#1a2e44; border:1px solid #2d5a8e; border-radius:6px; padding:12px; min-height:100px;">
+          <div style="font-size:10px; color:#94a3b8; margin-bottom:8px;">D3.js FORCE GRAPH</div>
+          <div style="display:flex; gap:4px; justify-content:space-around;">
+            <div style="text-align:center;">
+              <div style="font-size:8px; color:#64748b;">FRONTEND</div>
+              <div style="background:#0f4c75; border-radius:50%; width:20px; height:20px; margin:4px auto;"></div>
+              <div style="background:#0f4c75; border-radius:50%; width:20px; height:20px; margin:4px auto;"></div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:8px; color:#64748b;">API</div>
+              <div style="background:#991b1b; border-radius:3px; width:20px; height:16px; margin:4px auto;"></div>
+              <div style="background:#0f4c75; border-radius:3px; width:20px; height:16px; margin:4px auto;"></div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:8px; color:#64748b;">DB</div>
+              <div style="background:#14532d; border-radius:8px; width:24px; height:14px; margin:4px auto;"></div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:8px; color:#64748b;">EXT</div>
+              <div style="background:#4a1d96; width:14px; height:14px; transform:rotate(45deg); margin:6px auto;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div style="flex:1; background:#1a2e44; border:1px solid #2d5a8e; border-radius:6px; padding:12px;">
+          <div style="font-size:10px; color:#94a3b8; margin-bottom:8px;">SIDEBAR</div>
+          <div style="background:#0d2137; border-radius:4px; padding:6px; margin-bottom:6px;">
+            <div style="font-size:8px; color:#64748b;">STATS</div>
+            <div style="font-size:9px; color:#e2e8f0;">Routes: 12</div>
+            <div style="font-size:9px; color:#e2e8f0;">Endpoints: 8</div>
+            <div style="font-size:9px; color:#ef4444;">Findings: 3</div>
+          </div>
+          <div style="background:#0d2137; border-radius:4px; padding:6px;">
+            <div style="font-size:8px; color:#64748b;">ACTIVITY LOG</div>
+            <div style="font-size:8px; color:#94a3b8;">Found /api/upload</div>
+            <div style="font-size:8px; color:#ef4444;">⚠ No auth check</div>
+            <div style="font-size:8px; color:#94a3b8;">Scanning RLS...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>Event Flow</h3>
+  <p>Each scan layer emits typed events through a shared EventEmitter. The WebSocket server forwards them to the browser. D3 processes each event type differently:</p>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; font-size:13px;">
+    <div style="background:var(--bg-secondary); padding:10px; border-radius:6px;"><strong>recon:route</strong> → add node to Frontend lane</div>
+    <div style="background:var(--bg-secondary); padding:10px; border-radius:6px;"><strong>recon:endpoint</strong> → add node to API lane</div>
+    <div style="background:var(--bg-secondary); padding:10px; border-radius:6px;"><strong>recon:datamodel</strong> → add node to Database lane</div>
+    <div style="background:var(--bg-secondary); padding:10px; border-radius:6px;"><strong>recon:envvar</strong> → add badge to referencing node</div>
+    <div style="background:var(--bg-secondary); padding:10px; border-radius:6px;"><strong>rules:finding</strong> → color shift + badge + pulse</div>
+    <div style="background:var(--bg-secondary); padding:10px; border-radius:6px;"><strong>probe:finding</strong> → confirmed finding highlight</div>
+    <div style="background:var(--bg-secondary); padding:10px; border-radius:6px;"><strong>ai:finding</strong> → AI-detected vulnerability</div>
+    <div style="background:var(--bg-secondary); padding:10px; border-radius:6px;"><strong>scan:complete</strong> → transition to exploration mode</div>
+  </div>
+</div>

@@ -1,0 +1,51 @@
+{
+  "default_skills": [
+    "frontend-design",
+    "impeccable",
+    "uiux-pro-max",
+    "taste-skill",
+    "interface-design"
+  ],
+  "skill_sources": {
+    "frontend-design": {
+      "repo": "anthropics/claude-code",
+      "path": "plugins/frontend-design/skills/frontend-design/SKILL.md",
+      "label": "Frontend Design",
+      "author": "Anthropic"
+    },
+    "impeccable": {
+      "repo": "pbakaus/impeccable",
+      "path": "source/skills/frontend-design/SKILL.md",
+      "label": "Impeccable",
+      "author": "Paul Bakaus"
+    },
+    "uiux-pro-max": {
+      "repo": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "path": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "label": "UI/UX Pro Max",
+      "author": "nextlevelbuilder"
+    },
+    "taste-skill": {
+      "repo": "Leonxlnx/taste-skill",
+      "path": "skills/taste-skill/SKILL.md",
+      "label": "Taste Skill",
+      "author": "Leonxlnx"
+    },
+    "interface-design": {
+      "repo": "Dammyjay93/interface-design",
+      "path": ".claude/skills/interface-design/SKILL.md",
+      "label": "Interface Design",
+      "author": "Dammyjay93"
+    }
+  },
+  "default_mode": "fresh",
+  "gallery_port": 54700,
+  "max_parallel_agents": 5,
+  "ux_mode": {
+    "config": "ux-config.json",
+    "rubrics": "ux-scoring-rubrics.json",
+    "erp_patterns": "ux-erp-patterns.json",
+    "agent_prompt": "ux-agent-prompt.md",
+    "gallery_template": "ux-gallery.html"
+  }
+}

@@ -1,0 +1,196 @@
+<h2>Dashboard Layout: How should the attack surface be visualized?</h2>
+<p class="subtitle">Consider: live coaching demo, audience comprehension, and post-scan exploration</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0a1628; border-radius:8px; padding:24px; font-family:monospace; color:#e2e8f0; min-height:280px; position:relative;">
+        <div style="text-align:center; font-size:11px; color:#64748b; margin-bottom:16px;">LAYERED ARCHITECTURE VIEW</div>
+
+        <!-- Frontend Layer -->
+        <div style="background:#1e3a5f; border:1px solid #2d5a8e; border-radius:6px; padding:10px; margin-bottom:8px;">
+          <div style="font-size:10px; color:#7bb3e0; margin-bottom:6px;">FRONTEND</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <span style="background:#0f4c75; padding:3px 8px; border-radius:4px; font-size:10px; color:#a3c4d9;">/ home</span>
+            <span style="background:#0f4c75; padding:3px 8px; border-radius:4px; font-size:10px; color:#a3c4d9;">/login</span>
+            <span style="background:#0f4c75; padding:3px 8px; border-radius:4px; font-size:10px; color:#a3c4d9;">/dashboard</span>
+            <span style="background:#0f4c75; padding:3px 8px; border-radius:4px; font-size:10px; color:#a3c4d9;">/settings</span>
+          </div>
+        </div>
+
+        <!-- Arrows -->
+        <div style="text-align:center; color:#2d5a8e; font-size:14px;">↓ ↓ ↓</div>
+
+        <!-- Backend Layer -->
+        <div style="background:#1e3a5f; border:1px solid #2d5a8e; border-radius:6px; padding:10px; margin-bottom:8px;">
+          <div style="font-size:10px; color:#7bb3e0; margin-bottom:6px;">BACKEND / API</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <span style="background:#7c2d12; padding:3px 8px; border-radius:4px; font-size:10px; color:#fca5a5;">POST /api/auth ⚠</span>
+            <span style="background:#0f4c75; padding:3px 8px; border-radius:4px; font-size:10px; color:#a3c4d9;">GET /api/users</span>
+            <span style="background:#991b1b; padding:3px 8px; border-radius:4px; font-size:10px; color:#fca5a5;">POST /api/upload ✗</span>
+          </div>
+        </div>
+
+        <!-- Arrows -->
+        <div style="text-align:center; color:#2d5a8e; font-size:14px;">↓ ↓</div>
+
+        <!-- Database Layer -->
+        <div style="background:#1e3a5f; border:1px solid #2d5a8e; border-radius:6px; padding:10px;">
+          <div style="font-size:10px; color:#7bb3e0; margin-bottom:6px;">DATABASE</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <span style="background:#0f4c75; padding:3px 8px; border-radius:4px; font-size:10px; color:#a3c4d9;">users (RLS ✓)</span>
+            <span style="background:#991b1b; padding:3px 8px; border-radius:4px; font-size:10px; color:#fca5a5;">uploads (NO RLS) ✗</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A: Layered Stack</h3>
+      <p>Horizontal layers stacked vertically. Frontend top, backend middle, database bottom, external services to the side. Nodes appear within their layer. Matches the mental model from the coaching curriculum.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Intuitive for beginners</li><li>Maps directly to the session's stack diagram</li><li>Clear top-to-bottom data flow</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Can feel static/boxy</li><li>Connections between layers are simple lines</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0a1628; border-radius:8px; padding:24px; font-family:monospace; color:#e2e8f0; min-height:280px; position:relative;">
+        <div style="text-align:center; font-size:11px; color:#64748b; margin-bottom:16px;">FORCE-DIRECTED NETWORK GRAPH</div>
+
+        <!-- Simulated force graph -->
+        <svg viewBox="0 0 300 220" style="width:100%;">
+          <!-- Edges -->
+          <line x1="150" y1="30" x2="80" y2="90" stroke="#2d5a8e" stroke-width="1"/>
+          <line x1="150" y1="30" x2="220" y2="90" stroke="#2d5a8e" stroke-width="1"/>
+          <line x1="80" y1="90" x2="50" y2="160" stroke="#2d5a8e" stroke-width="1"/>
+          <line x1="80" y1="90" x2="120" y2="170" stroke="#2d5a8e" stroke-width="1"/>
+          <line x1="220" y1="90" x2="200" y2="160" stroke="#991b1b" stroke-width="2"/>
+          <line x1="220" y1="90" x2="270" y2="150" stroke="#2d5a8e" stroke-width="1"/>
+          <line x1="150" y1="30" x2="150" y2="110" stroke="#2d5a8e" stroke-width="1"/>
+          <line x1="150" y1="110" x2="120" y2="170" stroke="#2d5a8e" stroke-width="1"/>
+
+          <!-- Frontend nodes (circles) -->
+          <circle cx="150" cy="30" r="14" fill="#0f4c75" stroke="#7bb3e0" stroke-width="1.5"/>
+          <text x="150" y="34" text-anchor="middle" fill="#e2e8f0" font-size="8">/</text>
+
+          <!-- Backend nodes (squares) -->
+          <rect x="68" y="78" width="24" height="24" rx="3" fill="#0f4c75" stroke="#7bb3e0" stroke-width="1.5"/>
+          <text x="80" y="94" text-anchor="middle" fill="#e2e8f0" font-size="7">auth</text>
+
+          <rect x="208" y="78" width="24" height="24" rx="3" fill="#991b1b" stroke="#ef4444" stroke-width="2"/>
+          <text x="220" y="94" text-anchor="middle" fill="#fca5a5" font-size="7">upload</text>
+
+          <rect x="138" y="98" width="24" height="24" rx="3" fill="#0f4c75" stroke="#7bb3e0" stroke-width="1.5"/>
+          <text x="150" y="114" text-anchor="middle" fill="#e2e8f0" font-size="7">users</text>
+
+          <!-- Database nodes (cylinders approx) -->
+          <ellipse cx="50" cy="160" rx="18" ry="10" fill="#14532d" stroke="#4ade80" stroke-width="1.5"/>
+          <text x="50" y="164" text-anchor="middle" fill="#a3e4b8" font-size="7">users</text>
+
+          <ellipse cx="120" cy="170" rx="18" ry="10" fill="#14532d" stroke="#4ade80" stroke-width="1.5"/>
+          <text x="120" y="174" text-anchor="middle" fill="#a3e4b8" font-size="7">posts</text>
+
+          <ellipse cx="200" cy="160" rx="18" ry="10" fill="#7f1d1d" stroke="#ef4444" stroke-width="2"/>
+          <text x="200" y="164" text-anchor="middle" fill="#fca5a5" font-size="7">files</text>
+
+          <!-- External service node (diamond) -->
+          <polygon points="270,140 285,150 270,160 255,150" fill="#4a1d96" stroke="#a78bfa" stroke-width="1.5"/>
+          <text x="270" y="154" text-anchor="middle" fill="#c4b5fd" font-size="6">S3</text>
+        </svg>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B: Force-Directed Graph</h3>
+      <p>Nodes float and self-organize based on connections. Clusters form naturally around related components. Nodes repel/attract based on relationships. Classic D3 force simulation.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Visually dynamic and impressive</li><li>Organic animation as nodes appear</li><li>Shows relationship density naturally</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Can be chaotic with many nodes</li><li>Harder for beginners to parse</li><li>Layout is non-deterministic</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0a1628; border-radius:8px; padding:24px; font-family:monospace; color:#e2e8f0; min-height:280px;">
+        <div style="text-align:center; font-size:11px; color:#64748b; margin-bottom:16px;">HYBRID: LAYERED + FORCE WITHIN LANES</div>
+
+        <!-- Layer lanes with force-positioned nodes -->
+        <div style="display:flex; gap:2px; height:220px;">
+          <!-- Frontend lane -->
+          <div style="flex:1; background:#0d2137; border-radius:4px; padding:8px; position:relative;">
+            <div style="font-size:9px; color:#64748b; text-align:center; margin-bottom:8px;">FRONTEND</div>
+            <div style="position:absolute; left:15px; top:40px;">
+              <div style="background:#0f4c75; border:1px solid #7bb3e0; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:7px;">/</div>
+            </div>
+            <div style="position:absolute; left:8px; top:85px;">
+              <div style="background:#0f4c75; border:1px solid #7bb3e0; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:6px;">login</div>
+            </div>
+            <div style="position:absolute; left:30px; top:130px;">
+              <div style="background:#0f4c75; border:1px solid #7bb3e0; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:6px;">dash</div>
+            </div>
+            <div style="position:absolute; left:12px; top:175px;">
+              <div style="background:#0f4c75; border:1px solid #7bb3e0; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:6px;">set</div>
+            </div>
+          </div>
+
+          <!-- Backend lane -->
+          <div style="flex:1; background:#0d2137; border-radius:4px; padding:8px; position:relative;">
+            <div style="font-size:9px; color:#64748b; text-align:center; margin-bottom:8px;">API</div>
+            <div style="position:absolute; left:10px; top:50px;">
+              <div style="background:#7c2d12; border:1px solid #f97316; border-radius:4px; width:32px; height:22px; display:flex; align-items:center; justify-content:center; font-size:6px; color:#fed7aa;">auth⚠</div>
+            </div>
+            <div style="position:absolute; left:15px; top:100px;">
+              <div style="background:#0f4c75; border:1px solid #7bb3e0; border-radius:4px; width:32px; height:22px; display:flex; align-items:center; justify-content:center; font-size:6px;">users</div>
+            </div>
+            <div style="position:absolute; left:8px; top:150px;">
+              <div style="background:#991b1b; border:2px solid #ef4444; border-radius:4px; width:32px; height:22px; display:flex; align-items:center; justify-content:center; font-size:6px; color:#fca5a5;">upload✗</div>
+            </div>
+          </div>
+
+          <!-- Database lane -->
+          <div style="flex:1; background:#0d2137; border-radius:4px; padding:8px; position:relative;">
+            <div style="font-size:9px; color:#64748b; text-align:center; margin-bottom:8px;">DATABASE</div>
+            <div style="position:absolute; left:10px; top:55px;">
+              <div style="background:#14532d; border:1px solid #4ade80; border-radius:12px; width:36px; height:20px; display:flex; align-items:center; justify-content:center; font-size:6px; color:#a3e4b8;">users✓</div>
+            </div>
+            <div style="position:absolute; left:8px; top:120px;">
+              <div style="background:#7f1d1d; border:2px solid #ef4444; border-radius:12px; width:36px; height:20px; display:flex; align-items:center; justify-content:center; font-size:6px; color:#fca5a5;">files✗</div>
+            </div>
+          </div>
+
+          <!-- External lane -->
+          <div style="flex:1; background:#0d2137; border-radius:4px; padding:8px; position:relative;">
+            <div style="font-size:9px; color:#64748b; text-align:center; margin-bottom:8px;">EXTERNAL</div>
+            <div style="position:absolute; left:12px; top:50px;">
+              <div style="background:#4a1d96; border:1px solid #a78bfa; transform:rotate(45deg); width:22px; height:22px; display:flex; align-items:center; justify-content:center;">
+                <span style="transform:rotate(-45deg); font-size:6px; color:#c4b5fd;">API</span>
+              </div>
+            </div>
+            <div style="position:absolute; left:8px; top:110px;">
+              <div style="background:#4a1d96; border:1px solid #a78bfa; transform:rotate(45deg); width:22px; height:22px; display:flex; align-items:center; justify-content:center;">
+                <span style="transform:rotate(-45deg); font-size:6px; color:#c4b5fd;">S3</span>
+              </div>
+            </div>
+            <div style="position:absolute; left:16px; top:170px;">
+              <div style="background:#4a1d96; border:1px solid #a78bfa; transform:rotate(45deg); width:22px; height:22px; display:flex; align-items:center; justify-content:center;">
+                <span style="transform:rotate(-45deg); font-size:6px; color:#c4b5fd;">n8n</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C: Hybrid (Layered Lanes + Force)</h3>
+      <p>Vertical lanes for each layer (Frontend, API, Database, External). Within each lane, nodes use force simulation to arrange organically. Connections draw across lanes. Structure of A, dynamism of B.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Best of both: structured AND dynamic</li><li>Layer context always visible</li><li>Nodes animate within their lane</li><li>Cross-lane connections show data flow</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Slightly more complex to implement</li><li>Lane width needs to adapt to node count</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
