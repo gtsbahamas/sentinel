@@ -151,6 +151,8 @@ program
   .option("--ai-model <id>", "AI model id")
   .option("--ai-max-cost <usd>", "Hard budget cap in USD for AI fixes", parseFloat)
   .option("--ai-concurrency <n>", "Parallel AI fix requests", parseInt)
+  .option("--converge", "Re-scan after fixing and repeat until no more fixes land")
+  .option("--max-rounds <n>", "Maximum convergence rounds (default: 5)", parseInt)
   .action(async (rawPath, options) => {
     const path = await resolveTarget(rawPath);
     const exitCode = await runFixCommand({
@@ -163,6 +165,8 @@ program
       aiModel: options.aiModel,
       aiMaxCost: options.aiMaxCost,
       aiConcurrency: options.aiConcurrency,
+      converge: options.converge,
+      maxRounds: options.maxRounds,
     });
     exitAfterDrain(exitCode);
   });

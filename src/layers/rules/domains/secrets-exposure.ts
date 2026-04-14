@@ -430,7 +430,8 @@ export const secretsExposureRules: SecurityRule[] = [
       ]);
       const findings: Finding[] = [];
       for (const env of model.envVars) {
-        if (!env.inExample && !WELL_KNOWN_ENV_VARS.has(env.name)) {
+        // Skip well-known platform vars and NEXT_PUBLIC_ prefixed vars (public by definition)
+        if (!env.inExample && !WELL_KNOWN_ENV_VARS.has(env.name) && !env.name.startsWith("NEXT_PUBLIC_")) {
           findings.push(
             mkFinding(
               {

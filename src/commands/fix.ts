@@ -4,6 +4,8 @@ import { resolve } from "path";
 import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
 import { runRules, registerRules, resetRegistry } from "../layers/rules/index.js";
+import { inferContext, readContext } from "../layers/context/index.js";
+import { applyContextSuppressions } from "../layers/context/suppression.js";
 import { secretsExposureRules } from "../layers/rules/domains/secrets-exposure.js";
 import { inputInjectionRules } from "../layers/rules/domains/input-injection.js";
 import { authAccessControlRules } from "../layers/rules/domains/auth-access-control.js";
@@ -34,6 +36,8 @@ export interface FixCommandOptions {
   aiModel?: string;
   aiMaxCost?: number;
   aiConcurrency?: number;
+  converge?: boolean;
+  maxRounds?: number;
 }
 
 const AI_RULE_IDS = ["INPUT-005", "AUTH-002", "API-004"];
@@ -75,10 +79,13 @@ async function acquireFindings(options: FixCommandOptions): Promise<Finding[]> {
     return parsed.findings;
   }
 
-  // Run a fresh scan to get findings
+  // Run a fresh scan to get findings (with context suppression, matching scan command)
   const config = await loadConfig(options.path);
 
   const model = await runRecon(options.path, config.exclude);
+
+  const contextFromFile = await readContext(options.path);
+  const context = contextFromFile ?? await inferContext(model);
 
   resetRegistry();
   registerRules(secretsExposureRules);
@@ -92,7 +99,8 @@ async function acquireFindings(options: FixCommandOptions): Promise<Finding[]> {
   registerRules(businessLogicRules);
   registerRules(infrastructureRules);
 
-  return await runRules(model);
+  const rawFindings = await runRules(model, context);
+  return applyContextSuppressions(rawFindings, context);
 }
 
 function buildAIConfig(options: FixCommandOptions, baseProvider: "anthropic" | "openai" | "mock"): AIConfig {
@@ -168,7 +176,57 @@ function formatFixResults(attempts: FixAttempt[], filesModified: string[], dryRu
   return lines.join("\n");
 }
 
+async function runSingleRound(options: FixCommandOptions): Promise<{
+  totalFindings: number;
+  fixedCount: number;
+  failedCount: number;
+  skippedCount: number;
+  filesModified: string[];
+}> {
+  const config = await loadConfig(options.path);
+
+  registerAllFixers();
+
+  let findings: Finding[];
+  try {
+    findings = await acquireFindings(options);
+  } catch (err) {
+    process.stderr.write(`Error acquiring findings: ${err instanceof Error ? err.message : String(err)}\n`);
+    return { totalFindings: 0, fixedCount: 0, failedCount: 0, skippedCount: 0, filesModified: [] };
+  }
+
+  if (findings.length === 0) {
+    return { totalFindings: 0, fixedCount: 0, failedCount: 0, skippedCount: 0, filesModified: [] };
+  }
+
+  const aiConfig = buildAIConfig(options, config.ai.provider);
+
+  const result = await runFix({
+    findings,
+    ruleFilter: options.rule && options.rule.length > 0 ? options.rule : undefined,
+    noAI: options.noAI ?? false,
+    dryRun: options.dryRun ?? false,
+    aiConfig,
+  });
+
+  const fixedCount = result.attempts.filter((a) => a.status === "fixed").length;
+  const failedCount = result.attempts.filter((a) => a.status === "failed").length;
+  const skippedCount = result.attempts.filter((a) => a.status === "skipped").length;
+
+  return {
+    totalFindings: findings.length,
+    fixedCount,
+    failedCount,
+    skippedCount,
+    filesModified: result.filesModified,
+  };
+}
+
 export async function runFixCommand(options: FixCommandOptions): Promise<number> {
+  if (options.converge && !options.dryRun) {
+    return runConvergeLoop(options);
+  }
+
   const config = await loadConfig(options.path);
 
   registerAllFixers();
@@ -199,4 +257,103 @@ export async function runFixCommand(options: FixCommandOptions): Promise<number>
   process.stdout.write(formatFixResults(result.attempts, result.filesModified, options.dryRun ?? false));
 
   return 0;
+}
+
+async function runConvergeLoop(options: FixCommandOptions): Promise<number> {
+  const maxRounds = options.maxRounds ?? 5;
+  const roundSummaries: Array<{
+    round: number;
+    findingsBefore: number;
+    fixed: number;
+    failed: number;
+    skipped: number;
+    filesModified: string[];
+  }> = [];
+
+  let totalFixed = 0;
+  let totalFilesModified = new Set<string>();
+  let previousFindingCount = Infinity;
+
+  process.stdout.write("\n╔══════════════════════════════════════╗\n");
+  process.stdout.write("║   sentinel fix --converge            ║\n");
+  process.stdout.write("╚══════════════════════════════════════╝\n\n");
+
+  for (let round = 1; round <= maxRounds; round++) {
+    process.stdout.write(`── Round ${round}/${maxRounds} ──────────────────────────\n`);
+
+    // Each round does a fresh scan (no --from) to pick up the current state
+    const roundOptions: FixCommandOptions = {
+      ...options,
+      from: round === 1 ? options.from : undefined, // Only use --from for round 1
+      converge: false, // Prevent recursion
+    };
+
+    const result = await runSingleRound(roundOptions);
+
+    roundSummaries.push({
+      round,
+      findingsBefore: result.totalFindings,
+      fixed: result.fixedCount,
+      failed: result.failedCount,
+      skipped: result.skippedCount,
+      filesModified: result.filesModified,
+    });
+
+    totalFixed += result.fixedCount;
+    for (const f of result.filesModified) totalFilesModified.add(f);
+
+    process.stdout.write(`  Findings:  ${result.totalFindings}\n`);
+    process.stdout.write(`  Fixed:     ${result.fixedCount}\n`);
+    process.stdout.write(`  Remaining: ${result.totalFindings - result.fixedCount}\n\n`);
+
+    // Convergence check: stop if no fixes were applied this round
+    if (result.fixedCount === 0) {
+      if (result.totalFindings === 0) {
+        process.stdout.write("✓ Clean — zero findings.\n\n");
+      } else {
+        process.stdout.write(`⊘ Converged — ${result.totalFindings} findings remain but none are auto-fixable.\n\n`);
+      }
+      break;
+    }
+
+    // Safety: stop if finding count isn't decreasing (infinite loop protection)
+    if (result.totalFindings >= previousFindingCount) {
+      process.stdout.write(`⚠ Finding count not decreasing (${previousFindingCount} → ${result.totalFindings}). Stopping.\n\n`);
+      break;
+    }
+
+    previousFindingCount = result.totalFindings;
+
+    if (round === maxRounds) {
+      process.stdout.write(`⚠ Max rounds (${maxRounds}) reached.\n\n`);
+    }
+  }
+
+  // Final summary
+  process.stdout.write("══════════════════════════════════════\n");
+  process.stdout.write("  Convergence Summary\n");
+  process.stdout.write("══════════════════════════════════════\n\n");
+
+  const firstRound = roundSummaries[0];
+  const lastRound = roundSummaries[roundSummaries.length - 1];
+  const remaining = lastRound.findingsBefore - lastRound.fixed;
+
+  process.stdout.write(`  Rounds:          ${roundSummaries.length}\n`);
+  process.stdout.write(`  Initial:         ${firstRound?.findingsBefore ?? 0} findings\n`);
+  process.stdout.write(`  Total fixed:     ${totalFixed}\n`);
+  process.stdout.write(`  Remaining:       ${remaining}\n`);
+  process.stdout.write(`  Files modified:  ${totalFilesModified.size}\n`);
+
+  if (firstRound && firstRound.findingsBefore > 0) {
+    const pct = ((totalFixed / firstRound.findingsBefore) * 100).toFixed(1);
+    process.stdout.write(`  Reduction:       ${pct}%\n`);
+  }
+
+  process.stdout.write("\n  Round-by-round:\n");
+  for (const s of roundSummaries) {
+    process.stdout.write(`    ${s.round}. ${s.findingsBefore} findings → ${s.fixed} fixed, ${s.failed} failed, ${s.skipped} skipped\n`);
+  }
+  process.stdout.write("\n");
+
+  return remaining > 0 ? 1 : 0;
 }
