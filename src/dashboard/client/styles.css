@@ -250,7 +250,16 @@ html, body {
   position: relative;
   border-bottom: 1px solid var(--border-subtle);
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
+}
+.lane-scroll {
+  flex: 1;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 .lane:last-child { border-bottom: none; }
 

@@ -45,25 +45,7 @@ export async function runAI(
   result.findings = capped.findings;
   result.magicLinkCapped = capped.cappedCount;
 
-  if (emitter) {
-    for (const f of result.findings) {
-      emitter.emitEvent({
-        type: "finding",
-        data: {
-          id: f.id,
-          severity: f.severity,
-          title: f.title,
-          description: f.description,
-          impact: f.impact,
-          file: f.evidence[0]?.file ?? "",
-          line: f.evidence[0]?.line,
-          domain: f.domain,
-          layer: f.layer,
-          remediation: f.remediation,
-        },
-      });
-    }
-  }
+  // NOTE: findings are emitted by scan.ts after context suppressions are applied.
 
   return result;
 }

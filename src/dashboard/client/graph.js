@@ -53,7 +53,9 @@ function buildLanes() {
         '</span>' +
       '</div>' +
       '<div class="lane-bg"></div>' +
-      '<svg class="lane-svg" id="svg-' + lane.id + '" overflow="visible"></svg>';
+      '<div class="lane-scroll" id="scroll-' + lane.id + '">' +
+        '<svg class="lane-svg" id="svg-' + lane.id + '" overflow="visible"></svg>' +
+      '</div>';
     container.appendChild(div);
 
     laneSvgElements[lane.id] = document.getElementById('svg-' + lane.id);
@@ -68,22 +70,37 @@ function updateLaneStatus(laneId, count) {
   }
 }
 
+// ---- Minimum spacing per node (px) ----
+var NODE_SPACING = 60;
+
+// ---- Ensure SVG is wide enough for all nodes ----
+function ensureSvgWidth(laneId) {
+  var svgEl = laneSvgElements[laneId];
+  if (!svgEl) return;
+  var scrollEl = document.getElementById('scroll-' + laneId);
+  var containerWidth = scrollEl ? scrollEl.clientWidth : svgEl.parentElement.clientWidth;
+  var laneNodes = laneNodePositions[laneId];
+  var neededWidth = (laneNodes.length + 1) * NODE_SPACING;
+  var finalWidth = Math.max(containerWidth, neededWidth);
+  svgEl.style.width = finalWidth + 'px';
+  svgEl.style.minWidth = finalWidth + 'px';
+}
+
 // ---- Add a single node incrementally ----
 function addNode(node) {
   var laneId = node.lane;
   var svgEl = laneSvgElements[laneId];
   if (!svgEl) return;
 
-  var svg = d3.select(svgEl);
-  var width = svgEl.clientWidth;
-  var height = svgEl.clientHeight;
-
-  // Position: evenly space based on existing nodes in this lane
   var laneNodes = laneNodePositions[laneId];
   laneNodes.push(node);
 
+  ensureSvgWidth(laneId);
+
+  var height = svgEl.clientHeight;
+
   // Recalculate positions for all nodes in this lane
-  var spacing = width / (laneNodes.length + 1);
+  var spacing = Math.max(NODE_SPACING, svgEl.clientWidth / (laneNodes.length + 1));
   laneNodes.forEach(function(n, i) {
     n._x = spacing * (i + 1);
     n._y = height / 2;
@@ -235,16 +252,16 @@ function addEdge(edgeData) {
 
 // ---- Redraw all lanes (e.g., on selection change or filter change) ----
 function redrawAllLanes() {
-  // Recalculate positions (sizes may have changed)
   LANES.forEach(function(lane) {
     var svgEl = laneSvgElements[lane.id];
     if (!svgEl) return;
-    var width = svgEl.clientWidth;
-    var height = svgEl.clientHeight;
     var laneNodes = laneNodePositions[lane.id];
     if (!laneNodes.length) return;
 
-    var spacing = width / (laneNodes.length + 1);
+    ensureSvgWidth(lane.id);
+
+    var height = svgEl.clientHeight;
+    var spacing = Math.max(NODE_SPACING, svgEl.clientWidth / (laneNodes.length + 1));
     laneNodes.forEach(function(n, i) {
       n._x = spacing * (i + 1);
       n._y = height / 2;

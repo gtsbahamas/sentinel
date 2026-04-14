@@ -4,7 +4,7 @@ export type Confidence = "confirmed" | "high" | "medium" | "low";
 
 export type Layer = "rules" | "ai" | "probe";
 
-export type StackProfile = "nextjs-supabase" | "react-vite-supabase" | "generic-web";
+export type StackProfile = "nextjs-supabase" | "react-vite-supabase" | "generic-web" | "go" | "python" | "rust" | "unknown";
 
 export type SecurityDomain =
   | "secrets-exposure"
@@ -109,8 +109,8 @@ export interface ProjectMeta {
   name: string;
   path: string;
   stack: StackProfile;
-  packageManager: "pnpm" | "npm" | "yarn";
-  language: "typescript" | "javascript";
+  packageManager: "pnpm" | "npm" | "yarn" | "go" | "pip" | "cargo" | "unknown";
+  language: "typescript" | "javascript" | "go" | "python" | "rust" | "unknown";
   framework: string;
   deployTarget: string | null;
 }

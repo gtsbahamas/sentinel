@@ -161,6 +161,28 @@ export async function runScan(options: ScanOptions): Promise<number> {
   const rawFindings = [...ruleFindings, ...(aiResult?.findings ?? [])];
   const allFindings = applyContextSuppressions(rawFindings, context);
 
+  // Emit suppressed findings to dashboard (after context filtering)
+  if (emitter) {
+    for (const f of allFindings) {
+      emitter.emitEvent({
+        type: "finding",
+        data: {
+          id: f.id,
+          ruleId: f.ruleId,
+          severity: f.severity,
+          title: f.title,
+          description: f.description,
+          impact: f.impact,
+          file: f.evidence[0]?.file ?? "",
+          line: f.evidence[0]?.line,
+          domain: f.domain,
+          layer: f.layer,
+          remediation: f.remediation,
+        },
+      });
+    }
+  }
+
   if (options.format === "json") {
     const body = formatJson(model, allFindings, { recon_ms, rules_ms, ai_ms, ai: aiResult ?? undefined });
     if (options.outFile) {

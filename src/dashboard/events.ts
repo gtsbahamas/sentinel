@@ -53,6 +53,7 @@ export interface ExternalServiceEventData {
 
 export interface FindingEventData {
   id: string;
+  ruleId?: string;
   severity: Severity;
   title: string;
   description?: string;

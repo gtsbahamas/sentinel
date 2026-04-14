@@ -149,6 +149,7 @@ function renderNodeDetail(node) {
   var desc = '';
   if (node.data) {
     if (node.data.method && node.data.path) desc = node.data.method.toUpperCase() + ' ' + node.data.path;
+    else if (node.data.dir) desc = node.data.dir + ' (' + (node.data.files ? node.data.files.length : 0) + ' files)';
     else if (node.data.file) desc = node.data.file;
     else if (node.data.type) desc = node.data.type;
   }

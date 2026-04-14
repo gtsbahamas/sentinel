@@ -8,7 +8,7 @@
   },
   "main": "./dist/cli.js",
   "scripts": {
-    "build": "tsc && cp -r src/dashboard/client dist/dashboard/client",
+    "build": "tsc && rm -rf dist/dashboard/client && cp -r src/dashboard/client dist/dashboard/client",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",

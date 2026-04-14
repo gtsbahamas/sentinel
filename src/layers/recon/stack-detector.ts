@@ -5,10 +5,70 @@ import type { ProjectMeta, StackProfile } from "../../model/types.js";
 
 export async function detectStack(projectPath: string): Promise<ProjectMeta> {
   const pkgPath = join(projectPath, "package.json");
-  if (!existsSync(pkgPath)) {
-    throw new Error(`No package.json found in ${projectPath}`);
+
+  // ---- Node.js / JavaScript projects ----
+  if (existsSync(pkgPath)) {
+    return detectNodeStack(projectPath, pkgPath);
   }
 
+  // ---- Go ----
+  if (existsSync(join(projectPath, "go.mod"))) {
+    return {
+      name: basename(projectPath),
+      path: projectPath,
+      stack: "go",
+      packageManager: "go",
+      language: "go",
+      framework: detectGoFramework(projectPath),
+      deployTarget: detectDeployTarget(projectPath),
+    };
+  }
+
+  // ---- Python ----
+  if (
+    existsSync(join(projectPath, "requirements.txt")) ||
+    existsSync(join(projectPath, "pyproject.toml")) ||
+    existsSync(join(projectPath, "setup.py"))
+  ) {
+    return {
+      name: basename(projectPath),
+      path: projectPath,
+      stack: "python",
+      packageManager: "pip",
+      language: "python",
+      framework: "unknown",
+      deployTarget: detectDeployTarget(projectPath),
+    };
+  }
+
+  // ---- Rust ----
+  if (existsSync(join(projectPath, "Cargo.toml"))) {
+    return {
+      name: basename(projectPath),
+      path: projectPath,
+      stack: "rust",
+      packageManager: "cargo",
+      language: "rust",
+      framework: "unknown",
+      deployTarget: detectDeployTarget(projectPath),
+    };
+  }
+
+  // ---- Unknown / polyglot ----
+  return {
+    name: basename(projectPath),
+    path: projectPath,
+    stack: "unknown",
+    packageManager: "unknown",
+    language: "unknown",
+    framework: "unknown",
+    deployTarget: detectDeployTarget(projectPath),
+  };
+}
+
+// ---- Node-specific detection (original logic) ----
+
+async function detectNodeStack(projectPath: string, pkgPath: string): Promise<ProjectMeta> {
   const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
   const deps = { ...pkg.dependencies, ...pkg.devDependencies };
 
@@ -43,12 +103,6 @@ export async function detectStack(projectPath: string): Promise<ProjectMeta> {
   else if (existsSync(join(projectPath, "yarn.lock"))) packageManager = "yarn";
   else if (existsSync(join(projectPath, "package-lock.json"))) packageManager = "npm";
 
-  let deployTarget: string | null = null;
-  if (existsSync(join(projectPath, "vercel.json"))) deployTarget = "vercel";
-  else if (existsSync(join(projectPath, "wrangler.toml"))) deployTarget = "cloudflare";
-  else if (existsSync(join(projectPath, "fly.toml"))) deployTarget = "fly";
-  else if (existsSync(join(projectPath, "Dockerfile"))) deployTarget = "docker";
-
   return {
     name: pkg.name ?? basename(projectPath),
     path: projectPath,
@@ -56,6 +110,35 @@ export async function detectStack(projectPath: string): Promise<ProjectMeta> {
     packageManager,
     language,
     framework,
-    deployTarget,
+    deployTarget: detectDeployTarget(projectPath),
   };
+}
+
+// ---- Go framework detection ----
+
+function detectGoFramework(projectPath: string): string {
+  // Quick check for common Go web frameworks in go.mod
+  try {
+    const goMod = require("fs").readFileSync(join(projectPath, "go.mod"), "utf-8");
+    if (goMod.includes("github.com/gin-gonic/gin")) return "gin";
+    if (goMod.includes("github.com/labstack/echo")) return "echo";
+    if (goMod.includes("github.com/gofiber/fiber")) return "fiber";
+    if (goMod.includes("github.com/gorilla/mux")) return "gorilla-mux";
+    if (goMod.includes("net/http")) return "net-http";
+  } catch {
+    // ignore read errors
+  }
+  return "unknown";
+}
+
+// ---- Deploy target detection (shared) ----
+
+function detectDeployTarget(projectPath: string): string | null {
+  if (existsSync(join(projectPath, "vercel.json"))) return "vercel";
+  if (existsSync(join(projectPath, "wrangler.toml"))) return "cloudflare";
+  if (existsSync(join(projectPath, "fly.toml"))) return "fly";
+  if (existsSync(join(projectPath, "Dockerfile"))) return "docker";
+  if (existsSync(join(projectPath, "docker-compose.yml"))) return "docker";
+  if (existsSync(join(projectPath, "render.yaml"))) return "render";
+  return null;
 }

@@ -15,25 +15,8 @@ export async function runRules(
   const results = await Promise.all(rules.map((r) => Promise.resolve(r.check(model, context))));
   const findings = results.flat();
 
-  if (emitter) {
-    for (const f of findings) {
-      emitter.emitEvent({
-        type: "finding",
-        data: {
-          id: f.id,
-          severity: f.severity,
-          title: f.title,
-          description: f.description,
-          impact: f.impact,
-          file: f.evidence[0]?.file ?? "",
-          line: f.evidence[0]?.line,
-          domain: f.domain,
-          layer: f.layer,
-          remediation: f.remediation,
-        },
-      });
-    }
-  }
+  // NOTE: findings are NOT emitted here. The scan command applies context
+  // suppressions first, then emits the filtered set via emitFindings().
 
   return findings;
 }

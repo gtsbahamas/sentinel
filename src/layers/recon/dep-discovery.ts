@@ -1,9 +1,12 @@
 import { readFile } from "fs/promises";
+import { existsSync } from "fs";
 import { join } from "path";
 import type { Dependency } from "../../model/types.js";
 
 export async function discoverDependencies(projectPath: string): Promise<Dependency[]> {
-  const pkg = JSON.parse(await readFile(join(projectPath, "package.json"), "utf-8"));
+  const pkgPath = join(projectPath, "package.json");
+  if (!existsSync(pkgPath)) return [];
+  const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
   const deps: Dependency[] = [];
 
   const addGroup = (obj: Record<string, string> | undefined, type: Dependency["type"]) => {
