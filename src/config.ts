@@ -5,6 +5,16 @@ import { z } from "zod";
 
 const SeveritySchema = z.enum(["critical", "high", "medium", "low", "info"]);
 
+const VerifyConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  provider: z.enum(["anthropic", "openai", "mock"]).default("anthropic"),
+  model: z.string().default("claude-haiku-4-5"),
+  maxCostUsd: z.number().positive().default(1.0),
+  concurrency: z.number().int().positive().default(4),
+  minSeverity: SeveritySchema.default("medium"),
+  keepDismissed: z.boolean().default(false),
+});
+
 const AIConfigSchema = z.object({
   enabled: z.boolean().default(false),
   provider: z.enum(["anthropic", "openai", "mock"]).default("anthropic"),
@@ -19,6 +29,7 @@ const AIConfigSchema = z.object({
   // context prefix explaining this access model, and post-processing caps
   // severity for "no auth check" style findings on matching routes.
   magicLinkRoutes: z.array(z.string()).default([]),
+  verify: VerifyConfigSchema.default({}),
 });
 
 const ConfigSchema = z.object({
@@ -62,6 +73,15 @@ export const CONFIG_DEFAULTS: SentinelConfig = {
     maxTokensPerEndpoint: 8000,
     concurrency: 3,
     magicLinkRoutes: [],
+    verify: {
+      enabled: false,
+      provider: "anthropic",
+      model: "claude-haiku-4-5",
+      maxCostUsd: 1.0,
+      concurrency: 4,
+      minSeverity: "medium",
+      keepDismissed: false,
+    },
   },
 };
 

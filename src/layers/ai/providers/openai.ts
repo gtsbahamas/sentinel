@@ -74,9 +74,17 @@ export class OpenAIProvider implements AIProvider {
       let rawFindings: unknown[] = [];
       let stopReason: GenerateResponse["stopReason"] = "end_turn";
 
+      // Tool-aware extraction: each known tool has its own top-level array key.
+      const extractionKey = ((): string => {
+        if (request.toolDefinition.name === "report_verdicts") return "verdicts";
+        if (request.toolDefinition.name === "report_project_risks") return "projectRisks";
+        return "findings";
+      })();
+
       try {
-        const parsed = JSON.parse(content) as { findings?: unknown[] };
-        if (Array.isArray(parsed.findings)) rawFindings = parsed.findings;
+        const parsed = JSON.parse(content) as Record<string, unknown>;
+        const arr = parsed[extractionKey];
+        if (Array.isArray(arr)) rawFindings = arr;
       } catch {
         stopReason = "error";
       }

@@ -47,13 +47,25 @@ export class AnthropicProvider implements AIProvider {
 
   async generateFindings(request: GenerateRequest): Promise<GenerateResponse> {
     try {
+      // Only emit a cached projectSummary block when it actually has content.
+      // The verification pass does not use projectSummary (file context lives
+      // in the user prompt), and Anthropic rejects cache_control on empty
+      // text blocks: "system.1: cache_control cannot be set for empty text blocks".
+      const systemBlocks: Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> = [
+        { type: "text", text: request.systemPrompt },
+      ];
+      if (request.projectSummary.length > 0) {
+        systemBlocks.push({
+          type: "text",
+          text: request.projectSummary,
+          cache_control: { type: "ephemeral" },
+        });
+      }
+
       const response = await this.client.messages.create({
         model: this.model,
         max_tokens: request.maxOutputTokens,
-        system: [
-          { type: "text", text: request.systemPrompt },
-          { type: "text", text: request.projectSummary, cache_control: { type: "ephemeral" } },
-        ],
+        system: systemBlocks,
         messages: [{ role: "user", content: request.userPrompt }],
         tools: [
           {
@@ -70,11 +82,22 @@ export class AnthropicProvider implements AIProvider {
       const cacheWrite = response.usage.cache_creation_input_tokens ?? 0;
       const cacheRead = response.usage.cache_read_input_tokens ?? 0;
 
+      // Tool-aware extraction: each known tool has its own top-level array key.
+      // report_findings       → input.findings
+      // report_project_risks  → input.projectRisks
+      // report_verdicts       → input.verdicts
+      const extractionKey = ((): string => {
+        if (request.toolDefinition.name === "report_verdicts") return "verdicts";
+        if (request.toolDefinition.name === "report_project_risks") return "projectRisks";
+        return "findings";
+      })();
+
       const rawFindings: unknown[] = [];
       for (const block of response.content) {
         if (block.type === "tool_use" && block.name === request.toolDefinition.name && block.input) {
-          const input = block.input as { findings?: unknown[] };
-          if (Array.isArray(input.findings)) rawFindings.push(...input.findings);
+          const input = block.input as Record<string, unknown>;
+          const arr = input[extractionKey];
+          if (Array.isArray(arr)) rawFindings.push(...arr);
         }
       }
 

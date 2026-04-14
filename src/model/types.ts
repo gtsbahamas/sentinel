@@ -203,6 +203,68 @@ export interface AIRunResult {
 }
 
 // ============================================================================
+// Verify Layer
+// ============================================================================
+
+// Verification takes rule-layer findings and routes them through an AI pass
+// that sees the surrounding source + ProjectContext and emits a verdict per
+// finding. Dismissed findings are retained in the audit trail but excluded
+// from the terminal summary and exit-code calculation.
+
+export interface VerifyConfig {
+  enabled: boolean;
+  provider: "anthropic" | "openai" | "mock";
+  model: string;
+  maxCostUsd: number;
+  concurrency: number;
+  // Findings below this severity are passed through without verification.
+  // Saves cost on noisy low/info findings the user rarely cares about.
+  minSeverity: Severity;
+  // When true, dismissed findings stay in the final report annotated as
+  // suspected false positives instead of being removed. Trust-building mode.
+  keepDismissed: boolean;
+}
+
+export type VerifyUsage = AIUsage;
+
+export interface Verdict {
+  findingId: string;
+  decision: "confirm" | "dismiss" | "downgrade";
+  reason: string;
+  // Required iff decision === "downgrade".
+  newSeverity?: Severity;
+}
+
+export interface VerifyError {
+  kind: "provider" | "parse" | "budget";
+  message: string;
+  file?: string;
+}
+
+export interface DismissedFinding {
+  finding: Finding;
+  reason: string;
+}
+
+export interface DowngradedFinding {
+  original: Finding;
+  finding: Finding; // severity replaced
+  reason: string;
+}
+
+export interface VerifyResult {
+  confirmed: Finding[];
+  dismissed: DismissedFinding[];
+  downgraded: DowngradedFinding[];
+  usage: VerifyUsage;
+  errors: VerifyError[];
+  budgetExhausted: boolean;
+  filesProcessed: number;
+  findingsProcessed: number;
+  durationMs: number;
+}
+
+// ============================================================================
 // Probe Layer
 // ============================================================================
 

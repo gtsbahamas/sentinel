@@ -1,4 +1,5 @@
 import type { AIConfig, AIError, AIRunResult, ApiEndpoint, Finding, ProjectModel } from "../../model/types.js";
+import type { ProjectContext } from "../context/types.js";
 import type { AIProvider, GenerateRequest } from "./providers/base.js";
 import type { BudgetTracker } from "./budget.js";
 import { buildContext } from "./context-builder.js";
@@ -12,9 +13,10 @@ export async function runOrchestrator(
   provider: AIProvider,
   budget: BudgetTracker,
   priorityOrder?: string[],
+  context?: ProjectContext | null,
 ): Promise<AIRunResult> {
   const start = Date.now();
-  const projectSummary = buildProjectSummary(model);
+  const projectSummary = buildProjectSummary(model, context);
   const findings: Finding[] = [];
   const errors: AIError[] = [];
   let analyzed = 0;
@@ -53,7 +55,14 @@ export async function runOrchestrator(
       }
 
       const isMagicLink = isMagicLinkEndpoint(endpoint, config.magicLinkRoutes);
-      const userPrompt = buildEndpointPrompt(endpoint, ctx.handlerSource, ctx.adjacent, isMagicLink);
+      const userPrompt = buildEndpointPrompt(
+        endpoint,
+        ctx.handlerSource,
+        ctx.adjacent,
+        isMagicLink,
+        context,
+        model.meta.path,
+      );
       const request: GenerateRequest = {
         systemPrompt: SYSTEM_PREAMBLE,
         projectSummary,

@@ -48,6 +48,15 @@ program
     (val: string, prev: string[] = []) => [...prev, val],
     [] as string[],
   )
+  .option("--verify", "Run AI verification pass over rule findings")
+  .option("--verify-model <id>", "Verifier model id")
+  .option("--verify-max-cost <usd>", "Verifier budget cap in USD", parseFloat)
+  .option("--verify-concurrency <n>", "Parallel per-file verifications", parseInt)
+  .option(
+    "--verify-min-severity <level>",
+    "Only verify findings at or above level (critical|high|medium|low|info)",
+  )
+  .option("--no-dismiss", "Keep dismissed findings in the report (trust-building mode)")
   .option("--dashboard", "Open real-time attack surface visualization in browser")
   .option("--port <number>", "Dashboard server port (default: 4400)", parseInt)
   .action(async (rawPath, options) => {
@@ -65,6 +74,12 @@ program
       aiMaxCost: options.aiMaxCost,
       aiConcurrency: options.aiConcurrency,
       aiMagicLinkRoutes: options.aiMagicLink,
+      verify: options.verify,
+      verifyModel: options.verifyModel,
+      verifyMaxCost: options.verifyMaxCost,
+      verifyConcurrency: options.verifyConcurrency,
+      verifyMinSeverity: options.verifyMinSeverity,
+      dismiss: options.dismiss,
       dashboard: !!options.dashboard,
       dashboardPort: options.port,
     });

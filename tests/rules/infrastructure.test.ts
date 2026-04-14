@@ -476,4 +476,86 @@ module.exports = {
     const findings = await runRules(model);
     expect(findings.filter((f) => f.ruleId === "INFRA-010").length).toBe(1);
   });
+
+  // ── INFRA-011: Dynamic NEXT_PUBLIC_* access ──
+  describe("INFRA-011: Dynamic NEXT_PUBLIC_* env access", () => {
+    it("flags computed process.env[name] access in a file that references NEXT_PUBLIC_", async () => {
+      const dir = makeTempProject({
+        "lib/env.ts": `
+          const PUBLIC_KEYS = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"];
+          function get(name: string): string {
+            return process.env[name] ?? "";
+          }
+          export const publicEnv = Object.fromEntries(
+            PUBLIC_KEYS.map((k) => [k, get(k)])
+          );
+        `,
+      });
+      const model = emptyModel({
+        meta: {
+          name: "test", path: dir, stack: "nextjs-supabase",
+          packageManager: "npm", language: "typescript",
+          framework: "nextjs-app", deployTarget: null,
+        },
+      });
+      const findings = await getRule("INFRA-011").check(model);
+      expect(findings.length).toBeGreaterThanOrEqual(1);
+      expect(findings[0].severity).toBe("high");
+    });
+
+    it("does not flag static process.env.NEXT_PUBLIC_FOO access", async () => {
+      const dir = makeTempProject({
+        "lib/env.ts": `
+          export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          export const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        `,
+      });
+      const model = emptyModel({
+        meta: {
+          name: "test", path: dir, stack: "nextjs-supabase",
+          packageManager: "npm", language: "typescript",
+          framework: "nextjs-app", deployTarget: null,
+        },
+      });
+      const findings = await getRule("INFRA-011").check(model);
+      expect(findings.length).toBe(0);
+    });
+
+    it("does not flag string-literal bracket access (Next.js does inline this)", async () => {
+      const dir = makeTempProject({
+        "lib/env.ts": `
+          export const URL = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+        `,
+      });
+      const model = emptyModel({
+        meta: {
+          name: "test", path: dir, stack: "nextjs-supabase",
+          packageManager: "npm", language: "typescript",
+          framework: "nextjs-app", deployTarget: null,
+        },
+      });
+      const findings = await getRule("INFRA-011").check(model);
+      expect(findings.length).toBe(0);
+    });
+
+    it("does not flag computed access in files that do not mention NEXT_PUBLIC_", async () => {
+      const dir = makeTempProject({
+        "server/config.ts": `
+          function getEnv(name: string): string {
+            return process.env[name] ?? "";
+          }
+          export const DATABASE_URL = getEnv("DATABASE_URL");
+        `,
+      });
+      const model = emptyModel({
+        meta: {
+          name: "test", path: dir, stack: "nextjs-supabase",
+          packageManager: "npm", language: "typescript",
+          framework: "nextjs-app", deployTarget: null,
+        },
+      });
+      const findings = await getRule("INFRA-011").check(model);
+      expect(findings.length).toBe(0);
+    });
+  });
 });
