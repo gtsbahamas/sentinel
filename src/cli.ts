@@ -3,10 +3,12 @@ import { Command } from "commander";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { resolveTarget } from "./resolve-target.js";
 import { runScan } from "./commands/scan.js";
 import { runDiff } from "./commands/diff.js";
 import { runProbeCommand } from "./commands/probe.js";
 import { runContextCommand } from "./commands/context.js";
+import { runFixCommand } from "./commands/fix.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgPath = join(__dirname, "..", "package.json");
@@ -29,7 +31,7 @@ function exitAfterDrain(code: number): void {
 program
   .command("scan")
   .description("Run Recon + Rules (+ AI) scan against a project")
-  .argument("<path>", "Path to the project to scan")
+  .argument("<path>", "Path or GitHub URL (e.g. https://github.com/user/repo)")
   .option("-f, --format <format>", "Output format (terminal|json|html)", "terminal")
   .option("-o, --out <file>", "Write report to file instead of stdout")
   .option("--fail-on <level>", "Exit 1 if findings at or above level")
@@ -48,7 +50,8 @@ program
   )
   .option("--dashboard", "Open real-time attack surface visualization in browser")
   .option("--port <number>", "Dashboard server port (default: 4400)", parseInt)
-  .action(async (path, options) => {
+  .action(async (rawPath, options) => {
+    const path = await resolveTarget(rawPath);
     const exitCode = await runScan({
       path,
       format: options.format,
@@ -127,6 +130,39 @@ program
       show: options.show,
       acceptDefaults: options.acceptDefaults,
       only: options.only,
+    });
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("fix")
+  .description("Apply automated fixes to findings from a scan")
+  .argument("<path>", "Path to the project to fix")
+  .option("--from <file>", "Load findings from a JSON report file instead of re-scanning")
+  .option(
+    "--rule <id>",
+    "Only fix findings for specific rule ID (repeatable)",
+    (val: string, prev: string[] = []) => [...prev, val],
+    [] as string[],
+  )
+  .option("--dry-run", "Show what would be changed without writing files")
+  .option("--no-ai", "Skip AI-powered fixes (deterministic fixes only)")
+  .option("--ai-provider <name>", "AI provider (anthropic|openai|mock)")
+  .option("--ai-model <id>", "AI model id")
+  .option("--ai-max-cost <usd>", "Hard budget cap in USD for AI fixes", parseFloat)
+  .option("--ai-concurrency <n>", "Parallel AI fix requests", parseInt)
+  .action(async (rawPath, options) => {
+    const path = await resolveTarget(rawPath);
+    const exitCode = await runFixCommand({
+      path,
+      from: options.from,
+      rule: options.rule,
+      dryRun: options.dryRun,
+      noAI: !options.ai, // commander converts --no-ai to options.ai = false
+      aiProvider: options.aiProvider,
+      aiModel: options.aiModel,
+      aiMaxCost: options.aiMaxCost,
+      aiConcurrency: options.aiConcurrency,
     });
     exitAfterDrain(exitCode);
   });
