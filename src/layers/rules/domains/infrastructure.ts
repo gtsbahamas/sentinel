@@ -468,6 +468,56 @@ export const infrastructureRules: SecurityRule[] = [
       return findings;
     },
   },
+
+  {
+    id: "INFRA-011",
+    domain: "infrastructure",
+    title: "Dynamic access to NEXT_PUBLIC_* env var (will be undefined in client bundle)",
+    description:
+      "process.env is accessed with a computed key in a file that references NEXT_PUBLIC_ vars. Next.js only inlines NEXT_PUBLIC_* values at build time when they appear as static literal property accesses (process.env.NEXT_PUBLIC_FOO). Computed access returns undefined in the client bundle.",
+    impact:
+      "At runtime in the browser, the env var resolves to undefined and any code that depends on it crashes. This typically shows up as a white screen on the first client render — the whole page breaks, not just the feature using the var. It builds cleanly and passes typecheck, so it ships silently to production.",
+    severity: "high",
+    appliesTo: ["nextjs-supabase"],
+    references: { cwe: "CWE-1188" },
+    async check(model) {
+      const findings: Finding[] = [];
+      const files = await walkSourceFiles(model);
+      for (const { file, source } of files) {
+        // Only flag files that actually deal with NEXT_PUBLIC_* vars.
+        // Server-only modules that use computed process.env[name] for
+        // private vars are fine and must not trip this rule.
+        if (!source.includes("NEXT_PUBLIC_")) continue;
+
+        const lines = source.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (isCommentLine(line)) continue;
+          // Match computed access: process.env[...] where ... is not a
+          // literal string ending in a static identifier. We match the
+          // bracket form specifically — process.env.NEXT_PUBLIC_FOO is fine.
+          if (!/process\.env\s*\[/.test(line)) continue;
+          // Skip the benign case where the key is a single string literal
+          // (e.g., process.env["NEXT_PUBLIC_FOO"]). Next.js does inline
+          // string-literal brackets. The dangerous form is variable keys.
+          if (/process\.env\s*\[\s*['"`][A-Z0-9_]+['"`]\s*\]/.test(line)) continue;
+          findings.push(
+            mkFinding(
+              "INFRA-011",
+              "high",
+              "Dynamic process.env[key] access for NEXT_PUBLIC_* var",
+              "Next.js inlines NEXT_PUBLIC_* vars at build time only when accessed as static property references. Computed bracket access with a variable key is not statically analyzable, so the bundler leaves it as-is and the value resolves to undefined at runtime in the browser.",
+              "At runtime in the browser, the env var resolves to undefined and any code that depends on it crashes. This typically shows up as a white screen on the first client render — the whole page breaks, not just the feature using the var. It builds cleanly and passes typecheck, so it ships silently to production.",
+              "Replace the computed access with a direct static reference: `process.env.NEXT_PUBLIC_SUPABASE_URL` instead of `process.env[name]` or `process.env[key]`. Export each public var individually from your env module as its own static constant.",
+              [{ file, line: i + 1, snippet: line.trim() }],
+              { cwe: "CWE-1188" },
+            ),
+          );
+        }
+      }
+      return findings;
+    },
+  },
 ];
 
 // Touch-test to make sure parseEnvFile/readEnvFile are exported; some
