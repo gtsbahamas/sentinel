@@ -336,7 +336,7 @@ export async function runFixCommand(options: FixCommandOptions): Promise<number>
 
     let findings: Finding[];
     try {
-      findings = await acquireFindings(options);
+      findings = await acquireFindings(options, emitter ?? undefined);
     } catch (err) {
       process.stderr.write(`Error acquiring findings: ${err instanceof Error ? err.message : String(err)}\n`);
       exitCode = 1;
