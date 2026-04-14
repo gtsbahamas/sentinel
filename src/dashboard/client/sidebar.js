@@ -126,10 +126,12 @@ function renderSummary() {
     });
   });
 
-  // Count totals from raw findings
+  // Count totals from raw findings (exclude fixed findings in converge mode)
   state.findings.forEach(function(f) {
     if (totals[f.severity] !== undefined) {
-      totals[f.severity]++;
+      if (!state.isConverge || f.fixStatus !== 'fixed') {
+        totals[f.severity]++;
+      }
     }
   });
 

@@ -81,6 +81,33 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
     if (!Array.isArray(parsed.findings)) {
       throw new Error(`Report file does not contain a 'findings' array: ${reportPath}`);
     }
+
+    // Emit synthetic recon events from findings so the dashboard graph populates
+    if (emitter) {
+      const seenFiles = new Set<string>();
+      for (const f of parsed.findings) {
+        const file = f.evidence?.[0]?.file;
+        if (!file || seenFiles.has(file)) continue;
+        seenFiles.add(file);
+
+        // Classify as API route vs frontend route based on file path
+        const isApi = /\/(api|routes?|server|middleware|edge-functions?|functions?)\//.test(file)
+          || /route\.(ts|js)$/.test(file);
+
+        if (isApi) {
+          emitter.emitEvent({
+            type: "recon:endpoint",
+            data: { path: file, method: "GET", file, hasValidation: false, hasAuthCheck: false, usesServiceRole: false },
+          });
+        } else {
+          emitter.emitEvent({
+            type: "recon:route",
+            data: { path: file, method: "GET", file, isApi: false, hasAuthCheck: false },
+          });
+        }
+      }
+    }
+
     return parsed.findings;
   }
 

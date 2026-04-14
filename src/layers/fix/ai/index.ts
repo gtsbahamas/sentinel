@@ -79,7 +79,7 @@ async function callAIForFix(
     }
     try {
       const Anthropic = require("@anthropic-ai/sdk").default;
-      const client = new Anthropic({ apiKey });
+      const client = new Anthropic({ apiKey, timeout: 90_000 });
       const response = await client.messages.create({
         model: config.model,
         max_tokens: 8192,
@@ -101,7 +101,7 @@ async function callAIForFix(
     }
     try {
       const OpenAI = require("openai").default;
-      const client = new OpenAI({ apiKey });
+      const client = new OpenAI({ apiKey, timeout: 90_000 });
       const response = await client.chat.completions.create({
         model: config.model,
         messages: [
