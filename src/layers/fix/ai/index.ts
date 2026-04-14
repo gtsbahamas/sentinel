@@ -8,6 +8,32 @@ import { validateAIResponse } from "./validator.js";
 
 const require = createRequire(import.meta.url);
 
+/**
+ * Strip markdown code fences and preamble text from AI responses.
+ * Some models return "Looking at the code..." followed by ```ts\n...\n```
+ * instead of raw file content as instructed.
+ */
+function stripMarkdownFences(text: string): string {
+  // Try to extract content from a markdown code block
+  const fenceMatch = text.match(/```(?:typescript|ts|javascript|js)?\s*\n([\s\S]*?)```\s*$/);
+  if (fenceMatch) {
+    return fenceMatch[1].trimEnd();
+  }
+  // No fences found — check if there's preamble text before actual code
+  // (AI sometimes writes explanation then raw code without fences)
+  const lines = text.split("\n");
+  const firstImportIdx = lines.findIndex((l) => /^import\s/.test(l.trim()));
+  if (firstImportIdx > 0) {
+    // Check if lines before the first import look like prose (not code)
+    const preamble = lines.slice(0, firstImportIdx).join("\n").trim();
+    const looksLikeProse = !preamble.includes("import ") && !preamble.includes("export ") && !preamble.startsWith("//");
+    if (looksLikeProse) {
+      return lines.slice(firstImportIdx).join("\n").trimEnd();
+    }
+  }
+  return text;
+}
+
 export interface AIFixOptions {
   aiConfig: AIConfig;
   dryRun?: boolean;
@@ -170,6 +196,11 @@ export async function runAIFixes(
 
       const userPrompt = template.buildUserPrompt(currentContent, groupFindings);
       const result = await callAIForFix(template.system, userPrompt, options.aiConfig);
+
+      // Strip markdown fences / preamble that models sometimes add despite instructions
+      if (result.text) {
+        result.text = stripMarkdownFences(result.text);
+      }
 
       if (result.error || !result.text) {
         for (const finding of groupFindings) {
