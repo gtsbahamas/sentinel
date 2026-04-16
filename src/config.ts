@@ -7,7 +7,7 @@ const SeveritySchema = z.enum(["critical", "high", "medium", "low", "info"]);
 
 const VerifyConfigSchema = z.object({
   enabled: z.boolean().default(false),
-  provider: z.enum(["anthropic", "openai", "mock"]).default("anthropic"),
+  provider: z.enum(["anthropic", "openai", "ollama", "mock"]).default("anthropic"),
   model: z.string().default("claude-haiku-4-5"),
   maxCostUsd: z.number().positive().default(1.0),
   concurrency: z.number().int().positive().default(4),
@@ -17,8 +17,9 @@ const VerifyConfigSchema = z.object({
 
 const AIConfigSchema = z.object({
   enabled: z.boolean().default(false),
-  provider: z.enum(["anthropic", "openai", "mock"]).default("anthropic"),
+  provider: z.enum(["anthropic", "openai", "ollama", "mock"]).default("anthropic"),
   model: z.string().default("claude-sonnet-4-6"),
+  baseUrl: z.string().url().optional(),
   deep: z.boolean().default(false),
   maxCostUsd: z.number().positive().default(2.0),
   maxTokensPerEndpoint: z.number().int().positive().default(8000),

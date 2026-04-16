@@ -5,6 +5,7 @@ import type { ScanEventEmitter } from "../../dashboard/events.js";
 import { MockProvider } from "./providers/mock.js";
 import { AnthropicProvider, ANTHROPIC_PRICING } from "./providers/anthropic.js";
 import { OpenAIProvider, OPENAI_PRICING } from "./providers/openai.js";
+import { OllamaProvider, OLLAMA_PRICING, OLLAMA_DEFAULT_BASE_URL, OLLAMA_DEFAULT_MODEL } from "./providers/ollama.js";
 import { BudgetTracker, type ProviderPricing } from "./budget.js";
 import { runOrchestrator } from "./orchestrator.js";
 import { runStageA } from "./stage-a.js";
@@ -77,6 +78,14 @@ function createProvider(config: AIConfig): AIProvider {
     const client = new OpenAI({ apiKey });
     return new OpenAIProvider(config.model, client);
   }
+  if (config.provider === "ollama") {
+    const OpenAI = require("openai").default;
+    const baseURL = config.baseUrl ?? OLLAMA_DEFAULT_BASE_URL;
+    const model = config.model === "claude-sonnet-4-6" ? OLLAMA_DEFAULT_MODEL : config.model;
+    // Ollama needs no real API key but the OpenAI SDK requires one.
+    const client = new OpenAI({ apiKey: "ollama", baseURL });
+    return new OllamaProvider(model, client);
+  }
   throw new Error(`Unknown AI provider: ${config.provider}`);
 }
 
@@ -86,6 +95,9 @@ function pricingFor(config: AIConfig): ProviderPricing {
   }
   if (config.provider === "openai") {
     return OPENAI_PRICING[config.model] ?? OPENAI_PRICING["gpt-5"];
+  }
+  if (config.provider === "ollama") {
+    return OLLAMA_PRICING;
   }
   return { inputPerMTokUsd: 0, outputPerMTokUsd: 0, cacheReadPerMTokUsd: 0, cacheWritePerMTokUsd: 0 };
 }

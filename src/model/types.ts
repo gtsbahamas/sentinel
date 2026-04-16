@@ -150,8 +150,9 @@ export interface ProjectModel {
 
 export interface AIConfig {
   enabled: boolean;
-  provider: "anthropic" | "openai" | "mock";
+  provider: "anthropic" | "openai" | "ollama" | "mock";
   model: string;
+  baseUrl?: string;
   deep: boolean;
   maxCostUsd: number;
   maxTokensPerEndpoint: number;
@@ -213,7 +214,7 @@ export interface AIRunResult {
 
 export interface VerifyConfig {
   enabled: boolean;
-  provider: "anthropic" | "openai" | "mock";
+  provider: "anthropic" | "openai" | "ollama" | "mock";
   model: string;
   maxCostUsd: number;
   concurrency: number;

@@ -2,7 +2,7 @@ import type { AIUsage } from "../../../model/types.js";
 import type { TokenEstimate } from "../budget.js";
 
 export interface AIProvider {
-  readonly name: "anthropic" | "openai" | "mock";
+  readonly name: "anthropic" | "openai" | "ollama" | "mock";
   generateFindings(request: GenerateRequest): Promise<GenerateResponse>;
   estimateTokens(request: GenerateRequest): TokenEstimate;
 }

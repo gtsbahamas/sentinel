@@ -34,7 +34,7 @@ export interface ScanOptions extends VerifyOptions {
   ai?: boolean;
   aiDeep?: boolean;
   aiDryRun?: boolean;
-  aiProvider?: "anthropic" | "openai" | "mock";
+  aiProvider?: "anthropic" | "openai" | "ollama" | "mock";
   aiModel?: string;
   aiMaxCost?: number;
   aiConcurrency?: number;
@@ -49,6 +49,7 @@ export interface ScanOptions extends VerifyOptions {
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-6",
   openai: "gpt-5",
+  ollama: "qwen3-coder-next",
   mock: "mock",
 };
 
@@ -70,6 +71,7 @@ function mergeAIConfig(config: SentinelConfig, options: ScanOptions): AIConfig {
     maxCostUsd: options.aiMaxCost ?? config.ai.maxCostUsd,
     maxTokensPerEndpoint: config.ai.maxTokensPerEndpoint,
     concurrency: options.aiConcurrency ?? config.ai.concurrency,
+    baseUrl: config.ai.baseUrl,
     dryRun: options.aiDryRun ?? false,
     // CLI-supplied globs append to (not replace) the config. Deduplicate so
     // users passing overlapping patterns on the CLI + config don't pay twice.

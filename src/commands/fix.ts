@@ -34,7 +34,7 @@ export interface FixCommandOptions {
   rule?: string[];
   dryRun?: boolean;
   noAI?: boolean;
-  aiProvider?: "anthropic" | "openai" | "mock";
+  aiProvider?: "anthropic" | "openai" | "ollama" | "mock";
   aiModel?: string;
   aiMaxCost?: number;
   aiConcurrency?: number;
@@ -166,11 +166,12 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
   return findings;
 }
 
-function buildAIConfig(options: FixCommandOptions, baseProvider: "anthropic" | "openai" | "mock"): AIConfig {
+function buildAIConfig(options: FixCommandOptions, baseProvider: "anthropic" | "openai" | "ollama" | "mock"): AIConfig {
   const provider = options.aiProvider ?? baseProvider;
   const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
     anthropic: "claude-sonnet-4-6",
     openai: "gpt-5",
+    ollama: "qwen3-coder-next",
     mock: "mock",
   };
   return {
