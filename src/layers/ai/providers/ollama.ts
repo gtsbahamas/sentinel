@@ -10,7 +10,8 @@ export const OLLAMA_PRICING: ProviderPricing = {
 };
 
 export const OLLAMA_DEFAULT_BASE_URL = "http://192.168.1.90:11434/v1";
-export const OLLAMA_DEFAULT_MODEL = "qwen3-coder-next";
+export const OLLAMA_DEFAULT_MODEL = "llama3.1:8b";
+export const OLLAMA_DEEP_MODEL = "qwen2.5:14b";
 
 /**
  * OpenAI-compatible interface — only the subset we use.

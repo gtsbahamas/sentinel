@@ -9,11 +9,85 @@ export interface EndpointContext {
 }
 
 const CHARS_PER_TOKEN = 4;
-const MAX_ADJACENT = 5;
-const MAX_IMPORT_DEPTH = 2;
+const MAX_ADJACENT = 3;
+const MAX_IMPORT_DEPTH = 1;
 
 function approxTokens(s: string): number {
   return Math.ceil(s.length / CHARS_PER_TOKEN);
+}
+
+/**
+ * Extract only the route handler function(s) from a Next.js App Router file.
+ * Looks for exported GET/POST/PUT/DELETE/PATCH functions and returns just those,
+ * plus any import statements (for context on what libraries are used).
+ * Falls back to the full source if no handlers are found (e.g. Express/non-Next).
+ */
+function extractHandlers(source: string): string {
+  const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+  const lines = source.split("\n");
+
+  // Collect import lines (small, useful context for the LLM)
+  const importLines: string[] = [];
+  const handlerRanges: Array<[number, number]> = [];
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Collect imports
+    if (/^\s*import\s/.test(line)) {
+      // Handle multi-line imports
+      let importEnd = i;
+      if (!line.includes("from") || (!line.trimEnd().endsWith(";") && !line.trimEnd().endsWith("'"))) {
+        while (importEnd < lines.length - 1 && !lines[importEnd].includes("from")) {
+          importEnd++;
+        }
+      }
+      for (let j = i; j <= importEnd; j++) importLines.push(lines[j]);
+      i = importEnd + 1;
+      continue;
+    }
+
+    // Detect exported handler functions: export async function GET(
+    // or export const GET = ...
+    const exportMatch = line.match(
+      new RegExp(`^\\s*export\\s+(?:async\\s+)?(?:function|const)\\s+(${HTTP_METHODS.join("|")})\\b`),
+    );
+    if (exportMatch) {
+      // Find the end of this function by tracking brace depth
+      let depth = 0;
+      let started = false;
+      let end = i;
+      for (let j = i; j < lines.length; j++) {
+        for (const ch of lines[j]) {
+          if (ch === "{") { depth++; started = true; }
+          if (ch === "}") depth--;
+        }
+        if (started && depth <= 0) {
+          end = j;
+          break;
+        }
+      }
+      handlerRanges.push([i, end]);
+      i = end + 1;
+      continue;
+    }
+
+    i++;
+  }
+
+  // If we found handlers, return only imports + handlers (much smaller)
+  if (handlerRanges.length > 0) {
+    const parts = [importLines.join("\n"), ""];
+    for (const [start, end] of handlerRanges) {
+      parts.push(lines.slice(start, end + 1).join("\n"));
+      parts.push("");
+    }
+    return parts.join("\n").trim();
+  }
+
+  // Fallback: return full source (Express, Pages Router, etc.)
+  return source;
 }
 
 const IMPORT_RE = /import\s+(?:[\w{}*,\s]+from\s+)?["']([^"']+)["']/g;
@@ -67,7 +141,8 @@ export async function buildContext(
 
   let handlerSource: string;
   try {
-    handlerSource = await readFile(endpoint.file, "utf-8");
+    const fullSource = await readFile(endpoint.file, "utf-8");
+    handlerSource = extractHandlers(fullSource);
   } catch {
     return null;
   }

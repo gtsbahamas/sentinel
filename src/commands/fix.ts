@@ -171,7 +171,7 @@ function buildAIConfig(options: FixCommandOptions, baseProvider: "anthropic" | "
   const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
     anthropic: "claude-sonnet-4-6",
     openai: "gpt-5",
-    ollama: "qwen3-coder-next",
+    ollama: "llama3.1:8b",
     mock: "mock",
   };
   return {

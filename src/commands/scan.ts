@@ -49,7 +49,14 @@ export interface ScanOptions extends VerifyOptions {
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-6",
   openai: "gpt-5",
-  ollama: "qwen3-coder-next",
+  ollama: "llama3.1:8b",
+  mock: "mock",
+};
+
+const PROVIDER_DEEP_MODELS: Record<string, string> = {
+  anthropic: "claude-sonnet-4-6",
+  openai: "gpt-5",
+  ollama: "qwen2.5:14b",
   mock: "mock",
 };
 
@@ -59,9 +66,11 @@ function mergeAIConfig(config: SentinelConfig, options: ScanOptions): AIConfig {
   // the config.ai.model default (Anthropic-flavored) would be sent to the
   // wrong provider. Fall through to the provider's native default instead.
   const providerChanged = options.aiProvider && options.aiProvider !== config.ai.provider;
+  const isDeep = options.aiDeep ?? config.ai.deep;
+  const defaultModels = isDeep ? PROVIDER_DEEP_MODELS : PROVIDER_DEFAULT_MODELS;
   const model =
     options.aiModel ??
-    (providerChanged ? PROVIDER_DEFAULT_MODELS[provider] ?? config.ai.model : config.ai.model);
+    (providerChanged ? defaultModels[provider] ?? config.ai.model : config.ai.model);
 
   return {
     enabled: options.ai ?? config.ai.enabled,
