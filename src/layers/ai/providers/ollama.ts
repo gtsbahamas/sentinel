@@ -68,12 +68,41 @@ export class OllamaProvider implements AIProvider {
         return "findings";
       })();
 
-      const jsonInstruction = [
-        "\n\n---",
-        `Respond ONLY with a valid JSON object matching the tool "${request.toolDefinition.name}".`,
-        `The top-level key must be "${extractionKey}" containing an array.`,
-        "Do NOT wrap the JSON in markdown code fences. Output raw JSON only.",
-      ].join("\n");
+      const DOMAINS = [
+        "secrets-exposure", "input-injection", "auth-access-control", "file-upload",
+        "api-security", "cryptography", "supply-chain", "infrastructure",
+        "business-logic", "logging-monitoring",
+      ];
+
+      const jsonInstruction = extractionKey === "findings"
+        ? [
+            "\n\n---",
+            `Respond ONLY with a valid JSON object. The top-level key must be "findings" containing an array.`,
+            "Do NOT wrap the JSON in markdown code fences. Output raw JSON only.",
+            "",
+            "Each finding MUST have ALL of these fields (missing fields = rejected):",
+            `  "ruleId": string matching AI-CATEGORY-NNN (e.g. "AI-AUTH-001")`,
+            `  "domain": one of: ${DOMAINS.map(d => `"${d}"`).join(", ")}`,
+            `  "severity": one of: "critical", "high", "medium", "low", "info"`,
+            `  "confidence": one of: "high", "medium", "low"`,
+            `  "title": string (10-200 chars)`,
+            `  "description": string (20-2000 chars)`,
+            `  "evidence": array of {"file": string, "line": number, "snippet": string}`,
+            `  "impact": string (10-1000 chars)`,
+            `  "remediation": string (20-1000 chars, specific fix instructions)`,
+            `  "reasoning": string (20-2000 chars, your analysis)`,
+            "",
+            "If no issues found, return: {\"findings\": []}",
+          ].join("\n")
+        : [
+            "\n\n---",
+            `Respond ONLY with a valid JSON object matching the tool "${request.toolDefinition.name}".`,
+            `The top-level key must be "${extractionKey}" containing an array.`,
+            extractionKey === "projectRisks"
+              ? `Each risk MUST have: "domain" (one of: ${DOMAINS.map(d => `"${d}"`).join(", ")}), "description", "affectedEndpoints" (array of path strings), "severity" (critical|high|medium|low|info). Also include a "priorityOrder" array of endpoint paths sorted most-risky first.`
+              : "",
+            "Do NOT wrap the JSON in markdown code fences. Output raw JSON only.",
+          ].join("\n");
 
       const response = await this.client.chat.completions.create({
         model: this.model,
@@ -94,7 +123,31 @@ export class OllamaProvider implements AIProvider {
         const cleaned = content.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
         const parsed = JSON.parse(cleaned) as Record<string, unknown>;
         const arr = parsed[extractionKey];
-        if (Array.isArray(arr)) rawFindings = arr;
+        if (Array.isArray(arr)) {
+          // Patch up common Ollama omissions: infer domain from ruleId category
+          rawFindings = arr.map((f: unknown) => {
+            if (f && typeof f === "object" && !("domain" in (f as Record<string, unknown>))) {
+              const obj = f as Record<string, unknown>;
+              const ruleId = typeof obj.ruleId === "string" ? obj.ruleId : "";
+              const cat = ruleId.replace(/^AI-/, "").replace(/-\d{3}$/, "").toLowerCase();
+              const domainMap: Record<string, string> = {
+                auth: "auth-access-control", idor: "auth-access-control",
+                inject: "input-injection", input: "input-injection", xss: "input-injection", sqli: "input-injection",
+                secret: "secrets-exposure", secrets: "secrets-exposure", cred: "secrets-exposure",
+                upload: "file-upload", file: "file-upload",
+                api: "api-security", rate: "api-security", ratelimit: "api-security",
+                crypto: "cryptography", tls: "cryptography",
+                supply: "supply-chain", dep: "supply-chain",
+                infra: "infrastructure", csp: "infrastructure", header: "infrastructure",
+                biz: "business-logic", logic: "business-logic",
+                log: "logging-monitoring", monitor: "logging-monitoring", error: "logging-monitoring",
+                info: "logging-monitoring",
+              };
+              obj.domain = domainMap[cat] ?? "api-security";
+            }
+            return f;
+          });
+        }
       } catch {
         stopReason = "error";
       }
