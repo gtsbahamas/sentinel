@@ -43,8 +43,12 @@ Return the complete fixed file content only.`;
   },
 };
 
-const AUTH_002_TEMPLATE: PromptTemplate = {
-  id: "AUTH-002",
+// AUTH-001: Mutation endpoint without auth check.
+// Adds supabase.auth.getUser() guard to POST/PUT/PATCH/DELETE handlers.
+// (This template was previously mislabeled as AUTH-002; AUTH-002 is about RLS
+// migrations on DB tables, not handler auth checks.)
+const AUTH_001_TEMPLATE: PromptTemplate = {
+  id: "AUTH-001",
   system: SYSTEM_BASE,
   buildUserPrompt(fileContent: string, findings: Finding[]): string {
     const locations = findings
@@ -124,7 +128,7 @@ Return the complete fixed file content only.`;
   },
 };
 
-const TEMPLATES: PromptTemplate[] = [INPUT_005_TEMPLATE, AUTH_002_TEMPLATE, API_004_TEMPLATE];
+const TEMPLATES: PromptTemplate[] = [INPUT_005_TEMPLATE, AUTH_001_TEMPLATE, API_004_TEMPLATE];
 
 export function getPromptTemplate(id: string): PromptTemplate | undefined {
   return TEMPLATES.find((t) => t.id === id);

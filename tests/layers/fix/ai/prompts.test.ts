@@ -27,10 +27,10 @@ describe("getPromptTemplate", () => {
     expect(template?.id).toBe("INPUT-005");
   });
 
-  it("returns a template for AUTH-002", () => {
-    const template = getPromptTemplate("AUTH-002");
+  it("returns a template for AUTH-001", () => {
+    const template = getPromptTemplate("AUTH-001");
     expect(template).toBeDefined();
-    expect(template?.id).toBe("AUTH-002");
+    expect(template?.id).toBe("AUTH-001");
   });
 
   it("returns a template for API-004", () => {
@@ -53,10 +53,10 @@ describe("getPromptTemplate", () => {
     expect(prompt).toContain(fileContent);
   });
 
-  it("AUTH-002 prompt includes file content", () => {
-    const template = getPromptTemplate("AUTH-002")!;
+  it("AUTH-001 prompt includes file content", () => {
+    const template = getPromptTemplate("AUTH-001")!;
     const fileContent = `export async function GET(req: Request) { return Response.json({}); }`;
-    const findings = [makeFinding("AUTH-002")];
+    const findings = [makeFinding("AUTH-001")];
     const prompt = template.buildUserPrompt(fileContent, findings);
     expect(prompt).toContain(fileContent);
   });
@@ -78,15 +78,15 @@ describe("getPromptTemplate", () => {
   });
 
   it("all templates have a non-empty system prompt", () => {
-    for (const id of ["INPUT-005", "AUTH-002", "API-004"]) {
+    for (const id of ["INPUT-005", "AUTH-001", "API-004"]) {
       const template = getPromptTemplate(id)!;
       expect(template.system.trim().length).toBeGreaterThan(0);
     }
   });
 
-  it("AUTH-002 prompt mentions Supabase auth", () => {
-    const template = getPromptTemplate("AUTH-002")!;
-    const prompt = template.buildUserPrompt("content", [makeFinding("AUTH-002")]);
+  it("AUTH-001 prompt mentions Supabase auth", () => {
+    const template = getPromptTemplate("AUTH-001")!;
+    const prompt = template.buildUserPrompt("content", [makeFinding("AUTH-001")]);
     expect(prompt.toLowerCase()).toContain("supabase");
     expect(prompt).toContain("401");
   });

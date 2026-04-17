@@ -45,7 +45,7 @@ export interface FixCommandOptions {
   emitter?: ScanEventEmitter;
 }
 
-const AI_RULE_IDS = ["INPUT-005", "AUTH-002", "API-004"];
+const AI_RULE_IDS = ["INPUT-005", "AUTH-001", "API-004"];
 
 function registerAllFixers(): void {
   resetFixerRegistry();

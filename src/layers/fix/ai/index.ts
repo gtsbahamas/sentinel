@@ -243,6 +243,23 @@ async function fixSingleFile(
       continue;
     }
 
+    // Validation passed, but if the AI returned the file unchanged, nothing
+    // was actually fixed — the model couldn't find a real change to make.
+    // Report as skipped so "fixed" counts reflect actual file modifications.
+    if (result.text === currentContent) {
+      for (const finding of groupFindings) {
+        attempts.push({
+          findingId: finding.id,
+          ruleId: finding.ruleId ?? promptId,
+          file: filePath,
+          strategy: "ai",
+          status: "skipped",
+          reason: "AI returned unchanged content (no-op — prompt may not match rule)",
+        });
+      }
+      continue;
+    }
+
     // Patch accepted — update current content and mark as fixed
     currentContent = result.text;
     for (const finding of groupFindings) {
