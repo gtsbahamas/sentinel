@@ -82,10 +82,13 @@ async function callAIForFix(
       const client = new Anthropic({ apiKey, timeout: 90_000 });
       const response = await client.messages.create({
         model: config.model,
-        max_tokens: 8192,
+        max_tokens: 16384,
         system,
         messages: [{ role: "user", content: userPrompt }],
       });
+      if (response.stop_reason === "max_tokens") {
+        return { text: "", error: "AI output truncated (stop_reason=max_tokens). Raise max_tokens or split the fix." };
+      }
       const textBlock = response.content.find((b: { type: string }) => b.type === "text");
       const text = (textBlock as { type: "text"; text: string } | undefined)?.text ?? "";
       return { text };
@@ -108,8 +111,11 @@ async function callAIForFix(
           { role: "system", content: system },
           { role: "user", content: userPrompt },
         ],
-        max_completion_tokens: 8192,
+        max_completion_tokens: 16384,
       });
+      if (response.choices[0]?.finish_reason === "length") {
+        return { text: "", error: "AI output truncated (finish_reason=length). Raise max_completion_tokens or split the fix." };
+      }
       const text = response.choices[0]?.message?.content ?? "";
       return { text };
     } catch (err) {

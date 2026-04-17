@@ -97,4 +97,63 @@ function helper() { return 1; }
     const result = validateAIResponse(noExportOriginal, noExportPatched);
     expect(result.valid).toBe(true);
   });
+
+  it("rejects SQL migration truncated mid-statement (regression: mobilego 2026-04-16)", () => {
+    const originalSql = `CREATE POLICY authenticated_select_kiosk_alerts ON kiosk_alerts
+    FOR ALL TO authenticated USING (auth.role() = 'authenticated');
+
+CREATE POLICY authenticated_select_kiosks_empty_log ON kiosks_empty_log
+    FOR ALL TO authenticated USING (auth.role() = 'authenticated');
+
+CREATE POLICY authenticated_select_failed_jobs ON failed_jobs
+    FOR ALL TO authenticated USING (auth.role() = 'authenticated');
+
+CREATE POLICY authenticated_select_email_logs ON email_logs
+    FOR ALL TO authenticated USING (auth.role() = 'authenticated');
+
+CREATE POLICY authenticated_select_main_menu_options ON main_menu_options
+    FOR ALL TO authenticated USING (auth.role() = 'authenticated');
+
+CREATE POLICY authenticated_select_credit_code_types ON credit_code_types
+    FOR ALL TO authenticated USING (auth.role() = 'authenticated');`;
+    // Truncated mid-statement — Opus 4.7 hit max_tokens and cut off here
+    const truncatedSql = `CREATE POLICY authenticated_select_kiosk_alerts ON kiosk_alerts
+    FOR ALL TO authenticated USING (auth.role() = 'authenticated');
+
+CREATE POLICY authenticated_select_kiosks_empty_log ON kiosks_empty`;
+    const result = validateAIResponse(originalSql, truncatedSql);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toMatch(/truncat/);
+  });
+
+  it("rejects TS patch with unbalanced braces", () => {
+    const originalTs = `export function greet(name: string) {
+  if (name) {
+    return \`hello \${name}\`;
+  }
+  return "hello";
+}
+`;
+    // Closing brace of outer function removed — mid-block truncation
+    const truncatedTs = `export function greet(name: string) {
+  if (name) {
+    return \`hello \${name}\`;
+  }
+  return "hello";
+`;
+    const result = validateAIResponse(originalTs, truncatedTs);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toMatch(/bracket balance|mid-block/i);
+  });
+
+  it("does not false-positive on balanced TS with braces in strings", () => {
+    const originalTs = `export const regex = /\\{foo\\}/;
+export function fn() { return "{ not a block }"; }
+`;
+    const patchedTs = `export const regex = /\\{foo\\}/;
+export function fn() { return "{ not a block }"; return 1; }
+`;
+    const result = validateAIResponse(originalTs, patchedTs);
+    expect(result.valid).toBe(true);
+  });
 });

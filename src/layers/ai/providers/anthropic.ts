@@ -4,6 +4,7 @@ import type { ProviderPricing, TokenEstimate } from "../budget.js";
 // Pricing per 1M tokens. Update these when Anthropic changes rates.
 // Cache write is ~125% of input, cache read is ~10% of input (Anthropic policy 2026).
 export const ANTHROPIC_PRICING: Record<string, ProviderPricing> = {
+  "claude-opus-4-7": { inputPerMTokUsd: 15, outputPerMTokUsd: 75, cacheReadPerMTokUsd: 1.5, cacheWritePerMTokUsd: 18.75 },
   "claude-sonnet-4-6": { inputPerMTokUsd: 3, outputPerMTokUsd: 15, cacheReadPerMTokUsd: 0.3, cacheWritePerMTokUsd: 3.75 },
   "claude-haiku-4-5": { inputPerMTokUsd: 1, outputPerMTokUsd: 5, cacheReadPerMTokUsd: 0.1, cacheWritePerMTokUsd: 1.25 },
 };
