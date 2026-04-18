@@ -59,6 +59,10 @@ program
   .option("--no-dismiss", "Keep dismissed findings in the report (trust-building mode)")
   .option("--dashboard", "Open real-time attack surface visualization in browser")
   .option("--port <number>", "Dashboard server port (default: 4400)", parseInt)
+  .option("--shipsafe-url <url>", "ShipSafe base URL to push scan results to (env: SHIPSAFE_URL)")
+  .option("--shipsafe-token <token>", "ShipSafe scanner bearer token (env: SHIPSAFE_TOKEN)")
+  .option("--shipsafe-project <id>", "ShipSafe project id (env: SHIPSAFE_PROJECT_ID)")
+  .option("--shipsafe-run-id <id>", "Optional sentinel run id to correlate with ShipSafe (env: SHIPSAFE_RUN_ID)")
   .action(async (rawPath, options) => {
     const path = await resolveTarget(rawPath);
     const exitCode = await runScan({
@@ -82,6 +86,10 @@ program
       dismiss: options.dismiss,
       dashboard: !!options.dashboard,
       dashboardPort: options.port,
+      shipsafeUrl: options.shipsafeUrl,
+      shipsafeToken: options.shipsafeToken,
+      shipsafeProjectId: options.shipsafeProject,
+      shipsafeRunId: options.shipsafeRunId,
     });
     exitAfterDrain(exitCode);
   });

@@ -18,6 +18,7 @@ import { MockProvider } from "../layers/ai/providers/mock.js";
 import { formatTerminal } from "../output/terminal.js";
 import { formatJson } from "../output/json.js";
 import { formatHtml } from "../output/html.js";
+import { pushToShipSafe, resolveShipSafeConfig } from "../output/shipsafe.js";
 import { inferContext, readContext } from "../layers/context/index.js";
 import { applyContextSuppressions } from "../layers/context/suppression.js";
 import { isAtOrAbove } from "../model/severity.js";
@@ -44,6 +45,13 @@ export interface ScanOptions extends VerifyOptions {
   dashboard?: boolean;
   dashboardPort?: number;
   emitter?: ScanEventEmitter;
+  // ShipSafe push (opt-in). When url+token+projectId are present (via flags or
+  // env), the scan posts findings to a ShipSafe instance after primary output
+  // is written. Network failures never fail the scan.
+  shipsafeUrl?: string;
+  shipsafeToken?: string;
+  shipsafeProjectId?: string;
+  shipsafeRunId?: string;
 }
 
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
@@ -271,6 +279,26 @@ export async function runScan(options: ScanOptions): Promise<number> {
       process.stdout.write("\n" + formatAIReport(aiResult, aiConfig) + "\n");
     }
     process.stdout.write("\n");
+  }
+
+  // ShipSafe push (opt-in, non-fatal). Runs AFTER terminal/json/html output
+  // so a push failure can't corrupt the primary scan artifact. Wrapped in a
+  // blanket try/catch as belt-and-suspenders: the adapter already swallows
+  // errors internally, but we never want an unhandled rejection here to
+  // crash the scan exit code.
+  const shipsafeConfig = resolveShipSafeConfig({
+    url: options.shipsafeUrl,
+    token: options.shipsafeToken,
+    projectId: options.shipsafeProjectId,
+    sentinelRunId: options.shipsafeRunId,
+  });
+  if (shipsafeConfig) {
+    try {
+      await pushToShipSafe(allFindings, shipsafeConfig);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[shipsafe] unexpected push error: ${msg}\n`);
+    }
   }
 
   const failOn = options.failOn ?? config.severity.failOn;
