@@ -1,0 +1,34 @@
+shipsafe-sentinel
+Copyright 2026 Ty Wells / Frank Labs
+
+This product includes software developed by Ty Wells and Frank Labs
+(https://shipsafe-web-eight.vercel.app).
+
+Licensed under the Apache License, Version 2.0. See LICENSE for details.
+
+---
+
+Third-party components:
+
+This software includes the following third-party libraries, each under
+its own license. See each package's LICENSE file in node_modules for
+the full text.
+
+- @anthropic-ai/sdk (MIT) — Anthropic, PBC
+- chalk (MIT) — Sindre Sorhus
+- commander (MIT) — TJ Holowaychuk
+- express (MIT) — TJ Holowaychuk and contributors
+- fast-glob (MIT) — Denis Malinochkin
+- minimatch (ISC) — Isaac Z. Schlueter
+- open (MIT) — Sindre Sorhus
+- openai (Apache-2.0) — OpenAI
+- pino (MIT) — Matteo Collina
+- typescript (Apache-2.0) — Microsoft
+- ws (MIT) — Einar Otto Stangvik
+- yaml (ISC) — Eemeli Aro
+- zod (MIT) — Colin McDonnell
+- zod-to-json-schema (ISC) — Stefan Terdell
+
+This NOTICE file is provided for informational purposes only and does
+not modify the License. Attribution requirements in individual
+third-party licenses remain in effect.

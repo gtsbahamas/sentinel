@@ -1,9 +1,13 @@
 {
-  "name": "@franklabs/sentinel",
+  "name": "shipsafe-sentinel",
   "version": "0.1.0",
-  "description": "Security assessment CLI for Next.js + Supabase codebases",
+  "description": "Security assessment CLI for Next.js + Supabase codebases — the scanner behind ShipSafe coaching",
+  "license": "Apache-2.0",
+  "author": "Ty Wells (Frank Labs)",
+  "homepage": "https://shipsafe-web-eight.vercel.app",
   "type": "module",
   "bin": {
+    "shipsafe-sentinel": "./dist/cli.js",
     "sentinel": "./dist/cli.js"
   },
   "main": "./dist/cli.js",
@@ -21,7 +25,10 @@
   },
   "files": [
     "dist",
-    ".sentinelrc.defaults.json"
+    ".sentinelrc.defaults.json",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
