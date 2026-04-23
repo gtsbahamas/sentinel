@@ -64,7 +64,7 @@ const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
 const PROVIDER_DEEP_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-6",
   openai: "gpt-5",
-  ollama: "qwen2.5:14b",
+  ollama: "qwen3.6:27b",
   mock: "mock",
 };
 
