@@ -334,7 +334,7 @@ export const infrastructureRules: SecurityRule[] = [
     impact:
       "Your .env file is present in the project directory and not excluded from version control. If this code is shared or pushed to a remote, every secret in the file is exposed.",
     severity: "critical",
-    appliesTo: ["nextjs-supabase", "react-vite-supabase", "generic-web"],
+    appliesTo: ["nextjs-supabase", "react-vite-supabase", "generic-web", "python"],
     references: { cwe: "CWE-312" },
     check(model) {
       const findings: Finding[] = [];

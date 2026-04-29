@@ -146,7 +146,7 @@ export const secretsExposureRules: SecurityRule[] = [
     description: ".env file present and not excluded from git",
     impact: "Your .env file is present in the project and not excluded from git. If this repository is ever shared, pushed to GitHub, or accessed by a third party, every secret in that file is compromised.",
     severity: "critical",
-    appliesTo: ["nextjs-supabase"],
+    appliesTo: ["nextjs-supabase", "python"],
     references: { cwe: "CWE-312" },
     check(model) {
       const findings: Finding[] = [];
@@ -266,7 +266,7 @@ export const secretsExposureRules: SecurityRule[] = [
     description: "Known API key pattern present in a historical commit",
     impact: "A secret matching a known API key pattern exists in your git history. Even though it may be removed from the current code, anyone who clones the repository can find it by searching commit history.",
     severity: "critical",
-    appliesTo: ["nextjs-supabase"],
+    appliesTo: ["nextjs-supabase", "python"],
     references: { cwe: "CWE-798" },
     check(model) {
       const findings: Finding[] = [];
@@ -386,7 +386,7 @@ export const secretsExposureRules: SecurityRule[] = [
     description: "Source references process.env.X but .env.example does not list X",
     impact: "Your code references an environment variable that is not documented in .env.example. When other developers or CI systems set up the project, this variable will be missing, causing silent failures or insecure defaults.",
     severity: "low",
-    appliesTo: ["nextjs-supabase"],
+    appliesTo: ["nextjs-supabase", "python"],
     references: {},
     check(model) {
       // Well-known platform env vars that don't need .env.example documentation.
