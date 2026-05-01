@@ -9,6 +9,7 @@ import { runDiff } from "./commands/diff.js";
 import { runProbeCommand } from "./commands/probe.js";
 import { runContextCommand } from "./commands/context.js";
 import { runFixCommand } from "./commands/fix.js";
+import { runMcp } from "./commands/mcp.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgPath = join(__dirname, "..", "package.json");
@@ -197,5 +198,12 @@ program
     });
     exitAfterDrain(exitCode);
   });
+
+program
+  .command("mcp")
+  .description(
+    "Run Sentinel as an MCP server (stdio transport) for IDE integration with Claude Code, Cursor, VS Code",
+  )
+  .action(runMcp);
 
 program.parseAsync(process.argv);

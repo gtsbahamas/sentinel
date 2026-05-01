@@ -77,6 +77,27 @@ shipsafe-sentinel scan . --format html       # static report
 
 Exit codes: `0` = no findings at or above `failOn`, `1` = findings present, `2` = scanner error.
 
+## Use as an MCP server
+
+Sentinel can run as a [Model Context Protocol](https://modelcontextprotocol.io) server so an AI agent (Claude Code, Cursor, VS Code) can invoke the scanner as a tool. At-keystroke security feedback while you code.
+
+Add this to your project's `.mcp.json` for Claude Code:
+
+```json
+{
+  "mcpServers": {
+    "shipsafe-sentinel": {
+      "command": "npx",
+      "args": ["shipsafe-sentinel", "mcp"]
+    }
+  }
+}
+```
+
+The agent then has a `scan_project` tool that returns the same JSON report `sentinel scan --format json` produces.
+
+Cursor and VS Code both support MCP servers as well; see the [Cursor MCP docs](https://docs.cursor.com/context/model-context-protocol) and the [VS Code MCP extension](https://marketplace.visualstudio.com/search?term=mcp) for setup.
+
 ## How this fits with ShipSafe coaching
 
 The scanner is free forever and works standalone. If you want a human to walk the findings with you — strip anything sensitive, prioritize what actually matters for your stack, teach you the pattern so it doesn't recur — that's [ShipSafe coaching](https://shipsafe-web-eight.vercel.app). Members-only, tied to the [Early AI-dopters](https://www.skool.com/earlyaidopters) community.
