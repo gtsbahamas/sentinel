@@ -46,6 +46,17 @@ const ConventionRuleSchema = z.object({
 
 export type ConventionRule = z.infer<typeof ConventionRuleSchema>;
 
+// Pattern-inference tuning. Currently only one knob: a path-segment
+// exclusion list that REPLACES (not merges with) the built-in defaults.
+// The default list excludes auth-flow endpoints (login, signup, OTP, etc.)
+// and non-session auth endpoints (webhooks, crons) so they don't pollute
+// inferred session-helper patterns for the rest of their group.
+const PatternInferenceSchema = z.object({
+  excludePathSegments: z.array(z.string()).optional(),
+});
+
+export type PatternInferenceConfig = z.infer<typeof PatternInferenceSchema>;
+
 const ConfigSchema = z.object({
   stack: z.enum(["nextjs-supabase", "react-vite-supabase", "generic-web"]),
   domains: z.array(z.string()),
@@ -59,6 +70,7 @@ const ConfigSchema = z.object({
   }),
   ai: AIConfigSchema,
   conventions: z.array(ConventionRuleSchema).optional(),
+  patternInference: PatternInferenceSchema.optional(),
 });
 
 export type SentinelConfig = z.infer<typeof ConfigSchema>;
@@ -116,8 +128,11 @@ export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
     severity: { ...CONFIG_DEFAULTS.severity, ...(parsed.severity ?? {}) },
     output: { ...CONFIG_DEFAULTS.output, ...(parsed.output ?? {}) },
     ai: { ...CONFIG_DEFAULTS.ai, ...(parsed.ai ?? {}) },
-    // conventions: optional, no defaults — caller-supplied or absent.
+    // conventions: optional, no defaults. Caller-supplied or absent.
     conventions: parsed.conventions,
+    // patternInference: optional, no defaults. Caller-supplied or absent.
+    // The recon layer applies built-in defaults when this is missing.
+    patternInference: parsed.patternInference,
   };
 
   return ConfigSchema.parse(merged);

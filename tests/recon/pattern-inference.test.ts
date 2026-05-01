@@ -181,6 +181,114 @@ describe("inferAuthPatterns", () => {
     const patterns = await inferAuthPatterns([]);
     expect(patterns).toEqual([]);
   });
+
+  it("excludes auth-flow endpoints from inference (5 admin + 6 auth-flow under admin)", async () => {
+    // 5 standard admin endpoints all using the dominant helper.
+    const standard = await makeEndpoints(
+      "src/app/api/admin",
+      Array(5).fill("requireStaffPermission"),
+    );
+    // 6 auth-flow endpoints under admin/auth/ that DO call the helper too.
+    // Even though they call it, they should be excluded entirely from
+    // inference, so sampleSize should reflect only the 5 standard endpoints,
+    // not 11.
+    const authFlow = await makeEndpoints(
+      "src/app/api/admin/auth",
+      Array(6).fill("requireStaffPermission"),
+    );
+
+    const patterns = await inferAuthPatterns([...standard, ...authFlow]);
+
+    expect(patterns).toHaveLength(1);
+    expect(patterns[0].pathGlob).toBe("src/app/api/admin/**");
+    expect(patterns[0].dominantHelper).toBe("requireStaffPermission");
+    expect(patterns[0].sampleSize).toBe(5);
+    expect(patterns[0].prevalence).toBe(1.0);
+  });
+
+  it("auth-flow endpoint with no helper does not drag prevalence down", async () => {
+    // 5 standard admin endpoints with the dominant helper.
+    const standard = await makeEndpoints(
+      "src/app/api/admin",
+      Array(5).fill("requireStaffPermission"),
+    );
+    // 1 login endpoint with no helper. Should be excluded entirely, so
+    // prevalence stays at 1.0 (5/5) instead of dropping to 5/6.
+    const loginEp = await makeEndpoints("src/app/api/admin/login", [null]);
+
+    const patterns = await inferAuthPatterns([...standard, ...loginEp]);
+
+    expect(patterns).toHaveLength(1);
+    expect(patterns[0].sampleSize).toBe(5);
+    expect(patterns[0].prevalence).toBe(1.0);
+  });
+
+  it("excludes webhook endpoints from inference (5 portal + 5 portal/webhook)", async () => {
+    // 5 standard portal endpoints with the dominant helper.
+    const standard = await makeEndpoints(
+      "src/app/api/portal",
+      Array(5).fill("getPortalSession"),
+    );
+    // 5 portal webhook endpoints. They use HMAC, not session auth, so they
+    // should be excluded from inference even though they live under portal/.
+    const webhooks = await makeEndpoints(
+      "src/app/api/portal/webhook",
+      Array(5).fill(null),
+    );
+
+    const patterns = await inferAuthPatterns([...standard, ...webhooks]);
+
+    expect(patterns).toHaveLength(1);
+    expect(patterns[0].pathGlob).toBe("src/app/api/portal/**");
+    expect(patterns[0].dominantHelper).toBe("getPortalSession");
+    expect(patterns[0].sampleSize).toBe(5);
+    expect(patterns[0].prevalence).toBe(1.0);
+  });
+
+  it("custom excludePathSegments override REPLACES (not merges with) defaults", async () => {
+    // 5 standard admin endpoints with the dominant helper.
+    const standard = await makeEndpoints(
+      "src/app/api/admin",
+      Array(5).fill("requireStaffPermission"),
+    );
+    // 5 endpoints under admin/special/ with the same helper. With the
+    // custom override of ["/special"], these get excluded.
+    const special = await makeEndpoints(
+      "src/app/api/admin/special",
+      Array(5).fill("requireStaffPermission"),
+    );
+
+    const patterns = await inferAuthPatterns(
+      [...standard, ...special],
+      { excludePathSegments: ["/special"] },
+    );
+
+    expect(patterns).toHaveLength(1);
+    expect(patterns[0].sampleSize).toBe(5);
+  });
+
+  it("empty excludePathSegments override means exclude nothing (defaults are not merged)", async () => {
+    // 5 standard admin endpoints with the dominant helper.
+    const standard = await makeEndpoints(
+      "src/app/api/admin",
+      Array(5).fill("requireStaffPermission"),
+    );
+    // 5 admin/auth/ endpoints. With defaults these would be excluded, but
+    // with an empty override they participate fully.
+    const authFlow = await makeEndpoints(
+      "src/app/api/admin/auth",
+      Array(5).fill("requireStaffPermission"),
+    );
+
+    const patterns = await inferAuthPatterns(
+      [...standard, ...authFlow],
+      { excludePathSegments: [] },
+    );
+
+    expect(patterns).toHaveLength(1);
+    // All 10 endpoints participate because the override is empty.
+    expect(patterns[0].sampleSize).toBe(10);
+  });
 });
 
 describe("inferAuthPatterns integration with runRecon", () => {

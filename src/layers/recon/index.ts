@@ -8,6 +8,7 @@ import { discoverEnvVars } from "./env-discovery.js";
 import { discoverDependencies } from "./dep-discovery.js";
 import { discoverInfra } from "./infra-discovery.js";
 import { inferAuthPatterns } from "./pattern-inference.js";
+import { loadConfig } from "../../config.js";
 import type { ProjectModel } from "../../model/types.js";
 import type { ScanEventEmitter } from "../../dashboard/events.js";
 
@@ -29,7 +30,17 @@ export async function runRecon(
   ]);
 
   const endpoints = await discoverEndpoints(routes);
-  const inferredPatterns = await inferAuthPatterns(endpoints);
+
+  // Load config to pick up an optional `patternInference.excludePathSegments`
+  // override. If the config file is missing or malformed, fall through with
+  // null and let inferAuthPatterns apply its built-in defaults. The recon
+  // layer must not crash on bad config.
+  const config = await loadConfig(projectPath).catch(() => null);
+  const excludePathSegments = config?.patternInference?.excludePathSegments;
+  const inferredPatterns = await inferAuthPatterns(
+    endpoints,
+    excludePathSegments ? { excludePathSegments } : undefined,
+  );
 
   if (emitter) {
     // Emit route events

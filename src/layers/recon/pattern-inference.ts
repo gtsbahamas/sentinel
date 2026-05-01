@@ -2,7 +2,7 @@ import { safeReadFile } from "../../utils/fs.js";
 import type { ApiEndpoint, InferredPattern } from "../../model/types.js";
 
 // MVP: hardcoded prefix-style groups, evaluated in order. An endpoint is
-// assigned to the FIRST matching group only — `src/app/api/**` is the
+// assigned to the FIRST matching group only. `src/app/api/**` is the
 // catch-all and intentionally appears last so admin/portal/v1/internal
 // claim their endpoints first. Match is by path-substring (the leading "/"
 // anchors it inside an absolute path so a file like
@@ -14,6 +14,45 @@ const GROUPS: Array<{ glob: string; needle: string }> = [
   { glob: "src/app/api/internal/**", needle: "/src/app/api/internal/" },
   { glob: "src/app/api/**", needle: "/src/app/api/" },
 ];
+
+// Path segments that indicate the endpoint either ESTABLISHES auth (login,
+// signup, OTP verify, OAuth callback, password reset) or uses non-session auth
+// (webhooks via HMAC, crons via shared secret). These endpoints legitimately
+// deviate from the session-helper pattern of the rest of their group, so we
+// exclude them from inference rather than flagging them later.
+export const DEFAULT_EXCLUDED_SEGMENTS = [
+  // Auth-flow endpoints (establish the session)
+  "/auth/",
+  "/login",
+  "/signin",
+  "/sign-in",
+  "/signup",
+  "/sign-up",
+  "/register",
+  "/logout",
+  "/signout",
+  "/sign-out",
+  "/forgot-password",
+  "/reset-password",
+  "/reset",
+  "/verify-otp",
+  "/verify-email",
+  "/verify",
+  "/confirm",
+  "/send-otp",
+  "/otp",
+  "/callback",
+  "/oauth",
+  // Non-session auth (HMAC / shared secret)
+  "/webhook",
+  "/webhooks",
+  "/cron",
+  "/scheduled",
+];
+
+export function isExcludedPath(file: string, excluded: string[]): boolean {
+  return excluded.some((seg) => file.includes(seg));
+}
 
 // Helper-call shape: same regex used by detectAuthCheck's verb+noun arm in
 // endpoint-discovery.ts, but with the helper *name* captured so we can
@@ -46,10 +85,21 @@ function bucketEndpoints(endpoints: ApiEndpoint[]): GroupBucket[] {
 
 export async function inferAuthPatterns(
   endpoints: ApiEndpoint[],
+  options?: { excludePathSegments?: string[] },
 ): Promise<InferredPattern[]> {
   if (endpoints.length === 0) return [];
 
-  const buckets = bucketEndpoints(endpoints);
+  // Exclude auth-flow / webhook / cron endpoints BEFORE bucketing. These
+  // legitimately deviate from session-helper patterns (login establishes the
+  // session; webhooks use HMAC; crons use shared secrets), so they would
+  // produce false-positive deviations later. The override semantic is REPLACE
+  // (not merge): if the user passes an explicit list, that list is the only
+  // exclusion. An empty array means "exclude nothing." A missing override
+  // falls back to DEFAULT_EXCLUDED_SEGMENTS.
+  const excluded = options?.excludePathSegments ?? DEFAULT_EXCLUDED_SEGMENTS;
+  const filtered = endpoints.filter((ep) => !isExcludedPath(ep.file, excluded));
+
+  const buckets = bucketEndpoints(filtered);
   const patterns: InferredPattern[] = [];
 
   for (const bucket of buckets) {

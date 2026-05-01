@@ -3,6 +3,7 @@ import fg from "fast-glob";
 import { join, relative, isAbsolute } from "path";
 import { minimatch } from "minimatch";
 import { loadConfig, type ConventionRule } from "../../../config.js";
+import { DEFAULT_EXCLUDED_SEGMENTS, isExcludedPath } from "../../recon/pattern-inference.js";
 import type { Finding, ProjectModel, InferredPattern } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
 
@@ -251,9 +252,16 @@ export const authAccessControlRules: SecurityRule[] = [
       // Defer to CONVENTION-001 when both rules would fire on the same file.
       // The user's explicit declaration wins over inferred priors. Resolving
       // CONVENTION-001 first avoids a duplicate finding on the same endpoint.
+      // Also pull excludePathSegments here so the same set is used by inference
+      // AND by deviation detection (login/signup/webhook endpoints excluded
+      // from inference must also be excluded from PATTERN-001 flagging).
       const conventionFlaggedFiles = new Set<string>();
+      let excludedSegments = DEFAULT_EXCLUDED_SEGMENTS;
       try {
         const cfg = await loadConfig(model.meta.path);
+        if (cfg.patternInference?.excludePathSegments) {
+          excludedSegments = cfg.patternInference.excludePathSegments;
+        }
         const conventions = cfg.conventions ?? [];
         for (const c of conventions) {
           if ((c.domain ?? "auth") !== "auth") continue;
@@ -270,8 +278,8 @@ export const authAccessControlRules: SecurityRule[] = [
         }
       } catch {
         // Config unreadable → fall through; PATTERN-001 still operates on
-        // inferred patterns alone. Worst case: a duplicate finding the user
-        // can fix once.
+        // inferred patterns alone with default exclusions. Worst case: a
+        // duplicate finding the user can fix once.
       }
 
       for (const pattern of patterns) {
@@ -279,6 +287,11 @@ export const authAccessControlRules: SecurityRule[] = [
 
         for (const endpoint of model.endpoints) {
           if (conventionFlaggedFiles.has(endpoint.file)) continue;
+          // Auth-flow / webhook / cron endpoints legitimately deviate from the
+          // session-helper pattern (login establishes the session; webhooks
+          // use HMAC; crons use shared secrets). Skip them here for the same
+          // reason inference excludes them from sample size.
+          if (isExcludedPath(endpoint.file, excludedSegments)) continue;
 
           const rel = relPath(model.meta.path, endpoint.file);
           if (!pathMatches(rel, pattern.pathGlob)) continue;

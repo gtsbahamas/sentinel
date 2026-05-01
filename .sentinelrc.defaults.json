@@ -21,5 +21,9 @@
       "require": "requirePortalUser",
       "domain": "auth"
     }
-  ]
+  ],
+  "_patternInference_example": {
+    "excludePathSegments": ["/auth/", "/webhook", "/cron"]
+  },
+  "_patternInference_format": "Override the default auth-flow exclusion list. When supplied, REPLACES (not merges with) the defaults."
 }
