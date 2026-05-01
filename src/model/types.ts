@@ -130,6 +130,15 @@ export interface InfraConfig {
   securityHeaders: Record<string, Array<{ file: string; value: string }>>;
 }
 
+export interface InferredPattern {
+  domain: "auth";              // start narrow; reserved for future expansion
+  pathGlob: string;            // e.g., "src/app/api/admin/**"
+  dominantHelper: string;      // e.g., "requireStaffPermission"
+  prevalence: number;          // 0.0–1.0, e.g., 0.94
+  sampleSize: number;          // total endpoints in the group, e.g., 17
+  evidenceFiles: string[];     // first ~3 files matching the pattern
+}
+
 export interface ProjectModel {
   meta: ProjectMeta;
   routes: Route[];
@@ -142,6 +151,7 @@ export interface ProjectModel {
   staticAssets: AssetRef[];
   infra: InfraConfig;
   findings: Finding[];
+  inferredPatterns?: InferredPattern[];
 }
 
 // ============================================================================

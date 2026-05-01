@@ -7,6 +7,7 @@ import { discoverUploadHandlers } from "./upload-discovery.js";
 import { discoverEnvVars } from "./env-discovery.js";
 import { discoverDependencies } from "./dep-discovery.js";
 import { discoverInfra } from "./infra-discovery.js";
+import { inferAuthPatterns } from "./pattern-inference.js";
 import type { ProjectModel } from "../../model/types.js";
 import type { ScanEventEmitter } from "../../dashboard/events.js";
 
@@ -28,6 +29,7 @@ export async function runRecon(
   ]);
 
   const endpoints = await discoverEndpoints(routes);
+  const inferredPatterns = await inferAuthPatterns(endpoints);
 
   if (emitter) {
     // Emit route events
@@ -120,5 +122,6 @@ export async function runRecon(
     staticAssets: [],
     infra,
     findings: [],
+    inferredPatterns,
   };
 }
