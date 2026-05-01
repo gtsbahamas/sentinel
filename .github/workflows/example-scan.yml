@@ -1,0 +1,35 @@
+# Example workflow showing how to run ShipSafe Sentinel on every pull request.
+#
+# External repositories can consume this action directly from this repo:
+#
+#   - name: ShipSafe Sentinel scan
+#     uses: gtsbahamas/sentinel/.github/actions/scan@master
+#     with:
+#       path: "."
+#       fail-on: "critical"
+#
+# This file uses the local action path so the in-repo example stays self-contained.
+
+name: "Example: Sentinel scan on PR"
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  scan:
+    name: ShipSafe Sentinel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ShipSafe Sentinel
+        id: sentinel
+        uses: ./.github/actions/scan
+
+      - name: Report success
+        if: success()
+        shell: bash
+        run: echo "ShipSafe scan passed"

@@ -1,0 +1,77 @@
+name: "ShipSafe Sentinel Scan"
+description: "Run shipsafe-sentinel against the working tree and fail on findings at or above a configurable severity"
+
+inputs:
+  path:
+    description: "Path to scan"
+    required: false
+    default: "."
+  format:
+    description: "Output format (terminal|json|html)"
+    required: false
+    default: "json"
+  fail-on:
+    description: "Severity threshold to fail the action (critical|high|medium|low|info)"
+    required: false
+    default: "critical"
+  output-file:
+    description: "Where to write the report"
+    required: false
+    default: "shipsafe-report.json"
+  version:
+    description: "npm version of shipsafe-sentinel to install (e.g. latest, 0.1.1)"
+    required: false
+    default: "latest"
+
+outputs:
+  report-path:
+    description: "File path of the written report"
+    value: ${{ steps.parse.outputs.report-path }}
+  findings-count:
+    description: "Total number of findings"
+    value: ${{ steps.parse.outputs.findings-count }}
+  critical-count:
+    description: "Count of critical-severity findings"
+    value: ${{ steps.parse.outputs.critical-count }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Run shipsafe-sentinel scan
+      id: scan
+      shell: bash
+      run: |
+        npx --yes shipsafe-sentinel@${{ inputs.version }} scan ${{ inputs.path }} \
+          --format ${{ inputs.format }} \
+          --fail-on ${{ inputs.fail-on }} \
+          -o ${{ inputs.output-file }}
+
+    - name: Parse report and emit outputs
+      id: parse
+      if: always()
+      shell: bash
+      run: |
+        REPORT="${{ inputs.output-file }}"
+        echo "report-path=${REPORT}" >> "$GITHUB_OUTPUT"
+        if [ -f "${REPORT}" ] && [ "${{ inputs.format }}" = "json" ]; then
+          FINDINGS=$(jq -r '.summary.total // 0' "${REPORT}")
+          CRITICAL=$(jq -r '.summary.critical // 0' "${REPORT}")
+        else
+          FINDINGS=0
+          CRITICAL=0
+        fi
+        echo "findings-count=${FINDINGS}" >> "$GITHUB_OUTPUT"
+        echo "critical-count=${CRITICAL}" >> "$GITHUB_OUTPUT"
+        echo "ShipSafe Sentinel: ${FINDINGS} total findings, ${CRITICAL} critical"
+
+    - name: Upload report artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: shipsafe-sentinel-report
+        path: ${{ inputs.output-file }}

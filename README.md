@@ -104,6 +104,22 @@ The scanner is free forever and works standalone. If you want a human to walk th
 
 You don't need to enroll to use this tool. Scan your repo, fix what's critical, move on.
 
+## CI integration
+
+A reusable GitHub Action ships with this repo so any project can wire shipsafe-sentinel into pull requests in under a minute. Drop it in your workflow, set `fail-on: critical`, and the build fails the moment a critical finding lands on a PR.
+
+```yaml
+- name: ShipSafe Sentinel scan
+  uses: gtsbahamas/sentinel/.github/actions/scan@master
+  with:
+    path: "."
+    fail-on: "critical"
+```
+
+`fail-on: critical` is the recommended default for CI gates. It blocks the obvious foot-guns (hardcoded secrets, missing auth, RLS leaks) without drowning the build in lower-severity noise. Tighten to `high` once your team is keeping critical at zero.
+
+Full input reference: [`.github/actions/scan/action.yml`](./.github/actions/scan/action.yml).
+
 ## Contributing
 
 New rules live in `src/layers/rules/`. Each rule is a TypeScript module that exports a `Rule` object with `id`, `severity`, `detect(context)`, and `describe(finding)`. PRs welcome.
