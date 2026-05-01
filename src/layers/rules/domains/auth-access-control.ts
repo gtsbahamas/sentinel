@@ -1,8 +1,41 @@
 import { safeReadFile, readEnvFile, parseEnvFile } from "../../../utils/fs.js";
 import fg from "fast-glob";
-import { join } from "path";
-import type { Finding } from "../../../model/types.js";
+import { join, relative, isAbsolute } from "path";
+import { minimatch } from "minimatch";
+import { loadConfig, type ConventionRule } from "../../../config.js";
+import type { Finding, ProjectModel, InferredPattern } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
+
+// Compute the path that `match` globs are written against. Endpoint files
+// are absolute on disk; conventions in `.sentinelrc.json` and inferred
+// pathGlobs are project-relative, so we normalize before testing.
+function relPath(projectRoot: string, file: string): string {
+  if (!isAbsolute(file)) return file;
+  const rel = relative(projectRoot, file);
+  // On Windows minimatch wants forward slashes; this is a no-op on POSIX.
+  return rel.split("\\").join("/");
+}
+
+// Test a glob with a forgiving fallback: if minimatch returns false but
+// the user wrote a substring-style match (e.g. "src/app/api/admin"), fall
+// back to includes() so a freshly-typed rule still does the right thing.
+function pathMatches(relFile: string, glob: string): boolean {
+  if (minimatch(relFile, glob)) return true;
+  // Strip leading "./" or trailing slash for a forgiving substring check.
+  const trimmed = glob.replace(/^\.\//, "").replace(/\/+$/, "").replace(/\/?\*\*?$/, "");
+  if (trimmed && relFile.includes(trimmed)) return true;
+  return false;
+}
+
+// True if `source` contains a call to `helper(` (word-boundary anchored,
+// optional whitespace before the open paren). Used by both convention
+// rules to detect whether the required auth helper is invoked.
+function callsHelper(source: string, helper: string): boolean {
+  // Escape regex metacharacters in the helper name. Identifiers usually
+  // don't contain any, but defend against config typos like "auth.guard".
+  const escaped = helper.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\s*\\(`).test(source);
+}
 
 const SESSION_SECRET_KEYS = [
   "SESSION_SECRET",
@@ -118,6 +151,161 @@ export const authAccessControlRules: SecurityRule[] = [
             { cwe: "CWE-862", owasp: "A01:2021" },
           ),
         );
+      }
+      return findings;
+    },
+  },
+
+  {
+    id: "CONVENTION-001",
+    domain: "auth-access-control",
+    title: "Endpoint deviates from declared auth convention",
+    description:
+      "Project .sentinelrc.json declares a required auth helper for this path glob; this endpoint does not call it.",
+    impact:
+      "Established auth conventions exist for a reason — the project already has a vetted helper that handles session lookup, role checks, and rejection consistently. AI-generated routes commonly forget the convention and reach straight for a service-role client or a raw Supabase query, producing silent privilege bypasses that look identical to working endpoints from the outside. One real-world case: seven admin routes in a production app skipped the project's `requireStaffPermission` helper and used `createClient(URL, SERVICE_ROLE_KEY)` directly — every one was world-readable until the convention check caught it.",
+    severity: "critical",
+    appliesTo: ["nextjs-supabase"],
+    references: { cwe: "CWE-862", owasp: "A01:2021" },
+    async check(model) {
+      const findings: Finding[] = [];
+
+      // Conventions are declared in .sentinelrc.json. Rules don't currently
+      // receive the loaded config (it's parsed in src/commands/scan.ts and
+      // never attached to the model), so re-load from the project root.
+      // loadConfig swallows the missing-file case and returns defaults, so
+      // projects without a .sentinelrc.json simply have conventions = undefined.
+      let conventions: ConventionRule[] | undefined;
+      try {
+        const cfg = await loadConfig(model.meta.path);
+        conventions = cfg.conventions;
+      } catch {
+        // Malformed .sentinelrc.json → don't crash the rule pass; just skip
+        // convention enforcement and let the parse error surface elsewhere.
+        return findings;
+      }
+      if (!conventions || conventions.length === 0) return findings;
+
+      for (const convention of conventions) {
+        // Only auth conventions are meaningful right now. Defensive in case
+        // future schema versions add domains we don't yet enforce.
+        if ((convention.domain ?? "auth") !== "auth") continue;
+
+        for (const endpoint of model.endpoints) {
+          const rel = relPath(model.meta.path, endpoint.file);
+          if (!pathMatches(rel, convention.match)) continue;
+
+          let source = "";
+          try {
+            source = await safeReadFile(endpoint.file);
+          } catch {
+            // If the file is unreadable, skip — better than a phantom finding.
+            continue;
+          }
+
+          // Honor an explicit suppression so an intentional deviation can
+          // be marked as deliberate (e.g., a public webhook under an admin
+          // glob that genuinely should not run the staff-permission check).
+          if (/sentinel:ignore\s+CONVENTION-001/.test(source)) continue;
+
+          if (callsHelper(source, convention.require)) continue;
+
+          findings.push(
+            mkFinding(
+              "CONVENTION-001",
+              "critical",
+              `${endpoint.method} ${endpoint.path} skips required helper ${convention.require}()`,
+              `Endpoint matches the convention glob "${convention.match}" but does not call ${convention.require}().`,
+              "Established auth conventions exist for a reason — the project already has a vetted helper that handles session lookup, role checks, and rejection consistently. AI-generated routes commonly forget the convention and reach straight for a service-role client or a raw Supabase query, producing silent privilege bypasses that look identical to working endpoints from the outside.",
+              `Call ${convention.require}() at the top of the handler before any data access, OR add \`// sentinel:ignore CONVENTION-001\` to the file if the deviation is intentional.`,
+              [{ file: endpoint.file }],
+              { cwe: "CWE-862", owasp: "A01:2021" },
+            ),
+          );
+        }
+      }
+      return findings;
+    },
+  },
+
+  {
+    id: "PATTERN-001",
+    domain: "auth-access-control",
+    title: "Endpoint deviates from project's inferred auth pattern",
+    description:
+      "Pattern inference detected that most endpoints under a given path use a specific auth helper. This endpoint does not.",
+    impact:
+      "This pattern was inferred automatically from the rest of your codebase — verify before acting. When a clear majority of endpoints in a directory call the same auth helper and one route skips it, the most common cause is an AI-generated handler that lacked project context. The IslandFlow-style failure mode is silent privilege bypass: the endpoint compiles, deploys, and serves data, but skips the access check the rest of the project relies on.",
+    severity: "critical",
+    appliesTo: ["nextjs-supabase"],
+    references: { cwe: "CWE-862", owasp: "A01:2021" },
+    async check(model) {
+      const findings: Finding[] = [];
+
+      // inferredPatterns is optional on ProjectModel. Undefined or empty means
+      // recon ran without inferring anything (small project, no convergence),
+      // so we emit nothing rather than guess.
+      const patterns = model.inferredPatterns ?? [];
+      if (patterns.length === 0) return findings;
+
+      // Defer to CONVENTION-001 when both rules would fire on the same file.
+      // The user's explicit declaration wins over inferred priors. Resolving
+      // CONVENTION-001 first avoids a duplicate finding on the same endpoint.
+      const conventionFlaggedFiles = new Set<string>();
+      try {
+        const cfg = await loadConfig(model.meta.path);
+        const conventions = cfg.conventions ?? [];
+        for (const c of conventions) {
+          if ((c.domain ?? "auth") !== "auth") continue;
+          for (const endpoint of model.endpoints) {
+            const rel = relPath(model.meta.path, endpoint.file);
+            if (!pathMatches(rel, c.match)) continue;
+            let source = "";
+            try { source = await safeReadFile(endpoint.file); } catch { continue; }
+            if (/sentinel:ignore\s+CONVENTION-001/.test(source)) continue;
+            if (callsHelper(source, c.require)) continue;
+            // CONVENTION-001 would fire on this file → suppress PATTERN-001.
+            conventionFlaggedFiles.add(endpoint.file);
+          }
+        }
+      } catch {
+        // Config unreadable → fall through; PATTERN-001 still operates on
+        // inferred patterns alone. Worst case: a duplicate finding the user
+        // can fix once.
+      }
+
+      for (const pattern of patterns) {
+        if (pattern.domain !== "auth") continue;
+
+        for (const endpoint of model.endpoints) {
+          if (conventionFlaggedFiles.has(endpoint.file)) continue;
+
+          const rel = relPath(model.meta.path, endpoint.file);
+          if (!pathMatches(rel, pattern.pathGlob)) continue;
+
+          let source = "";
+          try {
+            source = await safeReadFile(endpoint.file);
+          } catch {
+            continue;
+          }
+          if (/sentinel:ignore\s+PATTERN-001/.test(source)) continue;
+          if (callsHelper(source, pattern.dominantHelper)) continue;
+
+          const pct = Math.round(pattern.prevalence * 100);
+          findings.push(
+            mkFinding(
+              "PATTERN-001",
+              "critical",
+              `${endpoint.method} ${endpoint.path} skips inferred helper ${pattern.dominantHelper}()`,
+              `Pattern inference detected that ${pct}% of endpoints under ${pattern.pathGlob} use ${pattern.dominantHelper} (n=${pattern.sampleSize}). This endpoint does not.`,
+              "This pattern was inferred automatically from the rest of your codebase — verify before acting. When a clear majority of endpoints in a directory call the same auth helper and one route skips it, the most common cause is an AI-generated handler that lacked project context. The risk is silent privilege bypass: the endpoint compiles, deploys, and serves data, but skips the access check the rest of the project relies on.",
+              `Call ${pattern.dominantHelper}() at the top of the handler before any data access. If this endpoint is intentionally public or uses a different (verified) auth path, add \`// sentinel:ignore PATTERN-001\` to the file.`,
+              [{ file: endpoint.file }],
+              { cwe: "CWE-862", owasp: "A01:2021" },
+            ),
+          );
+        }
       }
       return findings;
     },

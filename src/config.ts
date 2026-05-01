@@ -33,6 +33,19 @@ const AIConfigSchema = z.object({
   verify: VerifyConfigSchema.default({}),
 });
 
+// Declarative auth-convention rule. The user states a path glob and the
+// auth helper that EVERY endpoint under that glob must call. CONVENTION-001
+// reads this and flags endpoints that deviate from the declared pattern.
+// `domain` is reserved for future expansion (validation conventions, error
+// handling conventions, etc.); for now only "auth" is meaningful.
+const ConventionRuleSchema = z.object({
+  match: z.string(),
+  require: z.string(),
+  domain: z.enum(["auth"]).default("auth"),
+});
+
+export type ConventionRule = z.infer<typeof ConventionRuleSchema>;
+
 const ConfigSchema = z.object({
   stack: z.enum(["nextjs-supabase", "react-vite-supabase", "generic-web"]),
   domains: z.array(z.string()),
@@ -45,6 +58,7 @@ const ConfigSchema = z.object({
     dir: z.string(),
   }),
   ai: AIConfigSchema,
+  conventions: z.array(ConventionRuleSchema).optional(),
 });
 
 export type SentinelConfig = z.infer<typeof ConfigSchema>;
@@ -102,6 +116,8 @@ export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
     severity: { ...CONFIG_DEFAULTS.severity, ...(parsed.severity ?? {}) },
     output: { ...CONFIG_DEFAULTS.output, ...(parsed.output ?? {}) },
     ai: { ...CONFIG_DEFAULTS.ai, ...(parsed.ai ?? {}) },
+    // conventions: optional, no defaults — caller-supplied or absent.
+    conventions: parsed.conventions,
   };
 
   return ConfigSchema.parse(merged);

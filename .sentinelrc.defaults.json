@@ -8,5 +8,18 @@
   "output": {
     "format": "terminal",
     "dir": ".sentinel/reports"
-  }
+  },
+  "_conventions_example": "Optional: declare auth conventions enforced by CONVENTION-001. Each entry says 'every endpoint matching <match> MUST call <require>'. Use this when your project has a project-wide auth helper that AI-generated routes must not skip.",
+  "_conventions_format": [
+    {
+      "match": "src/app/api/admin/**",
+      "require": "requireStaffPermission",
+      "domain": "auth"
+    },
+    {
+      "match": "src/app/api/portal/**",
+      "require": "requirePortalUser",
+      "domain": "auth"
+    }
+  ]
 }
