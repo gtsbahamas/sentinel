@@ -10,6 +10,7 @@ import { runProbeCommand } from "./commands/probe.js";
 import { runContextCommand } from "./commands/context.js";
 import { runFixCommand } from "./commands/fix.js";
 import { runMcp } from "./commands/mcp.js";
+import { runPatterns } from "./commands/patterns.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgPath = join(__dirname, "..", "package.json");
@@ -205,5 +206,20 @@ program
     "Run Sentinel as an MCP server (stdio transport) for IDE integration with Claude Code, Cursor, VS Code",
   )
   .action(runMcp);
+
+program
+  .command("patterns")
+  .description(
+    "Inspect or initialize auth patterns Sentinel inferred from your codebase",
+  )
+  .argument("<path>", "Path to the project")
+  .option("--init", "Write inferred patterns to .sentinelrc.json as conventions")
+  .option("--force", "Overwrite existing conventions when used with --init")
+  .action(async (path, options) => {
+    await runPatterns(path, {
+      init: !!options.init,
+      force: !!options.force,
+    });
+  });
 
 program.parseAsync(process.argv);
