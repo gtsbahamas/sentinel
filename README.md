@@ -98,6 +98,17 @@ The agent then has a `scan_project` tool that returns the same JSON report `sent
 
 Cursor and VS Code both support MCP servers as well; see the [Cursor MCP docs](https://docs.cursor.com/context/model-context-protocol) and the [VS Code MCP extension](https://marketplace.visualstudio.com/search?term=mcp) for setup.
 
+## Auth pattern inference
+
+Sentinel reads your codebase, infers the dominant auth helper per route group, and flags new code that deviates. This catches the specific failure mode of AI-generated routes silently skipping the project's established auth pattern.
+
+```bash
+shipsafe-sentinel patterns .             # show what was inferred
+shipsafe-sentinel patterns . --init      # write to .sentinelrc.json
+```
+
+After `--init`, deviations get flagged as CONVENTION-001 (precise) instead of PATTERN-001 (heuristic).
+
 ## How this fits with ShipSafe coaching
 
 The scanner is free forever and works standalone. If you want a human to walk the findings with you — strip anything sensitive, prioritize what actually matters for your stack, teach you the pattern so it doesn't recur — that's [ShipSafe coaching](https://shipsafe-web-eight.vercel.app). Members-only, tied to the [Early AI-dopters](https://www.skool.com/earlyaidopters) community.
