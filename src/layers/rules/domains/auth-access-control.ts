@@ -80,6 +80,50 @@ export const authAccessControlRules: SecurityRule[] = [
   },
 
   {
+    id: "AUTH-011",
+    domain: "auth-access-control",
+    title: "GET endpoint uses service-role client without auth check",
+    description:
+      "GET handler imports SUPABASE_SERVICE_ROLE_KEY (or otherwise constructs a service-role Supabase client) and has no detectable auth check, exposing the entire underlying table to anyone who hits the URL.",
+    impact:
+      "Your GET endpoint queries Supabase using the service-role key, which bypasses Row Level Security. Because there is no auth check on the handler, any anonymous caller who hits this URL receives every row of the underlying table — portal users, audit logs, customer records, whatever the route reads.",
+    severity: "critical",
+    appliesTo: ["nextjs-supabase"],
+    references: { cwe: "CWE-862", owasp: "A01:2021" },
+    async check(model) {
+      const findings: Finding[] = [];
+      for (const endpoint of model.endpoints) {
+        if (endpoint.method !== "GET") continue;
+        if (!endpoint.usesServiceRole) continue;
+        if (endpoint.hasAuthCheck) continue;
+        // Respect an explicit suppression pragma so intentionally public
+        // service-role reads (e.g., a public catalog API) don't generate noise.
+        let source = "";
+        try {
+          source = await safeReadFile(endpoint.file);
+        } catch {
+          // If the file can't be read, fall back to flagging — better to
+          // err toward more flags than silently drop a critical finding.
+        }
+        if (/sentinel:ignore\s+AUTH-011/.test(source)) continue;
+        findings.push(
+          mkFinding(
+            "AUTH-011",
+            "critical",
+            `GET ${endpoint.path} reads with service role and no auth check`,
+            "GET handler uses a service-role Supabase client (which bypasses RLS) and has no detectable auth gate, so the entire queried table is exposed to anonymous callers.",
+            "Your GET endpoint queries Supabase using the service-role key, which bypasses Row Level Security. Because there is no auth check on the handler, any anonymous caller who hits this URL receives every row of the underlying table — portal users, audit logs, customer records, whatever the route reads.",
+            "Add an auth gate at the top of the handler (e.g., `await requireStaffPermission(...)`, `await getServerUser()`, or `await supabase.auth.getUser()` followed by an explicit reject), OR move the read to the public anon-role Supabase client so RLS is enforced. If this endpoint is intentionally public, add `// sentinel:ignore AUTH-011` to the file to suppress this finding.",
+            [{ file: endpoint.file }],
+            { cwe: "CWE-862", owasp: "A01:2021" },
+          ),
+        );
+      }
+      return findings;
+    },
+  },
+
+  {
     id: "AUTH-002",
     domain: "auth-access-control",
     title: "Supabase table referenced with no RLS migration found",
