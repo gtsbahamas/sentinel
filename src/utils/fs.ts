@@ -5,12 +5,14 @@ import { basename } from "path";
 // System-level directories sentinel must never read, even when the user
 // explicitly points it at them. This is a last-line safety net, not a
 // trust boundary — scans should never target these paths in the first place.
+// Anchor to absolute root so a project subdirectory like `src/components/dev/`
+// is not mistaken for the `/dev/` system path.
 const DENY_PATTERNS: RegExp[] = [
-  /(?:^|\/)proc\//,
-  /(?:^|\/)sys\//,
-  /(?:^|\/)dev\//,
-  /(?:^|\/)etc\//,
-  /(?:^|\/)root\//,
+  /^\/proc\//,
+  /^\/sys\//,
+  /^\/dev\//,
+  /^\/etc\//,
+  /^\/root\//,
   /(?:^|\/)\.ssh\//,
 ];
 

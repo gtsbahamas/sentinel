@@ -22,6 +22,56 @@ describe("fs utils", () => {
     it("allows .env.example", () => {
       expect(isDeniedPath("/project/.env.example")).toBe(false);
     });
+
+    // Regression: deny-list patterns must anchor to true filesystem roots,
+    // otherwise legitimate project subdirectories named `dev`, `etc`, etc.
+    // are mistaken for system paths and blow up the walker mid-scan.
+    describe("project subdirectories that share names with system paths (regression)", () => {
+      it("allows project subdirectory named 'dev'", () => {
+        expect(
+          isDeniedPath("/Users/foo/project/src/components/dev/SourceLabel.tsx"),
+        ).toBe(false);
+      });
+      it("allows package subdirectory named 'dev'", () => {
+        expect(isDeniedPath("/Users/foo/work/pkg/dev/index.ts")).toBe(false);
+      });
+      it("allows project subdirectory named 'etc'", () => {
+        expect(isDeniedPath("/home/user/repo/etc/config.ts")).toBe(false);
+      });
+      it("allows project subdirectory named 'proc'", () => {
+        expect(isDeniedPath("/Users/foo/project/src/proc/handler.ts")).toBe(false);
+      });
+      it("allows project subdirectory named 'sys'", () => {
+        expect(isDeniedPath("/Users/foo/project/src/sys/index.ts")).toBe(false);
+      });
+      it("allows project subdirectory named 'root'", () => {
+        expect(isDeniedPath("/Users/foo/project/src/root/page.tsx")).toBe(false);
+      });
+    });
+
+    describe("system paths still denied (safety intent preserved)", () => {
+      it("denies /dev/null", () => {
+        expect(isDeniedPath("/dev/null")).toBe(true);
+      });
+      it("denies /etc/passwd", () => {
+        expect(isDeniedPath("/etc/passwd")).toBe(true);
+      });
+      it("denies /proc/self/cmdline", () => {
+        expect(isDeniedPath("/proc/self/cmdline")).toBe(true);
+      });
+      it("denies /sys/kernel/something", () => {
+        expect(isDeniedPath("/sys/kernel/something")).toBe(true);
+      });
+      it("denies /root/.bashrc", () => {
+        expect(isDeniedPath("/root/.bashrc")).toBe(true);
+      });
+      it("denies /Users/foo/.ssh/id_rsa", () => {
+        expect(isDeniedPath("/Users/foo/.ssh/id_rsa")).toBe(true);
+      });
+      it("denies /home/user/.ssh/known_hosts", () => {
+        expect(isDeniedPath("/home/user/.ssh/known_hosts")).toBe(true);
+      });
+    });
   });
 
   describe("safeReadFile", () => {
