@@ -75,11 +75,34 @@ function isServerContextBySource(file: string, source: string): boolean {
   // are server modules in practice. Heuristic, not airtight, but matches
   // the corpus FP pattern of `getServiceSupabase()` helpers.
   if (
-    /[/\\](?:lib|services|utils|helpers)[/\\]/.test(file) &&
+    /[/\\](?:lib|services|utils|helpers|features|server|backend|workers?|jobs?|cron|tasks?)[/\\]/.test(file) &&
     !/['"`]use client['"`]/.test(source) &&
     !/\bwindow\.|document\.|navigator\./.test(source)
   ) {
     return true;
+  }
+  // v0.1.4: A Next.js sitemap.ts at the app root runs only at build/server
+  // time. Same for robots.ts, manifest.ts, opengraph-image.ts — Next.js
+  // metadata files. They never ship to the browser bundle.
+  if (/[/\\](?:sitemap|robots|manifest|opengraph-image|twitter-image|icon|apple-icon|favicon)\.(ts|tsx|js|jsx)$/.test(file)) {
+    return true;
+  }
+  // v0.1.4: Files using only Node-side imports (fs, crypto, child_process,
+  // path) cannot run in the browser. Strong server-only signal.
+  if (/from\s+["'](?:node:)?(?:fs|crypto|child_process|stream|os|net|http|https|tls|dgram|dns)["']/.test(source)) {
+    return true;
+  }
+  // v0.1.4: Files that read SUPABASE_SERVICE_ROLE_KEY only inside a function
+  // (not at top-level export of a constant) are factory helpers. Detection:
+  // SERVICE_ROLE_KEY appears within `function`/`=>` body, not in module-level
+  // export. Heuristic: if every reference is inside a function, it's a
+  // server-side factory.
+  const serviceRoleMatches = source.match(/SUPABASE_SERVICE_ROLE_KEY/g) ?? [];
+  if (serviceRoleMatches.length > 0) {
+    // Look for module-level (not in a function body) exports that include the
+    // SERVICE_ROLE key. If we don't find one, all uses are inside functions.
+    const moduleLevelExport = /^\s*export\s+const\s+\w+\s*=\s*[^=>;]*SUPABASE_SERVICE_ROLE_KEY/m.test(source);
+    if (!moduleLevelExport) return true;
   }
   return false;
 }

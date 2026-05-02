@@ -291,6 +291,16 @@ export const inputInjectionRules: SecurityRule[] = [
         const source = await safeReadFile(endpoint.file).catch(() => "");
         if (!source.trim()) continue; // empty/unreadable file — skip phantom
 
+        // v0.1.4: 404-stub routes don't process bodies. Catches the same
+        // catch-all template routes AUTH-001 skips: `[entity]/route.ts`
+        // with default case returning 404 and no DB write.
+        const is404Stub =
+          /status:\s*404\b|status\s*:\s*404\b/.test(source) &&
+          /(?:Unknown\s+entity|Not\s+found|404)/i.test(source) &&
+          !/\.from\s*\(/.test(source) &&
+          !/await\s+\w+\.(?:insert|update|delete|upsert|rpc)\s*\(/.test(source);
+        if (is404Stub) continue;
+
         // Skip 1: endpoint reads no body. Many "actions" derive everything
         // from authenticated session (cancel-subscription, billing-portal,
         // refresh-token, refresh, sign-out). If there's no body read, there
@@ -304,11 +314,15 @@ export const inputInjectionRules: SecurityRule[] = [
         // arg-name match — that was matching `({ params }: ...)` destructures
         // and `args` in completely unrelated function signatures, so every
         // POST handler appeared to "read a body" and thus stayed in scope.
+        // v0.1.4: also recognize the modern Next.js patterns where the
+        // request is destructured from arg or named differently (e.g. `_req`
+        // or just `request`), and where formData is awaited via `await
+        // request.formData()` patterns the iter-5 regex missed.
         const readsBody =
-          /\b(?:req|request)\s*\.\s*(?:json|formData|text|arrayBuffer|blob)\s*\(/i.test(source) ||
-          /\b(?:req|request)\s*\.\s*body\b/i.test(source) ||
-          /\bawait\s+(?:req|request)\.json\b/i.test(source) ||
-          /const\s*\{[^}]+\}\s*=\s*await\s+(?:req|request)\.json/.test(source);
+          /\b(?:req|request|_req)\s*\.\s*(?:json|formData|text|arrayBuffer|blob)\s*\(/i.test(source) ||
+          /\b(?:req|request|_req)\s*\.\s*body\b/i.test(source) ||
+          /\bawait\s+(?:req|request|_req)\s*\.\s*json\b/i.test(source) ||
+          /const\s*\{[^}]+\}\s*=\s*await\s+(?:req|request|_req)\s*\.\s*json/.test(source);
         if (!readsBody) continue;
 
         // Skip 2: webhook endpoints. Path includes /webhook(s) AND the file

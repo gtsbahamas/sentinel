@@ -73,9 +73,21 @@ export function detectAuthCheck(source: string): boolean {
   const checksAuthHeader =
     /headers\.get\s*\(\s*["'`]authorization["'`]/i.test(source) ||
     /headers\.get\s*\(\s*["'`]x-api-key["'`]/i.test(source);
+  // v0.1.4: broadened. Real codebases name webhook/cron secrets after the
+  // service they protect (REVENUE_INTEL_WEBHOOK_SECRET, EMAIL_INBOUND_SECRET,
+  // X_VOICE_WORKER_SECRET, DEPLOY_SECRET, etc). Match anything ending in
+  // _SECRET, _KEY, or _TOKEN that's not the public Supabase anon key.
   const usesSharedSecretEnv =
-    /process\.env\.(?:CRON_SECRET|WEBHOOK_SECRET|API_KEY|INTERNAL_API_KEY|SCANNER_TOKEN)/.test(source);
+    /process\.env\.\w*(?:SECRET|TOKEN|API_KEY)\w*/.test(source) &&
+    !/process\.env\.NEXT_PUBLIC_/.test(source.match(/process\.env\.\w+/)?.[0] ?? "");
   const hasSharedSecret = checksAuthHeader && usesSharedSecretEnv;
+
+  // v0.1.4: Bearer-token equality check against any env secret.
+  // Pattern: `authHeader !== \`Bearer ${process.env.SOMETHING_SECRET}\``
+  const hasBearerEnvCompare =
+    /Bearer\s*\$\{process\.env\.\w+\}/.test(source) ||
+    /["'`]Bearer\s+["'`]\s*\+\s*process\.env\.\w+/.test(source) ||
+    /authHeader\s*[!=]==?\s*[`'"]Bearer/i.test(source);
 
   // (8) Custom Bearer-token + DB column lookup (the heartbeat pattern):
   // headers.get('authorization') AND a `.eq("...", value)` Supabase lookup
@@ -134,7 +146,8 @@ export function detectAuthCheck(source: string): boolean {
     hasManagedQueueAuth ||
     hasTwilioWebhook ||
     hasEnvSecretCompare ||
-    hasCustomAuthHeader
+    hasCustomAuthHeader ||
+    hasBearerEnvCompare
   );
 }
 
@@ -144,7 +157,21 @@ export async function discoverEndpoints(routes: Route[]): Promise<ApiEndpoint[]>
 
   for (const route of apiRoutes) {
     const source = await safeReadFile(route.file);
-    const hasValidation = /zod|yup|joi|\.parse\(|\.validate\(/.test(source);
+    // v0.1.4: broadened detection. The previous regex missed:
+    //   - safeParse() — the dominant zod idiom in modern codebases
+    //   - Explicit type-check guard chains (the verifier consistently calls
+    //     these "adequate validation" — typeof checks + length/range +
+    //     non-empty + early reject)
+    //   - Schema-style helpers in custom validators (validateInput, etc.)
+    // Detection layers:
+    //   (a) Library mention or call (zod/yup/joi/.parse/.validate/.safeParse)
+    //   (b) Multiple typeof string checks paired with status:400 / Bad Request
+    //       which is the universal hand-rolled validation idiom
+    const hasValidationLib = /zod|yup|joi|\.parse\s*\(|\.validate\s*\(|\.safeParse\s*\(/.test(source);
+    const typeofChecks = (source.match(/typeof\s+\w+\s*!==?\s*["'](?:string|number|boolean|object)["']/g) ?? []).length;
+    const hasReject400 = /status\s*:\s*400|status\(400|status\s*:\s*422|status\(422|"Invalid"|"Bad request"|"Bad Request"/.test(source);
+    const hasManualValidation = typeofChecks >= 1 && hasReject400;
+    const hasValidation = hasValidationLib || hasManualValidation;
     const validationLibrary = /zod/.test(source)
       ? "zod"
       : /yup/.test(source)

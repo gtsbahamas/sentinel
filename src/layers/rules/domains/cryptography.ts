@@ -87,9 +87,25 @@ export const cryptographyRules: SecurityRule[] = [
       const files = await walkSourceFiles(model);
       for (const { file, source } of files) {
         if (!/Math\.random\s*\(/.test(source)) continue;
+        // v0.1.4: skip files that ARE security-detection templates (the rule
+        // engine's own corpus or hunt-pattern templates list `Math.random()`
+        // as a STRING to detect — flagging them is meta-noise).
+        if (/[/\\](?:templates?|fixtures?|test-data|examples?|samples?)[/\\]/.test(file)) continue;
+        if (/\.(md|mdx|txt|rst|adoc)$/i.test(file)) continue;
+        // Skip files that obviously describe Math.random as a pattern to
+        // detect, not call. Heuristic: file mentions "weak-random" or
+        // "insecure" in name, or has a top-level export of a string template.
+        if (/weak-random|insecure-pattern|crypto-pattern|hunt[/\\]/i.test(file)) continue;
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
           if (!/Math\.random\s*\(/.test(line)) return;
+          // v0.1.4: skip if the Math.random() appears inside a string or
+          // template literal (it's a documented pattern, not a call). Detect
+          // by checking if the matched substring is enclosed in matched
+          // backticks/quotes on the same logical line.
+          const before = line.substring(0, line.indexOf("Math.random"));
+          const quoteCount = (before.match(/(?<!\\)["'`]/g) ?? []).length;
+          if (quoteCount % 2 === 1) return; // odd quotes before = inside a string
           // Look one line back and one line forward for a security word.
           const window = [lines[idx - 1] ?? "", line, lines[idx + 1] ?? ""].join(" ");
           if (!SECURITY_CONTEXT_WORDS.test(window)) return;

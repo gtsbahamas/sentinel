@@ -246,12 +246,34 @@ export const businessLogicRules: SecurityRule[] = [
       // Look for endpoints that read `amount` or `quantity` from the body and
       // do NOT validate it > 0 or use a zod .positive() / .min() call.
       const reads = /\b(amount|quantity|qty|price|value)\b\s*[:=]\s*(body|data|input|payload)\.\1/;
+      // v0.1.4: any of these in the same file = sufficient validation. Verifier
+      // consistently dismissed BIZ-006 when ANY positivity check existed in the
+      // file (even if at a different line). Heuristic: same-file evidence of
+      // intent to validate is enough; line-level checking creates FPs.
+      const fileHasValidation = (src: string) =>
+        /\.positive\s*\(|\.nonnegative\s*\(|\.gte?\s*\(\s*[1-9]|\.min\s*\(\s*[1-9]|>\s*0\b|>=\s*1\b|Math\.max\s*\(\s*[1-9]/.test(src) ||
+        // Explicit if-check pattern: `if (amount <= 0) return ...`
+        /if\s*\(\s*(?:amount|quantity|qty|price|value)\s*(?:<\s*0|<=\s*0|===\s*0)\s*\)/i.test(src) ||
+        // Zod number with refinement
+        /z\.number\s*\(\s*\)\.refine/i.test(src) ||
+        // typeof check + comparison
+        /typeof\s+(?:amount|quantity|qty|price|value)\s*!==?\s*["']number["']/i.test(src);
       for (const { file, source } of files) {
         if (!reads.test(source)) continue;
-        if (/\.positive\s*\(|\.nonnegative\s*\(|\.gte?\s*\(\s*[1-9]|\.min\s*\(\s*[1-9]|>\s*0\b|>=\s*1\b|Math\.max\s*\(\s*[1-9]/.test(source)) continue;
+        if (fileHasValidation(source)) continue;
+        // v0.1.4: skip files where the read is inside a commented-out block.
+        // Detect by stripping line/block comments and re-testing. If the read
+        // disappears after strip, it was only in comments.
+        const stripped = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+        if (!reads.test(stripped)) continue;
+        // v0.1.4: skip type-definition contexts. `amount: number` in a type
+        // alias or interface is not a runtime body read.
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
           if (!reads.test(line)) return;
+          // Skip if this line is inside a type or interface definition.
+          const before = lines.slice(Math.max(0, idx - 5), idx).join("\n");
+          if (/(?:type|interface)\s+\w+\s*=?\s*\{/.test(before) && !/\}\s*[;,]?\s*$/.test(before)) return;
           findings.push(
             mkFinding(
               "BIZ-006",
