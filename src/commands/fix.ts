@@ -20,6 +20,7 @@ import { registerFixer, resetFixerRegistry } from "../layers/fix/registry.js";
 import { crypto001Fixer } from "../layers/fix/deterministic/crypto-001.js";
 import { crypto002Fixer } from "../layers/fix/deterministic/crypto-002.js";
 import { log005Fixer } from "../layers/fix/deterministic/log-005.js";
+import { infra001Fixer } from "../layers/fix/deterministic/infra-001.js";
 import { infra006Fixer } from "../layers/fix/deterministic/infra-006.js";
 import { getPromptTemplate } from "../layers/fix/ai/prompts.js";
 import { runFix } from "../layers/fix/index.js";
@@ -54,6 +55,7 @@ function registerAllFixers(): void {
   registerFixer(crypto001Fixer);
   registerFixer(crypto002Fixer);
   registerFixer(log005Fixer);
+  registerFixer(infra001Fixer);
   registerFixer(infra006Fixer);
 
   // AI fixers — registered as type "ai" with aiPromptId pointing to prompt templates

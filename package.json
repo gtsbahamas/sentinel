@@ -1,6 +1,6 @@
 {
   "name": "shipsafe-sentinel",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Security assessment CLI for Next.js + Supabase codebases — the scanner behind ShipSafe coaching",
   "license": "Apache-2.0",
   "author": "Ty Wells (Frank Labs)",
