@@ -49,7 +49,177 @@ async function walkSourceFiles(model: ProjectModel): Promise<Array<{ file: strin
   return Promise.all(files.map(async (file) => ({ file, source: await safeReadFile(file) })));
 }
 
-const SENSITIVE_KEYS = /\b(password|passwd|pwd|token|secret|apiKey|api_key|authorization|cookie|session|privateKey|jwt|refreshToken|accessToken)\b/i;
+// LOG-001 sensitive identifiers — high-signal only.
+// Dropped 'session' as a standalone token: it triggered FPs on harmless
+// sessionId/sessionError refs the AI verifier consistently rejected
+// ("non-sensitive identifier used for tracing"). 'session' still fires
+// when paired (sessionToken, sessionSecret).
+const SENSITIVE_KEYS = /(?:\bpassword\b|\bpasswd\b|\bpwd\b|\bsecret\b|\bapi[-_ ]?key\b|\baccess[-_ ]?key\b|\bprivate[-_ ]?key\b|\bauthorization\b|\bjwt\b|\brefresh[-_ ]?token\b|\baccess[-_ ]?token\b|\bbearer\b|sessionToken|sessionSecret|\bcookie\b|\btoken\b)/i;
+// Catch camelCase/snake_case identifiers that suffix-match a sensitive
+// noun: existingApiKey, refreshToken, userPassword, foo.access_token, etc.
+// We deliberately do NOT include "Session" because it's overwhelmingly
+// noisy. apiKey/api_key handled via SENSITIVE_KEYS above.
+const SENSITIVE_SUFFIX = /\b\w*[Tt]oken\b|\b\w*[Pp]assword\b|\b\w*[Ss]ecret\b|\b\w*[Aa]piKey\b|\b\w*api_key\b|\b\w*[Pp]rivateKey\b/;
+
+// Strip string and template literals from a line, but PRESERVE the
+// expressions inside template `${...}` interpolations. This is the
+// dominant FP pattern: `console.error('label with token:', err)` —
+// the word 'token' is only inside the literal string label, not in
+// the values being logged. Real TPs interpolate variable refs:
+// `console.log('Push token:', token.value)` keeps `token.value` in
+// scope after stripping; `\`[Auth] Generated new API key: ${name}\``
+// keeps `name` in scope.
+function stripStringsKeepInterp(line: string): string {
+  let out = "";
+  let i = 0;
+  while (i < line.length) {
+    const c = line[i];
+    if (c === '"' || c === "'") {
+      const quote = c;
+      i++;
+      while (i < line.length && line[i] !== quote) {
+        if (line[i] === "\\") i += 2;
+        else i++;
+      }
+      i++;
+      out += "''";
+    } else if (c === "`") {
+      i++;
+      while (i < line.length && line[i] !== "`") {
+        if (line[i] === "\\") {
+          i += 2;
+          continue;
+        }
+        if (line[i] === "$" && line[i + 1] === "{") {
+          i += 2;
+          let depth = 1;
+          while (i < line.length && depth > 0) {
+            if (line[i] === "{") depth++;
+            else if (line[i] === "}") depth--;
+            if (depth > 0) out += line[i];
+            i++;
+          }
+          out += " ";
+        } else {
+          i++;
+        }
+      }
+      i++;
+    } else {
+      out += c;
+      i++;
+    }
+  }
+  return out;
+}
+
+function isSensitiveLogArgs(args: string): boolean {
+  return SENSITIVE_KEYS.test(args) || SENSITIVE_SUFFIX.test(args);
+}
+
+// Skip pure label/error patterns even when matched: console.error("label:", err)
+// where the only non-string arg is `err`/`error`/`e` (the standard error variable).
+function isPureErrorLog(stripped: string): boolean {
+  // Strip surrounding whitespace and detect args that are purely strings + a
+  // single error-like identifier with no sensitive substring.
+  const trimmed = stripped.trim();
+  // After stripping, args look like: "''", "''", err  OR  "''", error  OR  "''", e
+  // Require: only quoted-empty placeholders + a final identifier matching
+  // /^(err|error|e|ex|exception)$/ (with optional `as Error` cast).
+  const errorIdent = /^(?:''[\s,]*)*(err|error|e|ex|exception)(?:\s+as\s+\w+)?[\s,]*$/;
+  return errorIdent.test(trimmed);
+}
+
+// Iteration 4-5: many FPs were metadata-only logs that nonetheless matched
+// the sensitive-keys regex because the variable name still contains 'token',
+// 'password', 'apiKey', etc.:
+//   console.log('Token present:', !!token)               — boolean coercion
+//   console.log(`Length: ${pwd.length}`)                  — length only
+//   console.log('Has lowercase:', /[a-z]/.test(pwd))     — predicate result
+//   console.log(`API key: ${apiKey.name} (${apiKey.id})`) — id/name metadata
+//   console.log(`set: ${password ? 'yes' : 'no'}`)       — presence flag
+//   console.log(`Sent ${roomToken}`)                      — token-like name
+//                                                          but stable id
+//
+// After string-stripping, the surviving expressions are non-leaky. We split
+// on commas AND on whitespace gaps from template interpolations.
+function isMetadataOnlyLog(stripped: string): boolean {
+  // Pull the comma-separated argument list. Then for each argument, split on
+  // whitespace (template-interp expressions are concatenated with " " by
+  // stripStringsKeepInterp).
+  let depth = 0;
+  const args: string[] = [];
+  let buf = "";
+  for (let i = 0; i < stripped.length; i++) {
+    const ch = stripped[i];
+    if (ch === "(" || ch === "[" || ch === "{") depth++;
+    else if (ch === ")" || ch === "]" || ch === "}") depth--;
+    if (ch === "," && depth === 0) {
+      args.push(buf);
+      buf = "";
+    } else {
+      buf += ch;
+    }
+  }
+  if (buf.trim()) args.push(buf);
+
+  // Each `arg` may contain MULTIPLE template-interp expressions separated by
+  // whitespace. Split each by whitespace gaps, but keep parenthetical groups
+  // and ternary expressions intact (they don't have outer whitespace).
+  const exprs: string[] = [];
+  for (const a of args) {
+    const trimmed = a.trim();
+    if (!trimmed) continue;
+    if (trimmed === "''" || trimmed === '""') continue;
+    // Split on multiple consecutive whitespace OR a gap between distinct
+    // identifiers/expressions. We treat single-spaced complex expressions
+    // (`!! token`) as one expression — but typical interp output uses 2+
+    // spaces or distinct boundary-separated tokens. To be safe, also keep
+    // the original full expression as a candidate, then if that doesn't
+    // match a safe shape, try splitting on /\s{2,}/ for multi-interp.
+    // Strategy: try the full expression first; if it matches, accept. If
+    // not, split on /\s+/ and check each token.
+    exprs.push(trimmed);
+  }
+  if (exprs.length === 0) return true;
+
+  // Patterns that are SAFE to log even when applied to a sensitive identifier:
+  const safeShapes: RegExp[] = [
+    /^!!\s*\w+(?:\.\w+)*$/, // !!token, !!user.password
+    /^!\s*!?\s*\w+(?:\.\w+)*$/, // !token (truthiness check)
+    /^\w+(?:\.\w+)*\s*\.\s*(?:length|size|byteLength|count|id|name|provider|type|kind|status|createdAt|created_at|updatedAt|updated_at)\s*$/,
+    /^\/[^/]+\/[gimsuy]*\s*\.\s*test\s*\(\s*\w+(?:\.\w+)*\s*\)$/, // /[a-z]/.test(pwd)
+    /^\w+(?:\.\w+)*\s*\?\s*['"`][^'"`]*['"`]\s*:\s*['"`][^'"`]*['"`]$/, // pwd ? 'set' : 'unset'
+    /^typeof\s+\w+(?:\.\w+)*$/, // typeof password
+    /^Boolean\s*\(\s*\w+(?:\.\w+)*\s*\)$/, // Boolean(token)
+    /^Number\s*\(\s*\w+(?:\.\w+)*\s*\)$/,
+    /^String\s*\(\s*\w+(?:\.\w+)*\s*\)\s*\.\s*length$/, // String(token).length
+    /^\w+(?:\.\w+)*\s*\?\.\s*(?:length|size)\s*$/, // pwd?.length
+    /^\w+(?:\.\w+)*\s*!==\s*\w+(?:\.\w+)*\s*&&\s*\w+(?:\.\w+)*\??\.\s*(?:startsWith|endsWith|includes)\s*\(/, // whitespace boolean
+  ];
+
+  // Try matching the full expression first.
+  const matchesSafe = (expr: string): boolean => safeShapes.some((re) => re.test(expr));
+
+  for (const e of exprs) {
+    if (matchesSafe(e)) continue;
+    // Try splitting on whitespace and matching each piece.
+    const tokens = e
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t && t !== "''" && t !== '""');
+    if (tokens.length === 0) continue;
+    let allOk = true;
+    for (const t of tokens) {
+      if (!matchesSafe(t)) {
+        allOk = false;
+        break;
+      }
+    }
+    if (!allOk) return false;
+  }
+  return true;
+}
 
 export const loggingMonitoringRules: SecurityRule[] = [
   {
@@ -66,12 +236,37 @@ export const loggingMonitoringRules: SecurityRule[] = [
       const files = await walkSourceFiles(model);
       const logCall = /(console\.(log|info|warn|error|debug)|logger\.(info|warn|error|debug)|pino\.[a-z]+)\s*\(([^)]+)\)/;
       for (const { file, source } of files) {
+        // Skip test fixtures, migrations, and seed scripts — they routinely
+        // log test passwords/tokens and produce noise without representing
+        // real production exposure.
+        if (/\/(test|tests|__tests__|__mocks__|migrations|seed|seeds|fixtures|e2e|spec)\//i.test(file)) continue;
+        if (/\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(file)) continue;
+
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
+          // Skip JS comment lines so "// log the token" doesn't trip the rule.
+          const trimmed = line.trim();
+          if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
+
           const m = line.match(logCall);
           if (!m) return;
           const args = m[4];
-          if (!SENSITIVE_KEYS.test(args)) return;
+
+          // Strip string/template literals BEFORE the sensitivity check so
+          // label-only matches like console.error('Failed to get token:', err)
+          // do not fire. Variable refs and ${...} expressions remain.
+          const stripped = stripStringsKeepInterp(args);
+          if (!isSensitiveLogArgs(stripped)) return;
+
+          // After stripping, if all that remains is an error identifier, the
+          // sensitive word was inside the label string only.
+          if (isPureErrorLog(stripped)) return;
+
+          // Iteration 4: skip metadata-only logs (boolean coercions,
+          // .length / .id / .name accesses, regex.test() predicates, ternaries
+          // with literal strings). These were the dominant FP pattern in v3.
+          if (isMetadataOnlyLog(stripped)) return;
+
           findings.push(
             mkFinding(
               "LOG-001",

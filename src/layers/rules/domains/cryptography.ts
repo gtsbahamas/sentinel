@@ -49,6 +49,19 @@ async function walkSourceFiles(model: ProjectModel): Promise<Array<{ file: strin
       "**/__tests__/**",
       "**/*.test.*",
       "**/*.spec.*",
+      // Vendored/third-party code that ships alongside the project
+      // (Playwright drivers in venv, Python venvs, e2e helpers). These
+      // were the dominant CRYPTO-008 FP source in v2.
+      "**/venv/**",
+      "**/.venv/**",
+      "**/site-packages/**",
+      "**/playwright/**",
+      "**/e2e/**",
+      "**/e2e-testing/**",
+      "**/__pycache__/**",
+      "**/vendor/**",
+      "**/third_party/**",
+      "**/third-party/**",
     ],
   });
   return Promise.all(files.map(async (file) => ({ file, source: await safeReadFile(file) })));
@@ -332,17 +345,121 @@ export const cryptographyRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
-      // Match: <secret-ish identifier> (==|===|!=|!==) <something>, OR the
-      // reverse form: <something> (==|===|!=|!==) <secret-ish identifier>.
-      const reLeft = /\b(hmac|signature|token|mac|digest|sig)\w*\s*(===|!==|==|!=)\s*\S/i;
-      const reRight = /\S\s*(===|!==|==|!=)\s*\b(hmac|signature|token|mac|digest|sig)\w*/i;
+      // Capture the secret-ish identifier on the left and what it's compared
+      // against on the right (or vice versa). We use the captured RHS to
+      // decide whether the comparison is actually against another secret-
+      // bearing variable (TP) vs. a plain string literal / null / number / sentinel
+      // value (FP — the v2 dominant pattern).
+      // Form A: secretIdent OP rhs
+      const reLeft = /\b((?:hmac|signature|token|mac|digest|sig)\w*)\s*(?:===|!==|==|!=)\s*([^;,)\n]+)/i;
+      // Form B: lhs OP secretIdent
+      const reRight = /([^=!<>;,(\n]{1,80}?)(?:===|!==|==|!=)\s*\b((?:hmac|signature|token|mac|digest|sig)\w*)/i;
+
+      // Identifier shapes that look secret-y but are clearly metadata or
+      // discriminators. Iter-5 catch: `tokenProvider`, `tokenType`,
+      // `tokenKind`, `tokenCount`, `signalType`, `tokenScheme` etc.
+      // These are routing/state variables, not secret material.
+      const isMetadataIdent = (ident: string): boolean => {
+        const t = ident.trim();
+        // Strip leading property prefix (params.opts.tokenProvider → tokenProvider)
+        const last = (t.match(/(\w+)\s*$/) || [, ""])[1];
+        return /^(?:\w*?(?:Provider|Type|Kind|Count|Scheme|Strategy|Method|Mode|State|Status|Format|Length|Size|Index|Number|Position|Offset|Step|Phase|Stage|Variant|Style|Direction))$/.test(
+          last,
+        );
+      };
+
+      // RHS shapes that strongly indicate a NON-secret comparison:
+      // - String literals shorter than 16 chars (real HMAC/tokens are >= 32)
+      // - null / undefined / void 0 / true / false
+      // - Numeric literals (e.g., `tokens.length === 5`, port comparisons)
+      // - Property access on .length / .size / .index (length/index checks,
+      //   not secret value checks)
+      const isNonSecretRhs = (rawRhs: string): boolean => {
+        const rhs = rawRhs.trim();
+        if (!rhs) return true;
+        // Bare null/undefined/booleans/void 0
+        if (/^(?:null|undefined|true|false|void\s+0|NaN|Infinity)\b/.test(rhs)) return true;
+        // Numeric literal (incl. negatives, hex, scientific, BigInt)
+        if (/^-?(?:0[xX][\da-fA-F]+|0[bB][01]+|0[oO][0-7]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?n?)\b/.test(rhs))
+          return true;
+        // .length / .size / .index property access on either side
+        if (/^[^"'`]*\.(?:length|size|index|byteLength|count|status)\b/.test(rhs)) return true;
+        // String literal: extract the contents and decide by length/shape.
+        // Real secret tokens are long (>= 16 chars typical, almost always >= 32).
+        // Short string literals are sentinel values like 'session', '.', '*',
+        // 'undefined', '<loopback>', 'subscribe'.
+        const litMatch = rhs.match(/^(?:["'`])([^"'`]*)\1?/);
+        if (litMatch) {
+          const lit = litMatch[1];
+          // Allow obvious base64-ish or hex secrets to pass: those are TPs
+          // in test fixtures. Real secrets here would be at least 16 chars.
+          if (lit.length < 16) return true;
+          // Lit is long but consists of plain words/spaces (e.g. an error
+          // message or status line), treat as non-secret.
+          if (/^[a-zA-Z][\w\s.-]+$/.test(lit) && /\s/.test(lit)) return true;
+        }
+        return false;
+      };
+
+      // If EITHER side of the comparison is a length/size/index/byteLength
+      // property access, the comparison is structural (iteration / shape
+      // check), not a secret comparison. This catches `if (computed.length
+      // !== signature.length)` early-exits and `if (index === tokens.length)`
+      // iterators.
+      const hasLengthCompare = /\.(?:length|size|index|byteLength|count)\b/;
+
       for (const { file, source } of files) {
         if (!/hmac|signature|token|digest|\bmac\b/i.test(source)) continue;
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
           // Per-line: if this line already uses timingSafeEqual, it's fine.
           if (/timingSafeEqual/.test(line)) return;
-          if (!reLeft.test(line) && !reRight.test(line)) return;
+          // Skip comment-only lines.
+          const trim = line.trim();
+          if (trim.startsWith("//") || trim.startsWith("*") || trim.startsWith("/*")) return;
+          // Skip lines where either side is a length/size/index check —
+          // these are structural comparisons, not secret comparisons.
+          if (hasLengthCompare.test(line)) return;
+
+          let rhs: string | null = null;
+          let lhs: string | null = null;
+          let secretSide: string | null = null;
+          const mLeft = line.match(reLeft);
+          if (mLeft) {
+            secretSide = mLeft[1];
+            rhs = mLeft[2];
+          } else {
+            const mRight = line.match(reRight);
+            if (mRight) {
+              secretSide = mRight[2];
+              lhs = mRight[1];
+            }
+          }
+          if (rhs === null && lhs === null) return;
+
+          // Iter-5: skip when the matched identifier is actually a metadata
+          // discriminator (tokenProvider, signalType, tokenCount, etc.).
+          // The original regex matches any token starting with hmac/sig/etc,
+          // which catches these unrelated identifiers.
+          if (secretSide && isMetadataIdent(secretSide)) return;
+
+          // Iter-5: also examine the OTHER side. `tokenCount !== prev.current`
+          // — secret-side is `tokenCount` (metadata), lhs/rhs is `prev.current`
+          // which we want to also skip. The above check on secretSide handles
+          // this directly.
+
+          // Filter by the non-secret side.
+          if (rhs !== null && isNonSecretRhs(rhs)) return;
+          if (lhs !== null && isNonSecretRhs(lhs)) return;
+
+          // Iter-5: also skip if the OTHER side ends in `.current`, `.value`,
+          // `.id`, `.name`, `.count` — those are React refs / state /
+          // metadata accesses, not secret material.
+          const otherSide = (rhs ?? lhs ?? "").trim();
+          if (/\.(?:current|value|id|name|count|provider|type|kind|scheme)\s*$/.test(otherSide)) {
+            return;
+          }
+
           findings.push(
             mkFinding(
               "CRYPTO-008",

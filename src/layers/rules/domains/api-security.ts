@@ -134,24 +134,76 @@ export const apiSecurityRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
-      const re = /\.(insert|upsert|update)\s*\(\s*\{\s*\.\.\.\s*(body|req\.body|request\.body|data|input|payload)\b/;
+      // Match form: `.insert({ ...spreadVar` where the spread variable is one
+      // of two classes:
+      //   (a) "body"-shaped — these come straight from a request body (FP-safe)
+      //   (b) generic names ("data", "input", "payload") — high FP rate when
+      //       these are typed function parameters in client-side hooks
+      const reBody = /\.(insert|upsert|update)\s*\(\s*\{\s*\.\.\.\s*(body|req\.body|request\.body)\b/;
+      const reGeneric = /\.(insert|upsert|update)\s*\(\s*\{\s*\.\.\.\s*(data|input|payload)\b/;
+
+      // Heuristic: a file is a "server route" (where `data`/`input`/`payload`
+      // is plausibly a request body) if it lives under an API route directory
+      // or imports request-typed values.
+      const SERVER_ROUTE_PATH = /(?:^|\/)(?:app|pages|src\/app|src\/pages)\/api\//;
+      const SERVER_ROUTE_FILE = /(?:^|\/)route\.[jt]sx?$/;
+      const REQUEST_TYPE_HINTS =
+        /\b(?:NextRequest|NextResponse|NextApiRequest|NextApiResponse|Request|Response)\b|from\s+["']next\/server["']|export\s+async\s+function\s+(?:GET|POST|PUT|PATCH|DELETE)\b|await\s+req(?:uest)?\.json\s*\(/;
+
+      // Heuristic: a file is a "client hook" (where `data`/`input`/`payload`
+      // is typically a typed mutation parameter, not a request body). We
+      // suppress the generic-name arm in these.
+      const CLIENT_HOOK_PATH = /(?:^|\/)(?:hooks|stores|context|providers|state)\/|(?:^|\/)use[A-Z]\w*\.[jt]sx?$/;
+      const REACT_QUERY_HINTS =
+        /useMutation\b|useQuery\b|useSWR\b|useSWRMutation\b|useState\b|useEffect\b|["']use client["']/;
+
       for (const { file, source } of files) {
+        const isServerRoute =
+          SERVER_ROUTE_PATH.test(file) || SERVER_ROUTE_FILE.test(file) || REQUEST_TYPE_HINTS.test(source);
+        const isClientHook = CLIENT_HOOK_PATH.test(file) || REACT_QUERY_HINTS.test(source);
+
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
-          const m = line.match(re);
-          if (!m) return;
-          findings.push(
-            mkFinding(
-              "API-003",
-              "high",
-              "Request body spread into database write",
-              "An attacker can set fields like `role`, `is_admin`, or `user_id` that the form never exposed.",
-              "Your API spreads the entire request body into a database query. An attacker can include extra fields like 'role: admin' or 'is_verified: true' to escalate their privileges.",
-              "Pick only the fields the user is allowed to set. Validate with a Zod schema and pass .parse() output.",
-              [{ file, line: idx + 1, snippet: line.trim().slice(0, 120) }],
-              { cwe: "CWE-915", owasp: "A08:2021" },
-            ),
-          );
+          // Skip comments.
+          const trim = line.trim();
+          if (trim.startsWith("//") || trim.startsWith("*") || trim.startsWith("/*")) return;
+
+          // Body-shaped names: still high signal — keep firing.
+          const mBody = line.match(reBody);
+          if (mBody) {
+            findings.push(
+              mkFinding(
+                "API-003",
+                "high",
+                "Request body spread into database write",
+                "An attacker can set fields like `role`, `is_admin`, or `user_id` that the form never exposed.",
+                "Your API spreads the entire request body into a database query. An attacker can include extra fields like 'role: admin' or 'is_verified: true' to escalate their privileges.",
+                "Pick only the fields the user is allowed to set. Validate with a Zod schema and pass .parse() output.",
+                [{ file, line: idx + 1, snippet: line.trim().slice(0, 120) }],
+                { cwe: "CWE-915", owasp: "A08:2021" },
+              ),
+            );
+            return;
+          }
+
+          // Generic names — only fire when the file is plausibly a server
+          // route AND not a client hook. This eliminates the v2 dominant FP
+          // pattern: typed parameters in `hooks/use*.ts` files.
+          const mGeneric = line.match(reGeneric);
+          if (mGeneric && isServerRoute && !isClientHook) {
+            findings.push(
+              mkFinding(
+                "API-003",
+                "high",
+                "Request body spread into database write",
+                "An attacker can set fields like `role`, `is_admin`, or `user_id` that the form never exposed.",
+                "Your API spreads the entire request body into a database query. An attacker can include extra fields like 'role: admin' or 'is_verified: true' to escalate their privileges.",
+                "Pick only the fields the user is allowed to set. Validate with a Zod schema and pass .parse() output.",
+                [{ file, line: idx + 1, snippet: line.trim().slice(0, 120) }],
+                { cwe: "CWE-915", owasp: "A08:2021" },
+              ),
+            );
+          }
         });
       }
       return findings;
@@ -321,9 +373,38 @@ export const apiSecurityRules: SecurityRule[] = [
       for (const endpoint of model.endpoints) {
         if (!["POST", "PUT", "PATCH", "DELETE"].includes(endpoint.method)) continue;
         const source = await safeReadFile(endpoint.file).catch(() => "");
+        if (!source.trim()) continue; // empty file → phantom match
         // Only flag cookie-auth (not JSON bearer-token auth).
         const usesCookies = /cookies\s*\(|req\.cookies|request\.cookies|Set-Cookie|createServerClient/.test(source);
         if (!usesCookies) continue;
+
+        // Iteration 4: modern Next.js + Supabase SSR sets SameSite=Lax by
+        // default on session cookies. The whole CSRF threat model assumes
+        // a cookie that auto-sends on cross-site form posts — which Lax
+        // (the browser default since 2020) blocks. Consequently, code that
+        // uses the @supabase/ssr `createServerClient` is already protected.
+        // The previous rule flagged every `createServerClient`-using
+        // mutation, which the verifier dismissed at 87.5%.
+        // New: only fire when we DON'T see the modern SSR pattern AND
+        // we DO see explicit cookie writes/sets that look hand-rolled.
+        const usesSupabaseSsr =
+          /from\s+["'`]@supabase\/ssr["'`]/.test(source) ||
+          /createServerClient\s*\(/.test(source) ||
+          /createBrowserClient\s*\(/.test(source);
+        if (usesSupabaseSsr) continue;
+
+        // Skip 2: Stripe webhook / signed-payload patterns — request is
+        // authenticated cryptographically, CSRF is not in the threat model.
+        if (/constructEvent\s*\(/.test(source)) continue;
+        if (/createHmac\s*\(/.test(source) && /timingSafeEqual/.test(source)) continue;
+
+        // Skip 3: OTP / verify endpoints — these establish the session
+        // (or are stateless); they aren't acting on behalf of an existing
+        // session, so CSRF is inapplicable.
+        if (/\/(?:auth|portal\/auth)\/(?:verify-otp|otp|magic-link|callback)\b/.test(endpoint.path)) {
+          continue;
+        }
+
         const hasCsrf = /csrf|X-Csrf|sameSite\s*:\s*["'](strict|lax)["']/i.test(source);
         if (hasCsrf) continue;
         findings.push(

@@ -89,11 +89,30 @@ export const authAccessControlRules: SecurityRule[] = [
     references: { cwe: "CWE-862", owasp: "A01:2021" },
     async check(model) {
       const findings: Finding[] = [];
+      // Iter-5: paths that ARE the auth flow itself, or are public by
+      // design. A login endpoint cannot require auth before accepting a
+      // login. Forgot-password, magic-link, signup, reset-password, OTP
+      // flows are the same. Webhooks already covered by hasAuthCheck via
+      // the recon detector when signature verification is present.
+      const AUTH_FLOW_PATHS = [
+        /\/auth\/(?:login|signup|signin|sign-in|sign-up|register|forgot-password|reset-password|reset|magic-link|callback|verify-otp|otp|verify|exchange)\b/i,
+        /\/(?:portal|customer|client|staff|employee|admin|user|members?)-?\/?auth\/(?:login|signup|signin|sign-in|sign-up|register|forgot-password|reset-password|reset|magic-link|callback|verify-otp|otp|verify|exchange)\b/i,
+        /\/(?:login|signup|signin|register|logout|sign-out|signout)\b/i,
+        // Walk-in / kiosk style intentional public endpoints — paths that
+        // include words signaling unauthenticated users (checkin, public,
+        // anon, walkin, lookup, embed).
+        /\/(?:checkin|check-in|walkin|walk-in|public|anon|anonymous|embed|widget|lookup|track|tracking)(?:\/|$)/i,
+      ];
       for (const endpoint of model.endpoints) {
         if (["POST", "PUT", "PATCH", "DELETE"].includes(endpoint.method) && !endpoint.hasAuthCheck) {
+          // Skip auth-flow / intentionally-public endpoints by path shape.
+          if (AUTH_FLOW_PATHS.some((re) => re.test(endpoint.path) || re.test(endpoint.file))) {
+            continue;
+          }
           // Respect an explicit suppression pragma so intentional public
           // endpoints (e.g., embeddable widget APIs) don't generate noise.
           const source = await safeReadFile(endpoint.file);
+          if (!source.trim()) continue; // empty file → phantom match
           if (/sentinel:ignore\s+AUTH-001/.test(source)) continue;
           findings.push(
             mkFinding(
@@ -282,6 +301,23 @@ export const authAccessControlRules: SecurityRule[] = [
         // duplicate finding the user can fix once.
       }
 
+      // Additional path segments to exclude beyond the inference defaults.
+      // These cover queue handlers, health/status probes, and other route
+      // classes that legitimately use non-session auth or are public by
+      // design — they were the dominant FP source in the v2 measurement.
+      const PATTERN001_EXTRA_EXCLUDED = [
+        "/inngest",
+        "/queue",
+        "/jobs/",
+        "/health",
+        "/healthz",
+        "/ping",
+        "/status",
+        "/metrics",
+        "/sse",
+        "/stream",
+      ];
+
       for (const pattern of patterns) {
         if (pattern.domain !== "auth") continue;
 
@@ -292,6 +328,19 @@ export const authAccessControlRules: SecurityRule[] = [
           // use HMAC; crons use shared secrets). Skip them here for the same
           // reason inference excludes them from sample size.
           if (isExcludedPath(endpoint.file, excludedSegments)) continue;
+          // Apply the rule's additional exclusion list for queue handlers,
+          // health probes, and stream/SSE endpoints — these legitimately
+          // skip session helpers but were producing FPs in v2.
+          if (isExcludedPath(endpoint.file, PATTERN001_EXTRA_EXCLUDED)) continue;
+
+          // KEY REFINEMENT: if the endpoint already has SOME auth check
+          // (cookie SSR, bearer-token + getUser, helper call, HMAC signature,
+          // etc.), the deviation from the inferred dominant helper is most
+          // likely an intentional choice of a different valid auth pattern,
+          // not a silent privilege bypass. This was the #1 FP cause in v2 —
+          // routes that authenticated via supabase.auth.getUser() directly
+          // instead of the project's getPortalSession() helper.
+          if (endpoint.hasAuthCheck) continue;
 
           const rel = relPath(model.meta.path, endpoint.file);
           if (!pathMatches(rel, pattern.pathGlob)) continue;
@@ -304,6 +353,9 @@ export const authAccessControlRules: SecurityRule[] = [
           }
           if (/sentinel:ignore\s+PATTERN-001/.test(source)) continue;
           if (callsHelper(source, pattern.dominantHelper)) continue;
+          // Skip deprecated stub routes that immediately return 410 Gone.
+          // These have no data access, so a missing auth helper is irrelevant.
+          if (/status\s*:\s*410\b/.test(source) || /\.status\s*\(\s*410\s*\)/.test(source)) continue;
 
           const pct = Math.round(pattern.prevalence * 100);
           findings.push(
@@ -483,27 +535,87 @@ export const authAccessControlRules: SecurityRule[] = [
       const files = await fg(["**/*.{ts,tsx,js,jsx}"], {
         cwd: model.meta.path,
         absolute: true,
-        ignore: ["**/node_modules/**", "**/.next/**"],
+        ignore: [
+          "**/node_modules/**",
+          "**/.next/**",
+          "**/dist/**",
+          "**/build/**",
+          // Next.js API routes and route handlers are server-only by
+          // framework convention; supabase.auth.admin in these files is
+          // never bundled to the client. Skip to suppress the dominant FP
+          // pattern from the v2 measurement.
+          "**/app/api/**",
+          "**/pages/api/**",
+          // Supabase Edge Functions run on Deno server-side.
+          "**/supabase/functions/**",
+          // Build/seed/migration scripts are not bundled to the browser.
+          "**/scripts/**",
+          "**/migrations/**",
+          "**/seed/**",
+          "**/seeds/**",
+          // Node-side worker files and CLIs.
+          "**/server/**",
+          "**/worker/**",
+          "**/workers/**",
+          "**/cli/**",
+        ],
       });
+      // Identifiers in file paths/names that signal server-only context.
+      // Files matching these patterns are skipped because they cannot be
+      // bundled to the browser even without an explicit `server-only` import.
+      const SERVER_ONLY_FILE_HINTS =
+        /(?:\.server\.[jt]sx?$|^(?:.*\/)?server[._-]|\/server\/|\/api\/route\.[jt]sx?$|route\.server\.[jt]sx?$)/i;
+
       for (const file of files) {
+        // Skip when the file path itself signals server-only context.
+        if (SERVER_ONLY_FILE_HINTS.test(file)) continue;
+
         const source = await safeReadFile(file);
-        if (/supabase\.auth\.admin/.test(source)) {
-          const serverOnly = /import\s+["']server-only["']/.test(source);
-          if (!serverOnly) {
-            findings.push(
-              mkFinding(
-                "AUTH-005",
-                "critical",
-                "supabase.auth.admin used without server-only guard",
-                "Admin API usage must be confined to server-only modules.",
-                "Your app uses the Supabase admin API in code that could run client-side. The admin API bypasses all security policies and grants full database access to whoever calls it.",
-                'Add `import "server-only";` at the top of this file, or move the admin call into a file that does.',
-                [{ file }],
-                { cwe: "CWE-269", owasp: "A01:2021" },
-              ),
-            );
-          }
+        // Skip empty/unreadable files — the rule was firing on phantom matches
+        // from earlier model state when the file was empty on disk.
+        if (!source || source.trim().length === 0) continue;
+
+        if (!/supabase\.auth\.admin/.test(source)) continue;
+        // Skip when the source has been marked as a comment-only mention
+        // (e.g., `// uses supabase.auth.admin elsewhere`).
+        // Verify there's a non-comment occurrence.
+        const lines = source.split("\n");
+        const hasNonCommentUse = lines.some((line) => {
+          if (!/supabase\.auth\.admin/.test(line)) return false;
+          const trim = line.trim();
+          if (trim.startsWith("//") || trim.startsWith("*") || trim.startsWith("/*")) return false;
+          return true;
+        });
+        if (!hasNonCommentUse) continue;
+
+        // Skip when the file declares "use client" — those would surface as
+        // a different rule (and bundlers would error first); but defensively
+        // treat them as not-server.
+        const isClientFile = /^\s*["']use client["']\s*;?/m.test(source);
+        if (isClientFile) {
+          // Still flag because admin in a client file is the worst case.
+          // (Don't continue.)
         }
+
+        // Already-server-only imports → silent.
+        const serverOnly =
+          /import\s+["']server-only["']/.test(source) ||
+          // Edge runtime / nodejs runtime declarations are also server-bound.
+          /export\s+const\s+runtime\s*=\s*["'](?:nodejs|edge)["']/.test(source);
+        if (serverOnly) continue;
+
+        findings.push(
+          mkFinding(
+            "AUTH-005",
+            "critical",
+            "supabase.auth.admin used without server-only guard",
+            "Admin API usage must be confined to server-only modules.",
+            "Your app uses the Supabase admin API in code that could run client-side. The admin API bypasses all security policies and grants full database access to whoever calls it.",
+            'Add `import "server-only";` at the top of this file, or move the admin call into a file that does.',
+            [{ file }],
+            { cwe: "CWE-269", owasp: "A01:2021" },
+          ),
+        );
       }
       return findings;
     },
@@ -604,31 +716,122 @@ export const authAccessControlRules: SecurityRule[] = [
 
       // 2. Scan source for hardcoded short secrets passed to jwt.sign,
       // iron-session, cookie-session, etc.
+      // Exclude test/seed scripts — they contain test passwords for
+      // authentication testing, not signing secrets, and they overwhelmingly
+      // produce false positives. Also exclude scripts/, e2e/, fixtures/.
       const files = await fg(["**/*.{ts,tsx,js,jsx,mjs,cjs}"], {
         cwd: model.meta.path,
         absolute: true,
-        ignore: ["**/node_modules/**", "**/.next/**", "**/dist/**", "**/build/**"],
+        ignore: [
+          "**/node_modules/**",
+          "**/.next/**",
+          "**/dist/**",
+          "**/build/**",
+          "**/test/**",
+          "**/tests/**",
+          "**/__tests__/**",
+          "**/__mocks__/**",
+          "**/e2e/**",
+          "**/fixtures/**",
+          "**/seed/**",
+          "**/seeds/**",
+          "**/migrations/**",
+          "**/scripts/**",
+          "**/*.test.*",
+          "**/*.spec.*",
+          "**/test-*.{ts,tsx,js,jsx,mjs,cjs}",
+          "**/test_*.{ts,tsx,js,jsx,mjs,cjs}",
+        ],
       });
-      const literalSecret = /\b(jwt\.sign|jsonwebtoken\.sign|jose\.sign|sign)\s*\([^)]*?["']([^"']{1,31})["']/g;
-      const cookieSecret = /(cookieName|password|secret)\s*:\s*["']([^"']{1,31})["']/g;
+      // Tighter `sign(` pattern: must be jwt.sign / jsonwebtoken.sign / jose.sign
+      // or a bare `sign(` call NOT preceded by `crypto.subtle.` or similar
+      // crypto-API namespacing. The previous bare `sign` matched
+      // `crypto.subtle.sign('HMAC', key, ...)` — those secrets aren't hardcoded.
+      const literalSecret = /(?:^|[^.\w])(jwt\.sign|jsonwebtoken\.sign|jose\.sign|(?<!\.)\bsign)\s*\([^)]*?["']([^"']{1,31})["']/g;
+      // Tighter cookieSecret: require the option key to actually be the
+      // session/cookie config. Drop bare 'password' which fired on any
+      // `password: '...'` test fixture. Keep 'secret' but require a session
+      // or iron-session-style context (the file must reference one of
+      // those modules to even reach this regex below).
+      const cookieSecret = /\b(cookieName|cookieSecret|sessionSecret|ironOptions|ironSession)\s*:\s*["']([^"']{1,31})["']/g;
+      // Stand-alone `secret:` only fires when surrounded by other
+      // session/cookie config keys — handled by the per-file gating below.
+      const sessionSecretInBlock = /\bsecret\s*:\s*["']([^"']{1,31})["']/g;
+
       for (const file of files) {
         const source = await safeReadFile(file);
-        if (!/jwt|sign|session|cookie/i.test(source)) continue;
+        // File must reference a real signing/session library, not just any
+        // word containing "sign" or "session" (those match too broadly).
+        const looksLikeAuthFile = /\b(jwt\.sign|jsonwebtoken|jose\b|iron-session|next-auth|cookie-session|express-session|fastify-secure-session|@hapi\/iron)\b/i.test(source);
+        if (!looksLikeAuthFile) continue;
+
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
-          for (const pattern of [literalSecret, cookieSecret]) {
-            const r = new RegExp(pattern.source, pattern.flags);
+          // Skip comment lines
+          const trimLine = line.trim();
+          if (trimLine.startsWith("//") || trimLine.startsWith("*") || trimLine.startsWith("/*")) return;
+
+          // 2a. literal secret passed to a signing call
+          {
+            const r = new RegExp(literalSecret.source, literalSecret.flags);
             let m: RegExpExecArray | null;
             while ((m = r.exec(line)) !== null) {
               const secret = m[2];
               if (!secret || secret.length >= 32) continue;
-              if (/change[-_]?me|example|test|todo/i.test(secret)) continue;
+              if (/change[-_]?me|example|test|todo|placeholder/i.test(secret)) continue;
               findings.push(
                 mkFinding(
                   "AUTH-007",
                   "high",
                   "Hardcoded signing secret shorter than 32 chars",
                   "Literal secret passed to a signing/session call.",
+                  "Your session or JWT signing secret is too short. An attacker can brute-force a short secret and then forge valid session tokens for any user.",
+                  "Move the secret to an environment variable, then generate a 32+ char random value.",
+                  [{ file, line: idx + 1, snippet: line.trim().slice(0, 120) }],
+                  { cwe: "CWE-326" },
+                ),
+              );
+            }
+          }
+
+          // 2b. cookie/session config object literal with short value
+          {
+            const r = new RegExp(cookieSecret.source, cookieSecret.flags);
+            let m: RegExpExecArray | null;
+            while ((m = r.exec(line)) !== null) {
+              const secret = m[2];
+              if (!secret || secret.length >= 32) continue;
+              if (/change[-_]?me|example|test|todo|placeholder/i.test(secret)) continue;
+              findings.push(
+                mkFinding(
+                  "AUTH-007",
+                  "high",
+                  "Hardcoded signing secret shorter than 32 chars",
+                  "Literal secret passed to a session/cookie config.",
+                  "Your session or JWT signing secret is too short. An attacker can brute-force a short secret and then forge valid session tokens for any user.",
+                  "Move the secret to an environment variable, then generate a 32+ char random value.",
+                  [{ file, line: idx + 1, snippet: line.trim().slice(0, 120) }],
+                  { cwe: "CWE-326" },
+                ),
+              );
+            }
+          }
+
+          // 2c. bare `secret: 'short'` only when paired with session/cookie
+          // config in the same line (e.g., `{ name: 'sid', secret: 'abc' }`).
+          if (/cookie|session|iron/i.test(line)) {
+            const r = new RegExp(sessionSecretInBlock.source, sessionSecretInBlock.flags);
+            let m: RegExpExecArray | null;
+            while ((m = r.exec(line)) !== null) {
+              const secret = m[1];
+              if (!secret || secret.length >= 32) continue;
+              if (/change[-_]?me|example|test|todo|placeholder/i.test(secret)) continue;
+              findings.push(
+                mkFinding(
+                  "AUTH-007",
+                  "high",
+                  "Hardcoded signing secret shorter than 32 chars",
+                  "Literal session/cookie secret shorter than 32 chars.",
                   "Your session or JWT signing secret is too short. An attacker can brute-force a short secret and then forge valid session tokens for any user.",
                   "Move the secret to an environment variable, then generate a 32+ char random value.",
                   [{ file, line: idx + 1, snippet: line.trim().slice(0, 120) }],

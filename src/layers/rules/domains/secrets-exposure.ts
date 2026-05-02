@@ -15,18 +15,72 @@ const KNOWN_KEY_PATTERNS: Array<[string, RegExp]> = [
 
 // Directories that never ship to the browser bundle — CLI helpers, background
 // workers, standalone agents, migrations, and Next.js API route handlers.
+// Iteration 4: extended with `lib`, `services`, `server`, `app/api/**` so
+// service-role accesses inside server-only modules don't fire AUTH/SECRETS
+// findings. The verifier consistently confirmed these are not exposure paths.
 const SERVER_ONLY_DIR_PATTERNS = [
   /[/\\]scripts[/\\]/,
   /[/\\]worker[/\\]/,
+  /[/\\]workers[/\\]/,
   /[/\\]agent[/\\]/,
+  /[/\\]agents[/\\]/,
+  /[/\\]server[/\\]/,
   /[/\\]supabase[/\\]functions[/\\]/,
   /[/\\]supabase[/\\]migrations[/\\]/,
+  /[/\\]migrations[/\\]/,
+  /[/\\]seed[/\\]/,
+  /[/\\]seeds[/\\]/,
+  /[/\\]cli[/\\]/,
+];
+
+// File-name suffixes that mark code as server-only by Next.js convention.
+const SERVER_ONLY_FILENAME_PATTERNS = [
+  /\.server\.(ts|tsx|js|jsx|mjs|cjs)$/,
+  /[/\\]server\.(ts|tsx|js|jsx|mjs|cjs)$/, // foo/server.ts
 ];
 
 function isKnownServerContext(file: string): boolean {
   if (SERVER_ONLY_DIR_PATTERNS.some((re) => re.test(file))) return true;
+  if (SERVER_ONLY_FILENAME_PATTERNS.some((re) => re.test(file))) return true;
   // Next.js API route handlers run only on the server.
   if (/[/\\]api[/\\].*route\.(ts|tsx|js|jsx|mjs)$/.test(file)) return true;
+  // Next.js App Router pages: `app/**/page.{ts,tsx}` declared as `async function`
+  // are React Server Components — they run only on the server, never ship
+  // to the browser bundle. We can't easily detect "async" without source
+  // here, so the rule body still does the source check; this just provides
+  // a coarse "server-likely" hint via path.
+  return false;
+}
+
+/**
+ * Stronger server-only context detection that uses the source content. Used
+ * by SECRETS-001 to suppress the dominant FP pattern: service-role keys
+ * accessed inside `lib/` / `services/` / server components. We only call
+ * this AFTER the path-based check rejected the file, so it's the second-line
+ * filter.
+ */
+function isServerContextBySource(file: string, source: string): boolean {
+  if (!source.trim()) return true; // empty file = phantom match, safe to drop
+  // React Server Component: `export default async function Page(`
+  if (/export\s+default\s+async\s+function\s+(?:Page|Layout|Loading|Error|NotFound)\b/.test(source)) {
+    return true;
+  }
+  // Next.js runtime export indicates server context.
+  if (/export\s+const\s+runtime\s*=\s*["'`](?:nodejs|edge)["'`]/.test(source)) {
+    return true;
+  }
+  // Files with `import "server-only"` already covered in main rule check.
+  // Files in `lib/` or `services/` that contain ONLY exports of async
+  // functions and never reference `window`, `document`, or `'use client'`
+  // are server modules in practice. Heuristic, not airtight, but matches
+  // the corpus FP pattern of `getServiceSupabase()` helpers.
+  if (
+    /[/\\](?:lib|services|utils|helpers)[/\\]/.test(file) &&
+    !/['"`]use client['"`]/.test(source) &&
+    !/\bwindow\.|document\.|navigator\./.test(source)
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -71,6 +125,13 @@ export const secretsExposureRules: SecurityRule[] = [
           for (const file of env.referencedIn) {
             if (isKnownServerContext(file)) continue;
             const source = await safeReadFile(file);
+            // Iteration 4: empty/unreadable file → phantom match, skip.
+            if (!source.trim()) continue;
+            // Source-based server-context check (server components, lib/,
+            // services/, server runtime exports). Catches the dominant FP
+            // pattern from iter-3: `getServiceSupabase()` helpers in
+            // `lib/portal/`, `services/auth.ts`, async `app/**/page.tsx`.
+            if (isServerContextBySource(file, source)) continue;
             const isServerOnly = /"use server"|import\s+["']server-only["']/.test(source);
             const hasNodeCheck = /typeof window === ["']undefined["']/.test(source);
             const hasShebang = /^#!\s*\/usr\/bin\/env/.test(source);
@@ -188,7 +249,17 @@ export const secretsExposureRules: SecurityRule[] = [
     references: { cwe: "CWE-798" },
     async check(model) {
       const findings: Finding[] = [];
-      const suspicious = /\b(password|passwd|pwd|secret|apiKey|api_key|token|accessKey|privateKey)\b\s*[:=]\s*["']([^"']{8,})["']/gi;
+      // SCAN LINE-BY-LINE (not whole-file). The previous whole-file regex
+      // greedy-matched across newlines, so `'Failed to get token:'` followed
+      // by another string literal later in the file would be captured as a
+      // single 'token:" value:" match, producing FPs like
+      // `console.error('Failed to get token:', error);` being flagged as a
+      // hardcoded credential. Per-line matching eliminates that.
+      //
+      // Also: drop `token` from the standalone identifier list — it produced
+      // most of the FPs (matched in log labels). Keep token as a SUFFIX in
+      // tokenName patterns (apiToken, accessToken) and as a long-string heuristic.
+      const suspicious = /(?:^|[^\w.])(password|passwd|pwd|secret|apiKey|api_key|accessKey|privateKey|access_token|refresh_token|api_token|auth_token|bearer_token)\b\s*[:=]\s*["']([^"'\n]{8,})["']/gi;
       const seen = new Set<string>();
 
       // Scan all env-referenced files plus route files
@@ -199,26 +270,46 @@ export const secretsExposureRules: SecurityRule[] = [
       for (const file of filesToScan) {
         if (seen.has(file)) continue;
         seen.add(file);
+        // Skip test fixtures, migrations, scripts — overwhelmingly produce
+        // FPs from test passwords.
+        if (/\/(test|tests|__tests__|__mocks__|migrations|seed|seeds|fixtures|e2e|spec|scripts)\//i.test(file)) continue;
+        if (/\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(file)) continue;
+        if (/\/test-[\w.-]+\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(file)) continue;
+
         const source = await safeReadFile(file);
-        const regex = new RegExp(suspicious.source, "gi");
-        let match;
-        while ((match = regex.exec(source)) !== null) {
-          const line = source.substring(0, match.index).split("\n").length;
-          if (/\b(test|example|fake|placeholder)\b/i.test(match[2])) continue;
-          findings.push(
-            mkFinding(
-              {
-                id: "SECRETS-004",
-                severity: "high",
-                title: "Hardcoded credential-like string",
-                remediation: "Move the value to an environment variable. Rotate if this was a real credential.",
-                references: { cwe: "CWE-798" },
-              },
-              [{ file, line, snippet: match[0] }],
-              "A string literal with a credential-sounding variable name was found.",
-              "Your source code contains hardcoded credentials in a variable assignment. These survive in git history even if deleted later, and anyone with repo access can extract them.",
-            ),
-          );
+        const lines = source.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          // Skip comment-only lines.
+          const trim = line.trim();
+          if (trim.startsWith("//") || trim.startsWith("*") || trim.startsWith("/*") || trim.startsWith("#")) continue;
+
+          const regex = new RegExp(suspicious.source, "gi");
+          let match: RegExpExecArray | null;
+          while ((match = regex.exec(line)) !== null) {
+            const value = match[2];
+            // Skip stub/test placeholders.
+            if (/\b(test|example|fake|placeholder|your[-_]?key|xxx|change[-_]?me|todo|sample|dummy)\b/i.test(value)) continue;
+            // Skip values that are obvious env-var references or templates.
+            if (/^\$\{|\$\(|process\.env|config\.|import\.meta/.test(value)) continue;
+            // Skip values that look like HTTP method/scope tags or short magic
+            // strings used in crypto helpers (e.g., 'HMAC', 'SHA-256').
+            if (/^(HMAC|SHA-?\d+|RS\d+|HS\d+|ES\d+|RAW|application\/json)$/i.test(value)) continue;
+            findings.push(
+              mkFinding(
+                {
+                  id: "SECRETS-004",
+                  severity: "high",
+                  title: "Hardcoded credential-like string",
+                  remediation: "Move the value to an environment variable. Rotate if this was a real credential.",
+                  references: { cwe: "CWE-798" },
+                },
+                [{ file, line: i + 1, snippet: line.trim().slice(0, 120) }],
+                "A string literal with a credential-sounding variable name was found.",
+                "Your source code contains hardcoded credentials in a variable assignment. These survive in git history even if deleted later, and anyone with repo access can extract them.",
+              ),
+            );
+          }
         }
       }
       return findings;
@@ -236,24 +327,75 @@ export const secretsExposureRules: SecurityRule[] = [
     references: { cwe: "CWE-312", owasp: "A07:2021" },
     check(model) {
       const findings: Finding[] = [];
-      const suspicious = /(SECRET|PRIVATE|TOKEN|API_KEY|SERVICE_ROLE|PASSWORD)/;
+      // High-confidence suspicious markers — these almost always indicate a
+      // genuine secret leak when paired with NEXT_PUBLIC_/VITE_/PUBLIC_.
+      const HIGH_CONFIDENCE = /(SECRET|PRIVATE|SERVICE_ROLE|PASSWORD)/;
+      // Lower-confidence suspicious markers — many third-party APIs intentionally
+      // expose API keys / tokens to the browser (Firebase web SDK, Google Maps,
+      // OpenWeather, Mapbox, ExchangeRate-API, Sentry DSN, etc.). The previous
+      // rule fired on every NEXT_PUBLIC_*_API_KEY producing >90% FPs.
+      const LOW_CONFIDENCE = /(API_KEY|ACCESS_TOKEN|^TOKEN$|_TOKEN$)/;
+      // Providers/SDKs that publish the API key / token by design. When a
+      // NEXT_PUBLIC_ variable's middle segment matches one of these, we skip
+      // the LOW_CONFIDENCE arm — the AI verifier consistently dismissed these
+      // as intentional public-exposure.
+      const PUBLIC_BY_DESIGN = new RegExp(
+        "(?:^|_)(?:" +
+          [
+            "FIREBASE",
+            "GOOGLE_MAPS",
+            "GOOGLE_ANALYTICS",
+            "GA",
+            "GTAG",
+            "MAPBOX",
+            "OPENWEATHER",
+            "EXCHANGE_RATE",
+            "SENTRY",
+            "RECAPTCHA",
+            "TURNSTILE",
+            "HCAPTCHA",
+            "ALGOLIA",
+            "POSTHOG",
+            "MIXPANEL",
+            "AMPLITUDE",
+            "SEGMENT",
+            "STRIPE_PUBLISHABLE",
+            "SUPABASE_ANON",
+            "PUBLISHABLE",
+            "AGUI",
+            "SMS_EAGLE",
+            "DATADOG",
+            "GOOGLE_AI",
+          ].join("|") +
+          ")(?:_|$)",
+      );
+
       for (const env of model.envVars) {
-        if (env.clientExposed && suspicious.test(env.name.replace(/^NEXT_PUBLIC_|^VITE_|^PUBLIC_/, ""))) {
-          findings.push(
-            mkFinding(
-              {
-                id: "SECRETS-005",
-                severity: "high",
-                title: `${env.name} is client-exposed but looks like a secret`,
-                remediation: "Remove the NEXT_PUBLIC_ prefix. Serve secret-dependent logic from the server.",
-                references: { cwe: "CWE-312", owasp: "A07:2021" },
-              },
-              env.referencedIn.map((f) => ({ file: f, snippet: env.name })),
-              "Client-exposed env vars end up in the browser bundle and are readable by anyone.",
-              "A variable with a secret-like name uses the NEXT_PUBLIC_ prefix, which makes it available in the browser bundle. Users can see this value in their browser's DevTools.",
-            ),
-          );
-        }
+        if (!env.clientExposed) continue;
+        const stripped = env.name.replace(/^NEXT_PUBLIC_|^VITE_|^PUBLIC_/, "");
+
+        const isHigh = HIGH_CONFIDENCE.test(stripped);
+        const isLow = !isHigh && LOW_CONFIDENCE.test(stripped);
+        if (!isHigh && !isLow) continue;
+
+        // For LOW_CONFIDENCE matches, skip when the variable name is for a
+        // known public-by-design API/SDK provider.
+        if (isLow && PUBLIC_BY_DESIGN.test(stripped)) continue;
+
+        findings.push(
+          mkFinding(
+            {
+              id: "SECRETS-005",
+              severity: "high",
+              title: `${env.name} is client-exposed but looks like a secret`,
+              remediation: "Remove the NEXT_PUBLIC_ prefix. Serve secret-dependent logic from the server.",
+              references: { cwe: "CWE-312", owasp: "A07:2021" },
+            },
+            env.referencedIn.map((f) => ({ file: f, snippet: env.name })),
+            "Client-exposed env vars end up in the browser bundle and are readable by anyone.",
+            "A variable with a secret-like name uses the NEXT_PUBLIC_ prefix, which makes it available in the browser bundle. Users can see this value in their browser's DevTools.",
+          ),
+        );
       }
       return findings;
     },

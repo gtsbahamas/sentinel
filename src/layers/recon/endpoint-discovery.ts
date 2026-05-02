@@ -34,14 +34,23 @@ export function detectAuthCheck(source: string): boolean {
   // (1) Awaited guard-call: await <anything-with-a-guard-verb>(...).
   // The leading `\w*` lets the verb appear after a prefix (rare), the trailing
   // `\w*` covers the common case (`requireStaffPermission`, `assertSession`).
+  // Also recognize `resolve` and `authenticate` as guard-style verbs:
+  // `await resolveWorkspaceAuth()`, `await authenticateAgent(req)`,
+  // `await resolveActiveWorkspace()` — these are the canonical Next.js +
+  // Supabase patterns the iteration-3 corpus revealed.
   const hasGuardCall =
-    /await\s+\w*(?:require|ensure|assert|verify|check|validate|guard)\w*\s*\(/i.test(source);
+    /await\s+\w*(?:require|ensure|assert|verify|check|validate|guard|resolve|authenticate)\w*\s*\(/i.test(source);
 
   // (2) Verb + auth-domain noun call (sync or async). Case-sensitive because
   // real call sites are camelCase; lowercasing would over-match identifiers
   // like `requirements(` or `getuserland(` that aren't auth.
+  // Added (iter-4): Workspace, Active, Tenant, Organization, Account, Agent.
+  // Added (iter-5): Provisioning, Key, Secret, Webhook, Hmac, Signature, Cron,
+  //                 Api, Bearer, Caller, Request, Origin, Csrf — these cover
+  //                 the dominant FP pattern from v4 (validateProvisioningKey,
+  //                 verifyWebhookSecret, validateApiKey, validateRequestOrigin).
   const hasVerbNounCall =
-    /\b(?:require|ensure|assert|verify|check|validate|get|fetch|load)\w*(?:Auth|Session|User|Permission|Role|Staff|Portal|Member|Principal|Token|Password)\w*\s*\(/.test(source);
+    /\b(?:require|ensure|assert|verify|check|validate|get|fetch|load|resolve|authenticate)\w*(?:Auth|Session|User|Permission|Role|Staff|Portal|Member|Principal|Token|Password|Workspace|Active|Tenant|Organization|Account|Agent|Provisioning|Key|Secret|Webhook|Hmac|Signature|Cron|Api|Bearer|Caller|Request|Origin|Csrf)\w*\s*\(/.test(source);
 
   // (3) Bearer + Supabase getUser within proximity. The `[\s\S]{0,600}?` is a
   // lazy any-char window so we tolerate intervening token-extraction code.
@@ -68,6 +77,50 @@ export function detectAuthCheck(source: string): boolean {
     /process\.env\.(?:CRON_SECRET|WEBHOOK_SECRET|API_KEY|INTERNAL_API_KEY|SCANNER_TOKEN)/.test(source);
   const hasSharedSecret = checksAuthHeader && usesSharedSecretEnv;
 
+  // (8) Custom Bearer-token + DB column lookup (the heartbeat pattern):
+  // headers.get('authorization') AND a `.eq("...", value)` Supabase lookup
+  // within proximity. This catches hand-rolled bearer flows that don't use
+  // Supabase's auth.getUser (e.g., per-instance keys looked up against a
+  // dedicated table like `ec2_instances`).
+  const hasBearerDbLookup =
+    /headers\.get\(\s*["'`]authorization["'`]\s*\)[\s\S]{0,800}?\.eq\s*\(/i.test(source);
+
+  // (9) Stripe webhook signature pattern: `stripe.webhooks.constructEvent`
+  // is the canonical Stripe verification call. Treat it as auth.
+  const hasStripeWebhook = /\.\s*webhooks\s*\.\s*constructEvent\s*\(/.test(source);
+
+  // (10) Inngest / Svix / similar managed-queue endpoints whose framework
+  // verifies the request signature for the handler. Match the import +
+  // usage pattern.
+  const hasManagedQueueAuth =
+    (/from\s+["'`]inngest/.test(source) && /\.serve\s*\(/.test(source)) ||
+    /from\s+["'`]svix["'`]/.test(source);
+
+  // (11) Twilio webhook signature: `validateRequest` from `twilio` package
+  // OR an explicit `X-Twilio-Signature` header check.
+  const hasTwilioWebhook =
+    /from\s+["'`]twilio/.test(source) ||
+    /["']x-twilio-signature["']/i.test(source) ||
+    /validateRequest\s*\(/.test(source);
+
+  // (12) Admin / cron / shared-secret env compares: ADMIN_API_SECRET,
+  // CRON_SECRET, etc. Any mention of an `_SECRET` env in a comparison/use
+  // context is treated as auth. Already covered by (7) hasSharedSecret if
+  // paired with header read; this is a looser fallback that also catches
+  // body-level secret comparison (`if (body.secret === process.env.X)`).
+  const hasEnvSecretCompare =
+    /process\.env\.(?:ADMIN|API|INTERNAL|CRON|SCANNER|WEBHOOK|PROVISIONING|SHARED)_?\w*_(?:SECRET|KEY|TOKEN)\s*(?:===|!==|==|!=)/.test(
+      source,
+    );
+
+  // (13) Header read of a custom auth header like x-api-key, x-webhook-secret,
+  // x-provisioning-key, x-internal-token, etc. Stronger signal than just
+  // header read alone — these names are auth-coded by convention.
+  const hasCustomAuthHeader =
+    /headers\s*\.\s*get\s*\(\s*["'`]x-(?:api-key|webhook-secret|provisioning-key|internal-token|signature|hub-signature|signed-payload|admin-secret|cron-secret)/i.test(
+      source,
+    );
+
   return (
     hasGuardCall ||
     hasVerbNounCall ||
@@ -75,7 +128,13 @@ export function detectAuthCheck(source: string): boolean {
     hasCookieSSR ||
     hasWebhookSignature ||
     hasCapabilityToken ||
-    hasSharedSecret
+    hasSharedSecret ||
+    hasBearerDbLookup ||
+    hasStripeWebhook ||
+    hasManagedQueueAuth ||
+    hasTwilioWebhook ||
+    hasEnvSecretCompare ||
+    hasCustomAuthHeader
   );
 }
 

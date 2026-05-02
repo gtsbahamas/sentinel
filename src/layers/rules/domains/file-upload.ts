@@ -124,10 +124,76 @@ export const fileUploadRules: SecurityRule[] = [
     severity: "critical",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-22", owasp: "A01:2021" },
-    check(model) {
-      return model.fileUploads
-        .filter((u) => u.usesUserFilename)
-        .map((u) =>
+    async check(model) {
+      const findings: Finding[] = [];
+      // The recon-layer `usesUserFilename` heuristic matches `.name ||` and
+      // `formData.get("filename")` very loosely — it fired on any `.name ||`
+      // expression in the file (e.g., `bill.suppliers?.name || ''`) and
+      // produced 100% FPs in the v0.1.2 audit. Tighten the rule by re-reading
+      // the source and verifying that the user-provided filename is actually
+      // INTERPOLATED INTO the storage path passed to a storage upload call.
+      for (const u of model.fileUploads) {
+        if (!u.usesUserFilename) continue;
+        // Skip test/migration directories.
+        if (/\/(test|tests|__tests__|__mocks__|migrations|seed|seeds|fixtures|e2e)\//i.test(u.file)) continue;
+        if (/\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(u.file)) continue;
+
+        const source = await safeReadFile(u.file).catch(() => "");
+        if (!source) continue;
+
+        // Verify there's an actual storage upload that uses the raw user
+        // filename as the destination. Patterns we treat as SAFE (the
+        // dominant FP shape from the v0.1.2 audit):
+        //   - `file.name.split('.').pop()` — only extracting an extension
+        //   - `${Date.now()}_${Math.random()...}.${fileExt}` — server-generated path
+        //   - `${userId}/${uuid()}` etc. — server-generated path
+        //   - `certificate.id`, `incidentId`, `timestamp`, `Math.random()` in path
+        //
+        // Patterns we treat as UNSAFE:
+        //   - `.upload(file.name, ...)` — original filename as destination
+        //   - `\`${prefix}/${file.name}\`` — interpolating raw .name into path
+        //   - `formData.get('filename')` directly used in a path arg
+        //
+        // We require at least one upload call where the PATH ARGUMENT
+        // contains `file.name`/`originalname`/`originalName`/the raw
+        // formData.get filename, AND lacks server-generated tokens
+        // (Date.now, uuid, randomBytes, crypto.randomUUID).
+        const lines = source.split("\n");
+        let flagged = false;
+        let flagLine = u.line;
+        for (let i = 0; i < lines.length && !flagged; i++) {
+          const line = lines[i];
+          // Skip comments
+          const trim = line.trim();
+          if (trim.startsWith("//") || trim.startsWith("*") || trim.startsWith("/*")) continue;
+
+          // Look for upload calls: .upload(<path>, ...) or .putObject({Key: <path>, ...})
+          const uploadCall = line.match(/\.(upload|putObject|put|createWriteStream)\s*\(([^)]+)/);
+          if (!uploadCall) continue;
+          const args = uploadCall[2];
+
+          // Does the path argument include the raw user filename?
+          const usesRawName =
+            /\bfile\.name\b(?!\s*\.split|\s*\.match|\s*\.replace|\s*\.lastIndexOf|\s*\.substring)/.test(args) ||
+            /\boriginalname\b/i.test(args) ||
+            /\boriginalName\b/.test(args) ||
+            /formData\.get\(\s*["']filename["']\s*\)/.test(args);
+          if (!usesRawName) continue;
+
+          // Does the same path arg ALSO contain server-generated entropy?
+          // If yes, the filename is being prefixed/replaced — treat as safe.
+          const serverGenerated =
+            /Date\.now\(\)|uuid\s*\(|randomUUID\s*\(|randomBytes\s*\(|Math\.random\s*\(|nanoid\s*\(|crypto\.subtle/.test(
+              args,
+            );
+          if (serverGenerated) continue;
+
+          flagged = true;
+          flagLine = i + 1;
+        }
+
+        if (!flagged) continue;
+        findings.push(
           mkFinding(
             "UPLOAD-004",
             "critical",
@@ -135,10 +201,12 @@ export const fileUploadRules: SecurityRule[] = [
             "Handler uses client-provided filename as the upload destination path.",
             "Your app uses the original filename from the upload as the storage path. An attacker can use path traversal characters (../) to write files outside the intended directory, potentially overwriting config files.",
             "Generate a server-side UUID for storage paths. Store original name in metadata only.",
-            [{ file: u.file, line: u.line }],
+            [{ file: u.file, line: flagLine }],
             { cwe: "CWE-22", owasp: "A01:2021" },
           ),
         );
+      }
+      return findings;
     },
   },
 

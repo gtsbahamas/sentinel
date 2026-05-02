@@ -481,26 +481,53 @@ export const infrastructureRules: SecurityRule[] = [
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-1188" },
     async check(model) {
+      // Refinement: the v0.1.2 audit had 100% FPs because the rule fired
+      // whenever a file referenced NEXT_PUBLIC_ ANYWHERE and used a dynamic
+      // process.env[...] anywhere else. The dominant FP shape is:
+      //   const url = process.env[`${prefix}_SUPABASE_URL`]
+      //              || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      // The dynamic key here is `${prefix}_SUPABASE_URL` — it does NOT
+      // resolve to a NEXT_PUBLIC_* var. The static fallback to
+      // process.env.NEXT_PUBLIC_* is fine. Server modules using dynamic
+      // env access for SERVER vars also aren't a problem.
+      //
+      // The new gate: only fire when the SAME LINE contains both the
+      // dynamic process.env[...] access AND a literal NEXT_PUBLIC_ string
+      // inside the bracket key. That's the only shape that actually breaks
+      // Next.js's build-time inlining. We additionally skip server-only
+      // modules and validateEnv-style helpers.
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
       for (const { file, source } of files) {
-        // Only flag files that actually deal with NEXT_PUBLIC_* vars.
-        // Server-only modules that use computed process.env[name] for
-        // private vars are fine and must not trip this rule.
         if (!source.includes("NEXT_PUBLIC_")) continue;
+        // Skip server-only modules and dedicated env-validation helpers.
+        if (/^\s*import\s+["']server-only["']/m.test(source)) continue;
+        if (/\/(validateEnv|validate-env|env-validator|env\.server)\.[tj]sx?$/i.test(file)) continue;
+        if (/\/api\/.*\/route\.[tj]sx?$/.test(file)) {
+          // API routes run server-side; their dynamic env access for non-public
+          // vars is fine. Still flag if the dynamic key literally contains
+          // NEXT_PUBLIC_ — keep the high-signal case.
+        }
 
         const lines = source.split("\n");
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           if (isCommentLine(line)) continue;
-          // Match computed access: process.env[...] where ... is not a
-          // literal string ending in a static identifier. We match the
-          // bracket form specifically — process.env.NEXT_PUBLIC_FOO is fine.
           if (!/process\.env\s*\[/.test(line)) continue;
-          // Skip the benign case where the key is a single string literal
-          // (e.g., process.env["NEXT_PUBLIC_FOO"]). Next.js does inline
-          // string-literal brackets. The dangerous form is variable keys.
+          // Skip the benign string-literal-key case
           if (/process\.env\s*\[\s*['"`][A-Z0-9_]+['"`]\s*\]/.test(line)) continue;
+          // STRICT: only fire when the dynamic-access expression itself
+          // includes a literal NEXT_PUBLIC_ token. e.g.,
+          //   process.env[`NEXT_PUBLIC_${name}`]    -> fire (bug)
+          //   process.env[`${prefix}_SUPABASE_URL`] -> skip (server var)
+          //   process.env[varName]                  -> skip (we don't know)
+          // We extract the bracket expression text and look for NEXT_PUBLIC_
+          // inside it. Falling through means another line in the file might
+          // reference NEXT_PUBLIC_ but the dynamic key here doesn't.
+          const bracketExpr = line.match(/process\.env\s*\[([^\]]+)\]/);
+          if (!bracketExpr) continue;
+          const inside = bracketExpr[1];
+          if (!/NEXT_PUBLIC_/.test(inside)) continue;
           findings.push(
             mkFinding(
               "INFRA-011",
