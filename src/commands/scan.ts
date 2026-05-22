@@ -13,6 +13,7 @@ import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitori
 import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
 import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
 import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
+import { pythonFrameworkRules } from "../layers/rules/domains/python-framework.js";
 import { runAI, runDryRun, createProvider, runVerify, type DryRunResult } from "../layers/ai/index.js";
 import { MockProvider } from "../layers/ai/providers/mock.js";
 import { formatTerminal } from "../output/terminal.js";
@@ -138,6 +139,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
   registerRules(apiSecurityRules);
   registerRules(businessLogicRules);
   registerRules(infrastructureRules);
+  registerRules(pythonFrameworkRules);
 
   const rulesStart = Date.now();
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
