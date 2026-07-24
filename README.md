@@ -1,6 +1,8 @@
 # shipsafe-sentinel
 
-Security assessment CLI for Next.js + Supabase codebases. The scanner behind [ShipSafe](https://shipsafe-web-eight.vercel.app) coaching.
+Security assessment CLI for Next.js + Supabase codebases. The scanner behind [Seatrial](https://seatrial.io) — the safety and trust layer for AI-built software and AI agents.
+
+**Sentinel is a [Seatrial](https://seatrial.io) product.** The npm name stays `shipsafe-sentinel` for channel continuity.
 
 ```bash
 npx shipsafe-sentinel scan .
