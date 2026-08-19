@@ -33,6 +33,40 @@ function mkFinding(
   };
 }
 
+
+/**
+ * Local identifiers bound directly to a client-supplied filename, e.g.
+ *   const filename = formData.get("filename") as string;
+ *   const name = file.name;
+ * Only direct, untransformed bindings count. A binding that runs the value
+ * through `.split`, `.replace`, `sanitize(...)`, `slugify(...)` or similar is
+ * deliberately excluded: the value is no longer the raw client filename.
+ */
+function collectRawNameBindings(source: string): Set<string> {
+  const names = new Set<string>();
+  const decl = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*([^;\n]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = decl.exec(source)) !== null) {
+    const [, id, rhs] = m;
+    const isRawName =
+      /formData\.get\(\s*["'](?:filename|fileName|name)["']\s*\)/.test(rhs) ||
+      /\bfile\.name\b/.test(rhs) ||
+      /\boriginalname\b/i.test(rhs);
+    if (!isRawName) continue;
+    // Transformed on the way in — no longer the raw client value.
+    if (/\.(split|replace|replaceAll|match|slice|substring|lastIndexOf|normalize)\s*\(/.test(rhs)) continue;
+    if (/\b(?:sanitize|slugify|encodeURIComponent|basename|uuid|randomUUID|nanoid)\s*\(/i.test(rhs)) continue;
+    names.add(id);
+  }
+  return names;
+}
+
+function referencesRawNameBinding(args: string, names: Set<string>): boolean {
+  if (names.size === 0) return false;
+  const ids = args.match(/[A-Za-z_$][\w$]*/g);
+  return ids ? ids.some((id) => names.has(id)) : false;
+}
+
 export const fileUploadRules: SecurityRule[] = [
   {
     id: "UPLOAD-001",
@@ -158,6 +192,7 @@ export const fileUploadRules: SecurityRule[] = [
         // contains `file.name`/`originalname`/`originalName`/the raw
         // formData.get filename, AND lacks server-generated tokens
         // (Date.now, uuid, randomBytes, crypto.randomUUID).
+        const rawNameBindings = collectRawNameBindings(source);
         const lines = source.split("\n");
         let flagged = false;
         let flagLine = u.line;
@@ -173,11 +208,20 @@ export const fileUploadRules: SecurityRule[] = [
           const args = uploadCall[2];
 
           // Does the path argument include the raw user filename?
+          // Either inline, or through a local binding of it. The v0.1.2
+          // tightening only looked for the inline form, which missed the
+          // most common shape of all:
+          //     const filename = formData.get("filename") as string;
+          //     await supabase.storage.from("x").upload(filename, file);
+          // That is a real path-traversal bug, so rawNameBindings resolves
+          // the one-hop alias. Bindings that are transformed on the way
+          // (`.split`, `.replace`, sanitize helpers) are not collected.
           const usesRawName =
             /\bfile\.name\b(?!\s*\.split|\s*\.match|\s*\.replace|\s*\.lastIndexOf|\s*\.substring)/.test(args) ||
             /\boriginalname\b/i.test(args) ||
             /\boriginalName\b/.test(args) ||
-            /formData\.get\(\s*["']filename["']\s*\)/.test(args);
+            /formData\.get\(\s*["']filename["']\s*\)/.test(args) ||
+            referencesRawNameBinding(args, rawNameBindings);
           if (!usesRawName) continue;
 
           // Does the same path arg ALSO contain server-generated entropy?

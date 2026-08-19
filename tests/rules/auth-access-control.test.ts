@@ -2,14 +2,14 @@ import { describe, it, expect, afterEach } from "vitest";
 import { resetRegistry, registerRules, runRules } from "../../src/layers/rules/index.js";
 import { authAccessControlRules } from "../../src/layers/rules/domains/auth-access-control.js";
 import { runRecon } from "../../src/layers/recon/index.js";
-import { emptyModel, makeEndpoint } from "./helpers.js";
+import { emptyModel, makeEndpoint, stagedFixture } from "./helpers.js";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturePath = join(__dirname, "..", "fixtures", "vulnerable-nextjs");
+const fixturePath = stagedFixture("vulnerable-nextjs");
 
 describe("auth-access-control rules", () => {
   it("flags mutation endpoint without auth (AUTH-001)", async () => {

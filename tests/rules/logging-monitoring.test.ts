@@ -6,11 +6,11 @@ import { fileURLToPath } from "url";
 import { resetRegistry, registerRules, runRules } from "../../src/layers/rules/index.js";
 import { loggingMonitoringRules } from "../../src/layers/rules/domains/logging-monitoring.js";
 import { runRecon } from "../../src/layers/recon/index.js";
-import { emptyModel, makeEndpoint, makeDep } from "./helpers.js";
+import { emptyModel, makeEndpoint, makeDep, stagedFixture } from "./helpers.js";
 import type { SecurityRule } from "../../src/layers/rules/registry.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturePath = join(__dirname, "..", "fixtures", "vulnerable-nextjs");
+const fixturePath = stagedFixture("vulnerable-nextjs");
 
 function ruleById(id: string): SecurityRule {
   const rule = loggingMonitoringRules.find((r) => r.id === id);

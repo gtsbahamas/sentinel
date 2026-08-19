@@ -6,11 +6,11 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { emptyModel, makeEndpoint } from "./helpers.js";
+import { emptyModel, makeEndpoint, stagedFixture } from "./helpers.js";
 import type { SecurityRule } from "../../src/layers/rules/registry.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturePath = join(__dirname, "..", "fixtures", "vulnerable-nextjs");
+const fixturePath = stagedFixture("vulnerable-nextjs");
 
 function ruleById(id: string): SecurityRule {
   const rule = apiSecurityRules.find((r) => r.id === id);
@@ -195,7 +195,30 @@ describe("API-008 CSRF missing on cookie-auth route", () => {
     dir = null;
   });
 
-  it("flags POST endpoint using createServerClient without CSRF", async () => {
+  // @supabase/ssr sets SameSite=Lax on its auth cookies, which is already a
+  // CSRF control. Routes using it are skipped deliberately (v0.1.3 FP pass),
+  // so the positive case here is a hand-rolled cookie session instead.
+  it("flags POST endpoint reading a hand-rolled session cookie without CSRF", async () => {
+    dir = makeTmpProject({
+      "app/api/update/route.ts": [
+        "import { cookies } from 'next/headers';",
+        "export async function POST(req) {",
+        "  const session = cookies().get('sess')?.value;",
+        "  await db.from('items').update({ name: 'x' }).eq('id', 1);",
+        "  return Response.json({ ok: true, session });",
+        "}",
+      ].join("\n"),
+    });
+    const endpointFile = join(dir, "app/api/update/route.ts");
+    const model = emptyModel({
+      meta: { ...emptyModel().meta, path: dir },
+      endpoints: [makeEndpoint({ path: "/api/update", method: "POST", file: endpointFile })],
+    });
+    const findings = await ruleById("API-008").check(model);
+    expect(Array.isArray(findings) ? findings.length : 0).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag a route whose cookies come from @supabase/ssr", async () => {
     dir = makeTmpProject({
       "app/api/update/route.ts": [
         "import { createServerClient } from '@supabase/ssr';",
@@ -212,8 +235,7 @@ describe("API-008 CSRF missing on cookie-auth route", () => {
       meta: { ...emptyModel().meta, path: dir },
       endpoints: [makeEndpoint({ path: "/api/update", method: "POST", file: endpointFile })],
     });
-    const findings = await ruleById("API-008").check(model);
-    expect(Array.isArray(findings) ? findings.length : 0).toBeGreaterThanOrEqual(1);
+    expect(await ruleById("API-008").check(model)).toEqual([]);
   });
 
   it("does not flag endpoint with SameSite=Strict cookie", async () => {

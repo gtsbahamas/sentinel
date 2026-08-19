@@ -11,6 +11,7 @@ import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitori
 import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
 import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
 import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
+import { llmFeatureRules } from "../layers/rules/domains/llm-features.js";
 import {
   runProbe,
   resolveAuthorization,
@@ -118,6 +119,7 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
   registerRules(apiSecurityRules);
   registerRules(businessLogicRules);
   registerRules(infrastructureRules);
+  registerRules(llmFeatureRules);
   const ruleFindings = await runRules(model, context);
 
   process.stderr.write(`Running probe against ${options.target} (level: ${options.level})...\n`);

@@ -15,6 +15,7 @@ const SecurityDomainSchema = z.enum([
   "infrastructure",
   "business-logic",
   "logging-monitoring",
+  "llm-features",
 ]);
 
 export const ProbeEvidenceSchema = z.object({

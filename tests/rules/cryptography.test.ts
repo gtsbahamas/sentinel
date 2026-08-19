@@ -6,10 +6,10 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
-import { emptyModel } from "./helpers.js";
+import { emptyModel, stagedFixture } from "./helpers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturePath = join(__dirname, "..", "fixtures", "vulnerable-nextjs");
+const fixturePath = stagedFixture("vulnerable-nextjs");
 
 /** Spin up a temp project dir with one source file. */
 function makeTmpProject(files: Record<string, string>): string {

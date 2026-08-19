@@ -16,7 +16,8 @@ export type SecurityDomain =
   | "supply-chain"
   | "infrastructure"
   | "business-logic"
-  | "logging-monitoring";
+  | "logging-monitoring"
+  | "llm-features";
 
 export interface Evidence {
   file: string;

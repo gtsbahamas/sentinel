@@ -6,10 +6,10 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "fs";
 import { tmpdir } from "os";
-import { emptyModel, makeEndpoint } from "./helpers.js";
+import { emptyModel, makeEndpoint, stagedFixture } from "./helpers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturePath = join(__dirname, "..", "fixtures", "vulnerable-nextjs");
+const fixturePath = stagedFixture("vulnerable-nextjs");
 
 /** Get a single rule by ID from the exported array. */
 function getRule(id: string) {

@@ -49,6 +49,15 @@ async function walkSourceFiles(model: ProjectModel): Promise<Array<{ file: strin
   return Promise.all(files.map(async (file) => ({ file, source: await safeReadFile(file) })));
 }
 
+/**
+ * Remove `//` line comments and block comments. Rules that decide "is this
+ * call bounded / guarded / validated?" by grepping the whole file must not
+ * count a comment ABOUT the missing guard as the guard itself.
+ */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+
 const SENSITIVE_ENDPOINT_RE = /login|signin|signup|register|reset|forgot|otp|verify|password/i;
 
 export const apiSecurityRules: SecurityRule[] = [
@@ -223,7 +232,12 @@ export const apiSecurityRules: SecurityRule[] = [
       const findings: Finding[] = [];
       for (const endpoint of model.endpoints) {
         if (endpoint.method !== "GET") continue;
-        const source = await safeReadFile(endpoint.file).catch(() => "");
+        const rawSource = await safeReadFile(endpoint.file).catch(() => "");
+        // Strip comments before looking for bounding calls. A comment such as
+        // `// TODO: add .limit()` or `// unbounded — no .range() yet` used to
+        // suppress this rule entirely, which is the exact opposite of what it
+        // means. AI-generated code leaves those TODOs constantly.
+        const source = stripComments(rawSource);
         if (!/\.from\s*\([^)]*\)\s*\.select/.test(source)) continue;
         if (/\.(range|limit)\s*\(/.test(source)) continue;
         // Single-row fetches are inherently bounded

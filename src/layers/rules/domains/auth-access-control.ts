@@ -661,18 +661,19 @@ export const authAccessControlRules: SecurityRule[] = [
         });
         if (!hasNonCommentUse) continue;
 
-        // Skip when the file declares "use client" — those would surface as
-        // a different rule (and bundlers would error first); but defensively
-        // treat them as not-server.
+        // A file that declares "use client" is the worst case: the admin API
+        // really does reach the browser bundle. It must win over every
+        // server-only heuristic below, including the SERVICE_ROLE_KEY one —
+        // that heuristic assumes Next.js would refuse to bundle the env read,
+        // which is exactly the assumption "use client" invalidates. Before
+        // this short-circuit the block below silently swallowed the case the
+        // comment here claimed to keep.
         const isClientFile = /^\s*["']use client["']\s*;?/m.test(source);
-        if (isClientFile) {
-          // Still flag because admin in a client file is the worst case.
-          // (Don't continue.)
-        }
 
         // Already-server-only imports → silent.
         const serverOnly =
-          /import\s+["']server-only["']/.test(source) ||
+          !isClientFile &&
+          (/import\s+["']server-only["']/.test(source) ||
           // Edge runtime / nodejs runtime declarations are also server-bound.
           /export\s+const\s+runtime\s*=\s*["'](?:nodejs|edge)["']/.test(source) ||
           // v0.1.4: SUPABASE_SERVICE_ROLE_KEY env reads are server-only by
@@ -682,7 +683,7 @@ export const authAccessControlRules: SecurityRule[] = [
           /process\.env\.(?:SUPABASE_)?SERVICE_ROLE_KEY/.test(source) ||
           // v0.1.4: Node-style fs/path/process imports indicate server context;
           // these can't run in browser bundles.
-          /from\s+["'](?:node:)?(?:fs|path|crypto|child_process|os)["']/.test(source);
+          /from\s+["'](?:node:)?(?:fs|path|crypto|child_process|os)["']/.test(source));
         if (serverOnly) continue;
 
         findings.push(

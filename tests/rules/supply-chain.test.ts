@@ -6,10 +6,10 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { emptyModel, makeDep } from "./helpers.js";
+import { emptyModel, makeDep, stagedFixture } from "./helpers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturePath = join(__dirname, "..", "fixtures", "vulnerable-nextjs");
+const fixturePath = stagedFixture("vulnerable-nextjs");
 
 /** Helper: get the rule object by ID. */
 function getRule(id: string) {
@@ -261,9 +261,34 @@ describe("supply-chain rules", () => {
   describe("SUPPLY-009", () => {
     const rule = getRule("SUPPLY-009");
 
-    it("flags a package with 3+ duplicate versions in lockfile", async () => {
+    // The threshold is 4 distinct versions, not 3. It was raised during the
+    // v0.1.3 false-positive pass: three copies of a transitive dep is normal
+    // npm hoisting, not a signal worth a finding. This test asserts both
+    // sides of that boundary so a future change to it fails loudly.
+    it("flags a package with 4+ duplicate versions in lockfile", async () => {
       const tmpDir = mkdtempSync(join(tmpdir(), "supply009-"));
-      // Create a minimal package-lock.json v3 with 3 versions of the same package
+      const lockfile = {
+        name: "test-project",
+        lockfileVersion: 3,
+        packages: {
+          "": { name: "test-project", version: "1.0.0" },
+          "node_modules/debug": { version: "2.6.9" },
+          "node_modules/foo/node_modules/debug": { version: "3.2.7" },
+          "node_modules/bar/node_modules/debug": { version: "4.3.4" },
+          "node_modules/baz/node_modules/debug": { version: "4.4.0" },
+        },
+      };
+      writeFileSync(join(tmpDir, "package-lock.json"), JSON.stringify(lockfile));
+      const model = emptyModel({ meta: { ...emptyModel().meta, path: tmpDir } });
+      const findings = await rule.check(model);
+      expect(findings.length).toBe(1);
+      expect(findings[0].ruleId).toBe("SUPPLY-009");
+      expect(findings[0].title).toContain("debug");
+      expect(findings[0].title).toContain("4");
+    });
+
+    it("does not flag a package with only 3 duplicate versions", async () => {
+      const tmpDir = mkdtempSync(join(tmpdir(), "supply009-under-"));
       const lockfile = {
         name: "test-project",
         lockfileVersion: 3,
@@ -276,11 +301,7 @@ describe("supply-chain rules", () => {
       };
       writeFileSync(join(tmpDir, "package-lock.json"), JSON.stringify(lockfile));
       const model = emptyModel({ meta: { ...emptyModel().meta, path: tmpDir } });
-      const findings = await rule.check(model);
-      expect(findings.length).toBe(1);
-      expect(findings[0].ruleId).toBe("SUPPLY-009");
-      expect(findings[0].title).toContain("debug");
-      expect(findings[0].title).toContain("3");
+      expect(await rule.check(model)).toEqual([]);
     });
 
     it("does NOT flag a package with only 2 versions (below threshold)", async () => {

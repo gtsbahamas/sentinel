@@ -29,6 +29,23 @@ the full text.
 - zod (MIT) — Colin McDonnell
 - zod-to-json-schema (ISC) — Stefan Terdell
 
+---
+
+Third-party threat-model references:
+
+The `llm-features` rule domain (LLM-001 through LLM-005) draws its threat
+model from the Strix project's `llm_prompt_injection` skill:
+
+- Strix (Apache-2.0) — https://github.com/usestrix/strix
+  `strix/skills/vulnerabilities/llm_prompt_injection.md`
+
+Used as a written reference for the prompt-injection attack surface
+(direct injection, indirect/RAG injection, tool-call abuse, insecure
+output handling) and for its "severity follows the sink" calibration.
+No Strix source code, agent runtime, or offensive tooling is included in
+or derived by this project. Apache-2.0 attribution is provided here in
+accordance with section 4 of that license.
+
 This NOTICE file is provided for informational purposes only and does
 not modify the License. Attribution requirements in individual
 third-party licenses remain in effect.

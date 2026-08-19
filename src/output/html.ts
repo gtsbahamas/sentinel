@@ -15,6 +15,7 @@ const DOMAINS: SecurityDomain[] = [
   "infrastructure",
   "business-logic",
   "logging-monitoring",
+  "llm-features",
 ];
 
 const SEVERITY_COLOR: Record<Severity, { bg: string; fg: string; border: string }> = {

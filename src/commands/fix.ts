@@ -16,6 +16,7 @@ import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitori
 import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
 import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
 import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
+import { llmFeatureRules } from "../layers/rules/domains/llm-features.js";
 import { registerFixer, resetFixerRegistry } from "../layers/fix/registry.js";
 import { crypto001Fixer } from "../layers/fix/deterministic/crypto-001.js";
 import { crypto002Fixer } from "../layers/fix/deterministic/crypto-002.js";
@@ -135,6 +136,7 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
   registerRules(apiSecurityRules);
   registerRules(businessLogicRules);
   registerRules(infrastructureRules);
+  registerRules(llmFeatureRules);
 
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
   const rulesStart = Date.now();

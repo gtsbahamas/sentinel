@@ -6,10 +6,10 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { mkdtempSync, writeFileSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
-import { emptyModel, emptyInfra } from "./helpers.js";
+import { emptyModel, emptyInfra, stagedFixture } from "./helpers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturePath = join(__dirname, "..", "fixtures", "vulnerable-nextjs");
+const fixturePath = stagedFixture("vulnerable-nextjs");
 
 /** Get a rule by id. */
 function getRule(id: string) {
@@ -479,17 +479,17 @@ module.exports = {
 
   // ── INFRA-011: Dynamic NEXT_PUBLIC_* access ──
   describe("INFRA-011: Dynamic NEXT_PUBLIC_* env access", () => {
-    it("flags computed process.env[name] access in a file that references NEXT_PUBLIC_", async () => {
+    // The rule fires only when the bracket expression ITSELF contains a
+    // literal NEXT_PUBLIC_ token. That narrowing landed in the v0.1.2
+    // false-positive pass: `process.env[varName]` alone says nothing about
+    // whether the resolved key is public, and flagging it was 100% FPs.
+    it("flags process.env[`NEXT_PUBLIC_${suffix}`] computed access", async () => {
       const dir = makeTempProject({
-        "lib/env.ts": `
-          const PUBLIC_KEYS = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"];
-          function get(name: string): string {
-            return process.env[name] ?? "";
-          }
-          export const publicEnv = Object.fromEntries(
-            PUBLIC_KEYS.map((k) => [k, get(k)])
-          );
-        `,
+        "lib/env.ts": [
+          "export function publicVar(suffix: string): string {",
+          "  return process.env[`NEXT_PUBLIC_${suffix}`] ?? \"\";",
+          "}",
+        ].join("\n"),
       });
       const model = emptyModel({
         meta: {
@@ -501,6 +501,26 @@ module.exports = {
       const findings = await getRule("INFRA-011").check(model);
       expect(findings.length).toBeGreaterThanOrEqual(1);
       expect(findings[0].severity).toBe("high");
+    });
+
+    it("does not flag process.env[name] when the key is not literally public", async () => {
+      const dir = makeTempProject({
+        "lib/env.ts": [
+          'const PUBLIC_KEYS = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"];',
+          "function get(name: string): string {",
+          '  return process.env[name] ?? "";',
+          "}",
+          "export const publicEnv = Object.fromEntries(PUBLIC_KEYS.map((k) => [k, get(k)]));",
+        ].join("\n"),
+      });
+      const model = emptyModel({
+        meta: {
+          name: "test", path: dir, stack: "nextjs-supabase",
+          packageManager: "npm", language: "typescript",
+          framework: "nextjs-app", deployTarget: null,
+        },
+      });
+      expect(await getRule("INFRA-011").check(model)).toEqual([]);
     });
 
     it("does not flag static process.env.NEXT_PUBLIC_FOO access", async () => {

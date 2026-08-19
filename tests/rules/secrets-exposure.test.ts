@@ -4,9 +4,10 @@ import { secretsExposureRules } from "../../src/layers/rules/domains/secrets-exp
 import { runRecon } from "../../src/layers/recon/index.js";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { stagedFixture } from "./helpers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturePath = join(__dirname, "..", "fixtures", "vulnerable-nextjs");
+const fixturePath = stagedFixture("vulnerable-nextjs");
 
 describe("secrets-exposure rules", () => {
   it("flags service role key used client-side (SECRETS-001)", async () => {

@@ -27,6 +27,7 @@ const DOMAINS: SecurityDomain[] = [
   "infrastructure",
   "business-logic",
   "logging-monitoring",
+  "llm-features",
 ];
 
 export function formatTerminal(

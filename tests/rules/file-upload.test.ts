@@ -4,9 +4,10 @@ import { fileUploadRules } from "../../src/layers/rules/domains/file-upload.js";
 import { runRecon } from "../../src/layers/recon/index.js";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { stagedFixture } from "./helpers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturePath = join(__dirname, "..", "fixtures", "vulnerable-nextjs");
+const fixturePath = stagedFixture("vulnerable-nextjs");
 
 describe("file-upload rules", () => {
   it("flags upload without MIME validation (UPLOAD-001)", async () => {

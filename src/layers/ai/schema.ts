@@ -14,6 +14,7 @@ export const AIFindingSchema = z.object({
     "infrastructure",
     "business-logic",
     "logging-monitoring",
+    "llm-features",
   ]),
   severity: z.enum(["critical", "high", "medium", "low", "info"]),
   confidence: z.enum(["high", "medium", "low"]),

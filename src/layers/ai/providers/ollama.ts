@@ -71,7 +71,7 @@ export class OllamaProvider implements AIProvider {
       const DOMAINS = [
         "secrets-exposure", "input-injection", "auth-access-control", "file-upload",
         "api-security", "cryptography", "supply-chain", "infrastructure",
-        "business-logic", "logging-monitoring",
+        "business-logic", "logging-monitoring", "llm-features",
       ];
 
       const jsonInstruction = extractionKey === "findings"
@@ -142,6 +142,7 @@ export class OllamaProvider implements AIProvider {
                 biz: "business-logic", logic: "business-logic",
                 log: "logging-monitoring", monitor: "logging-monitoring", error: "logging-monitoring",
                 info: "logging-monitoring",
+                llm: "llm-features", prompt: "llm-features", ai: "llm-features",
               };
               obj.domain = domainMap[cat] ?? "api-security";
             }
