@@ -131,11 +131,11 @@ You don't need to enroll to use this tool. Scan your repo, fix what's critical, 
 
 ## CI integration
 
-A reusable GitHub Action ships with this repo so any project can wire shipsafe-sentinel into pull requests in under a minute. Drop it in your workflow, set `fail-on: critical`, and the build fails the moment a critical finding lands on a PR.
+A public GitHub Action ([gtsbahamas/sentinel-action](https://github.com/gtsbahamas/sentinel-action)) wires shipsafe-sentinel into pull requests in under a minute. Drop it in your workflow, set `fail-on: critical`, and the build fails the moment a critical finding lands on a PR.
 
 ```yaml
-- name: ShipSafe Sentinel scan
-  uses: gtsbahamas/sentinel/.github/actions/scan@master
+- name: Sentinel scan
+  uses: gtsbahamas/sentinel-action@v1
   with:
     path: "."
     fail-on: "critical"
