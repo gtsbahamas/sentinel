@@ -422,8 +422,7 @@ export const fileUploadRules: SecurityRule[] = [
 
         // Policies on storage.objects: `create policy "name" on storage.objects`
         const policyRegex = /create\s+policy[\s\S]*?on\s+storage\.objects/gi;
-        let pm: RegExpExecArray | null;
-        while ((pm = policyRegex.exec(sql)) !== null) {
+        while (policyRegex.exec(sql) !== null) {
           policiesExist = true;
         }
         // Separately extract bucket_id references from storage policies

@@ -232,7 +232,7 @@ describe("dedupAIFindings", () => {
   });
 
   it("keeps findings from the same file+domain+title as a single group even when evidence differs", () => {
-    // Simulates the skutt scenario: 2 findings per method handler, both
+    // Simulates a real-scan scenario: 2 findings per method handler, both
     // describing the same file-level auth gap, but with different evidence
     // lines. They should collapse to one finding with merged evidence.
     const input = [
@@ -267,7 +267,7 @@ describe("dedupAIFindings", () => {
 
   describe("tag-based clustering", () => {
     it("collapses IDOR findings with diverse phrasings on the same file+domain", () => {
-      // Real examples from the skutt scan on graduates/[id]/contacts/route.ts
+      // Real phrasing diversity observed on a production Next.js scan corpus
       const input = [
         mkFinding({ title: "IDOR in PATCH: contact update not scoped to graduate_id from URL" }),
         mkFinding({ title: "IDOR in DELETE: contact deletion not scoped to graduate_id from URL" }),

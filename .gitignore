@@ -3,3 +3,5 @@ dist/
 .sentinel/
 *.log
 .DS_Store
+.claude/
+*.tgz

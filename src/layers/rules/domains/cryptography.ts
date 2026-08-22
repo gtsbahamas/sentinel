@@ -378,7 +378,7 @@ export const cryptographyRules: SecurityRule[] = [
       const isMetadataIdent = (ident: string): boolean => {
         const t = ident.trim();
         // Strip leading property prefix (params.opts.tokenProvider → tokenProvider)
-        const last = (t.match(/(\w+)\s*$/) || [, ""])[1];
+        const last = (t.match(/(\w+)\s*$/) || ["", ""])[1];
         return /^(?:\w*?(?:Provider|Type|Kind|Count|Scheme|Strategy|Method|Mode|State|Status|Format|Length|Size|Index|Number|Position|Offset|Step|Phase|Stage|Variant|Style|Direction))$/.test(
           last,
         );

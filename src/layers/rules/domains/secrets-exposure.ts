@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { execFileSync } from "child_process";
 import { safeReadFile } from "../../../utils/fs.js";
-import type { Finding, ProjectModel } from "../../../model/types.js";
+import type { Finding } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
 
 const KNOWN_KEY_PATTERNS: Array<[string, RegExp]> = [

@@ -30,7 +30,6 @@ export async function discoverRoutes(
     const rel = relative(appDir, dirname(file));
     const routePath = "/" + rel.replace(/\\/g, "/").replace(/^$/, "");
     const normalized = routePath === "/." || routePath === "/" ? "/" : routePath.replace(/\/page$/, "");
-    const isApi = rel.startsWith("api/") || rel === "api";
     const paramNames = [...normalized.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]);
 
     const source = await safeReadFile(file);

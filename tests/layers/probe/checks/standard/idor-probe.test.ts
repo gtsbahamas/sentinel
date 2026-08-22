@@ -38,7 +38,6 @@ const baselineTarget: ProbeTarget = {
 };
 
 const NIL_UUID = "00000000-0000-0000-0000-000000000000";
-const MAX_UUID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
 
 describe("idor-probe check", () => {
   it("appliesTo — true for endpoint with UUID path input, false for no-param endpoint and baseline", () => {

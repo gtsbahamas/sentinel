@@ -2,9 +2,8 @@ import { describe, it, expect } from "vitest";
 import { fileUploadCheck } from "../../../../../src/layers/probe/checks/intrusive/file-upload.js";
 import { MockHttpClient, TargetUnreachable } from "../../../../../src/layers/probe/http-client.js";
 import { ProbeCleanupRegistry } from "../../../../../src/layers/probe/cleanup-registry.js";
-import type { ProbeTarget, ProjectModel, CleanupObligation } from "../../../../../src/model/types.js";
+import type { ProbeTarget, ProjectModel } from "../../../../../src/model/types.js";
 import type { HttpRequest } from "../../../../../src/layers/probe/http-client.js";
-import type { CleanupRegistry } from "../../../../../src/layers/probe/cleanup-registry.js";
 
 function emptyModel(): ProjectModel {
   return {

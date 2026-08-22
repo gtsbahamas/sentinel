@@ -35,7 +35,7 @@ const ranked = [...byFile.entries()].sort((a, b) => {
   return b[1].length - a[1].length;
 });
 
-let out = `# Skutt Triage — V2 scan (${ai.length} findings)\n\n`;
+let out = `# Scan Triage (${ai.length} AI findings)\n\n`;
 out += `Grading scale per finding:\n`;
 out += `- **REAL** — genuine exploit, severity appropriate\n`;
 out += `- **REAL-UNDER** — genuine exploit, severity understated (upgrade)\n`;
@@ -49,7 +49,7 @@ out += `---\n\n`;
 let idx = 0;
 for (const [file, findings] of ranked) {
   findings.sort((a, b) => sevRank(a.severity) - sevRank(b.severity));
-  const rel = file.replace(/.*\/skutt\//, "");
+  const rel = file.replace(/^.*\/(?=src\/|app\/|pages\/)/, "");
   out += `## ${rel}\n\n`;
   for (const f of findings) {
     idx++;
@@ -64,7 +64,7 @@ for (const [file, findings] of ranked) {
   }
 }
 
-const outPath = "/tmp/skutt-scan/triage.md";
+const outPath = path.replace(/\.json$/, "") + ".triage.md";
 writeFileSync(outPath, out);
 console.log(`Wrote ${idx} findings grouped by file → ${outPath}`);
 console.log(`File count: ${ranked.length}`);

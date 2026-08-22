@@ -9,7 +9,7 @@ export type { SecurityRule } from "./registry.js";
 export async function runRules(
   model: ProjectModel,
   context?: ProjectContext | null,
-  emitter?: ScanEventEmitter,
+  _emitter?: ScanEventEmitter,
 ): Promise<Finding[]> {
   const rules = getRules().filter((r) => r.appliesTo.includes(model.meta.stack));
   const results = await Promise.all(rules.map((r) => Promise.resolve(r.check(model, context))));

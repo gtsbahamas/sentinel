@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { resetRegistry, registerRules, runRules } from "../../src/layers/rules/index.js";
 import { secretsExposureRules } from "../../src/layers/rules/domains/secrets-exposure.js";
 import { runRecon } from "../../src/layers/recon/index.js";
-import { join, dirname } from "path";
+import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { stagedFixture } from "./helpers.js";
 

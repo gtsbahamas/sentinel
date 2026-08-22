@@ -390,7 +390,7 @@ async function runConvergeLoop(options: FixCommandOptions, emitter?: ScanEventEm
   const roundSummaries: ConvergeRoundSummary[] = [];
 
   let totalFixed = 0;
-  let totalFilesModified = new Set<string>();
+  const totalFilesModified = new Set<string>();
   let previousFindingCount = Infinity;
   let stopReason: ConvergeSummary["stopReason"] = "max-rounds";
 

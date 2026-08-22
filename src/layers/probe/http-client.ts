@@ -211,8 +211,8 @@ export class ProbeHttpClient implements HttpClient {
         redirect: "manual",
       });
 
-      const timingMs = Date.now() - start;
       const body = await resp.text();
+      const timingMs = Date.now() - start;
       const respHeaders: Record<string, string> = {};
       resp.headers.forEach((v, k) => {
         respHeaders[k] = v;
@@ -246,7 +246,6 @@ export class ProbeHttpClient implements HttpClient {
       this.opts.onRequest?.(logEntry);
       return httpResp;
     } catch (err) {
-      const timingMs = Date.now() - start;
       logEntry = {
         requestId,
         timestamp: new Date().toISOString(),

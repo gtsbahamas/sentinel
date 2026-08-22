@@ -173,7 +173,7 @@ function patchVercelJson(source: string): string | null {
   }
 
   // Look for an existing source: "/(.*)" entry to extend.
-  let target = parsed.headers.find(
+  const target = parsed.headers.find(
     (h: any) => h && h.source === "/(.*)" && Array.isArray(h.headers),
   );
 

@@ -6,7 +6,6 @@ import {
   findStringLiterals,
   walkAst,
 } from "../../src/utils/ast.js";
-import ts from "typescript";
 
 describe("ast utils", () => {
   it("parses TypeScript source into a SourceFile", () => {

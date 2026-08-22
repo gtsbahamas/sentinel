@@ -33,7 +33,7 @@ afterAll(() => {
   for (const d of tmpDirs) {
     try {
       rmSync(d, { recursive: true, force: true });
-    } catch {}
+    } catch { /* best-effort */ }
   }
 });
 

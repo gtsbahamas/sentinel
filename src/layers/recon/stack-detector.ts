@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join, basename } from "path";
 import type { ProjectMeta, StackProfile } from "../../model/types.js";
 
@@ -119,7 +119,7 @@ async function detectNodeStack(projectPath: string, pkgPath: string): Promise<Pr
 function detectGoFramework(projectPath: string): string {
   // Quick check for common Go web frameworks in go.mod
   try {
-    const goMod = require("fs").readFileSync(join(projectPath, "go.mod"), "utf-8");
+    const goMod = readFileSync(join(projectPath, "go.mod"), "utf-8");
     if (goMod.includes("github.com/gin-gonic/gin")) return "gin";
     if (goMod.includes("github.com/labstack/echo")) return "echo";
     if (goMod.includes("github.com/gofiber/fiber")) return "fiber";

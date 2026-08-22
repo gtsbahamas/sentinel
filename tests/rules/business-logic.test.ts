@@ -64,7 +64,7 @@ describe("business-logic rules", () => {
   // ─── BIZ-002: Password reset token stored in plaintext ───
 
   it("BIZ-002 flags plaintext reset token insert", async () => {
-    const { root, filePath } = makeTempProject(
+    const { root } = makeTempProject(
       "reset.ts",
       `
       const token = crypto.randomUUID();

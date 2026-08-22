@@ -11,7 +11,7 @@ const SECRET_PATTERNS: Array<{
 }> = [
   { name: "AWS Access Key", pattern: /AKIA[0-9A-Z]{16}/g, severity: "critical", cwe: "CWE-798" },
   { name: "AWS Secret Key", pattern: /(?:aws_secret_access_key|secret_key)\s*[:=]\s*["']?[A-Za-z0-9/+=]{40}/gi, severity: "critical", cwe: "CWE-798" },
-  { name: "Generic API Key", pattern: /(?:api[_-]?key|apikey)\s*[:=]\s*["']?[A-Za-z0-9_\-]{20,}/gi, severity: "high", cwe: "CWE-798" },
+  { name: "Generic API Key", pattern: /(?:api[_-]?key|apikey)\s*[:=]\s*["']?[A-Za-z0-9_-]{20,}/gi, severity: "high", cwe: "CWE-798" },
   { name: "Private Key Block", pattern: /-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----/g, severity: "critical", cwe: "CWE-321" },
   { name: "JWT Token", pattern: /eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+/g, severity: "medium", cwe: "CWE-200" },
   { name: "Supabase Service Role Key", pattern: /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]{50,}/g, severity: "critical", cwe: "CWE-798" },

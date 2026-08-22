@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { resetRegistry, registerRules, runRules } from "../../src/layers/rules/index.js";
 import { supplyChainRules } from "../../src/layers/rules/domains/supply-chain.js";
 import { runRecon } from "../../src/layers/recon/index.js";

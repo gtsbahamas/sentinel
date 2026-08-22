@@ -4,7 +4,7 @@ import { join, relative, isAbsolute } from "path";
 import { minimatch } from "minimatch";
 import { loadConfig, type ConventionRule } from "../../../config.js";
 import { DEFAULT_EXCLUDED_SEGMENTS, isExcludedPath } from "../../recon/pattern-inference.js";
-import type { Finding, ProjectModel, InferredPattern } from "../../../model/types.js";
+import type { Finding } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
 
 // Compute the path that `match` globs are written against. Endpoint files
@@ -291,7 +291,7 @@ export const authAccessControlRules: SecurityRule[] = [
     description:
       "Pattern inference detected that most endpoints under a given path use a specific auth helper. This endpoint does not.",
     impact:
-      "This pattern was inferred automatically from the rest of your codebase — verify before acting. When a clear majority of endpoints in a directory call the same auth helper and one route skips it, the most common cause is an AI-generated handler that lacked project context. The IslandFlow-style failure mode is silent privilege bypass: the endpoint compiles, deploys, and serves data, but skips the access check the rest of the project relies on.",
+      "This pattern was inferred automatically from the rest of your codebase — verify before acting. When a clear majority of endpoints in a directory call the same auth helper and one route skips it, the most common cause is an AI-generated handler that lacked project context. The classic failure mode is silent privilege bypass: the endpoint compiles, deploys, and serves data, but skips the access check the rest of the project relies on.",
     severity: "critical",
     appliesTo: ["nextjs-supabase"],
     references: { cwe: "CWE-862", owasp: "A01:2021" },
@@ -428,7 +428,7 @@ export const authAccessControlRules: SecurityRule[] = [
       for (const dir of migrationsDir) {
         const files = await fg(["**/*.sql"], { cwd: `${model.meta.path}/${dir}`, absolute: true });
         for (const f of files) {
-          try { migrationContent += await safeReadFile(f); } catch {}
+          try { migrationContent += await safeReadFile(f); } catch { /* best-effort */ }
         }
       }
 
@@ -733,7 +733,7 @@ export const authAccessControlRules: SecurityRule[] = [
               ),
             );
           }
-        } catch {}
+        } catch { /* best-effort */ }
       }
       return findings;
     },

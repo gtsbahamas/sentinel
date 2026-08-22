@@ -1,7 +1,5 @@
 import type { Fixer } from "../types.js";
 
-const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-
 // Matches: export async function GET(... { ... }
 // Captures: (1) method name, (2) params+opening-brace, (3) body content, (4) closing-brace position
 const HANDLER_RE =

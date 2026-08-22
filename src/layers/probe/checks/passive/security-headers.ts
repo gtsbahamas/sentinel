@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { ProbeTarget, ProjectModel, ProbeFinding, ProbeError, SecurityDomain, AggressionLevel } from "../../../../model/types.js";
+import type { ProbeTarget, ProbeFinding, ProbeError, SecurityDomain, AggressionLevel } from "../../../../model/types.js";
 import type { ProbeCheck, ProbeCheckContext, ProbeCheckResult } from "../base.js";
 import { TargetUnreachable } from "../../http-client.js";
 

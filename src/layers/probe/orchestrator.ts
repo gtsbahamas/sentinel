@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 import type {
-  AggressionLevel,
   Finding,
   ProbeConfig,
   ProbeRunResult,

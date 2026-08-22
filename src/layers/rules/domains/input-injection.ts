@@ -346,7 +346,7 @@ export const inputInjectionRules: SecurityRule[] = [
         // multiple presence/typeof checks, treat it as adequately validated.
         // Heuristic: count required-field guards.
         const requiredFieldChecks = [
-          /\bif\s*\(\s*!\s*\w+\s*\)\s*[\{return]/g, // if (!field) return / { ... }
+          /\bif\s*\(\s*!\s*\w+\s*\)\s*[{return]/g, // if (!field) return / { ... }
           /\bif\s*\(\s*typeof\s+\w+\s*!==\s*["']/g, // if (typeof x !== 'string')
           /\bif\s*\(\s*!\s*Array\.isArray\s*\(/g, // if (!Array.isArray(x))
           /\.length\s*===\s*0\s*\)/g, // if (arr.length === 0)
@@ -395,7 +395,7 @@ export const inputInjectionRules: SecurityRule[] = [
     check(model) {
       return scanLines(
         model,
-        /(window\.location|location\.href)\s*=\s*(?!\s*["'`\/])[^;]/,
+        /(window\.location|location\.href)\s*=\s*(?!\s*["'`/])[^;]/,
         (file, line, match) =>
           mkFinding(
             "INPUT-006",

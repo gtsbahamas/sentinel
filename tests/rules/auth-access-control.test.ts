@@ -48,7 +48,7 @@ describe("auth-access-control rules", () => {
 
     afterEach(() => {
       for (const dir of tempDirs) {
-        try { rmSync(dir, { recursive: true, force: true }); } catch {}
+        try { rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
       }
       tempDirs = [];
     });
@@ -165,7 +165,7 @@ describe("auth-access-control rules", () => {
 
     afterEach(() => {
       for (const dir of tempDirs) {
-        try { rmSync(dir, { recursive: true, force: true }); } catch {}
+        try { rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
       }
       tempDirs = [];
     });
@@ -391,7 +391,7 @@ describe("auth-access-control rules", () => {
 
     afterEach(() => {
       for (const dir of tempDirs) {
-        try { rmSync(dir, { recursive: true, force: true }); } catch {}
+        try { rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
       }
       tempDirs = [];
     });

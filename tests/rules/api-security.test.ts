@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { resetRegistry, registerRules, runRules } from "../../src/layers/rules/index.js";
 import { apiSecurityRules } from "../../src/layers/rules/domains/api-security.js";
 import { runRecon } from "../../src/layers/recon/index.js";

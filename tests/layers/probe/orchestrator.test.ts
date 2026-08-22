@@ -1,11 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { runProbe, resetProbeRegistry } from "../../../src/layers/probe/index.js";
+import { runProbe } from "../../../src/layers/probe/index.js";
 import type { ProjectModel, ProbeConfig, Finding } from "../../../src/model/types.js";
 import { PROBE_CONFIG_DEFAULTS } from "../../../src/layers/probe/schema.js";
 
 // Override http-client to use MockHttpClient globally for this test
 // We need to mock the global fetch to prevent real network calls
-import { MockHttpClient } from "../../../src/layers/probe/http-client.js";
 
 function emptyModel(): ProjectModel {
   return {
@@ -59,7 +58,7 @@ describe("runProbe integration", () => {
     try {
       const model = emptyModel();
       const config = makeProbeConfig();
-      const { result, mergedFindings } = await runProbe(model, [], config);
+      const { result } = await runProbe(model, [], config);
 
       expect(result.aggressionLevel).toBe("passive");
       expect(result.usedRequests).toBeGreaterThan(0);
@@ -100,7 +99,7 @@ describe("runProbe integration", () => {
       }];
 
       const config = makeProbeConfig();
-      const { result, mergedFindings } = await runProbe(model, priorFindings, config);
+      const { result } = await runProbe(model, priorFindings, config);
 
       expect(result.aggressionLevel).toBe("passive");
     } finally {

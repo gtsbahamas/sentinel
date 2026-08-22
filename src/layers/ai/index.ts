@@ -27,7 +27,7 @@ export async function runAI(
   config: AIConfig,
   injectedProvider?: AIProvider,
   context?: ProjectContext | null,
-  emitter?: ScanEventEmitter,
+  _emitter?: ScanEventEmitter,
 ): Promise<AIRunResult> {
   const provider = injectedProvider ?? createProvider(config);
   const pricing = pricingFor(config);
