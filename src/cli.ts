@@ -10,6 +10,7 @@ import { runProbeCommand } from "./commands/probe.js";
 import { runContextCommand } from "./commands/context.js";
 import { runFixCommand } from "./commands/fix.js";
 import { runMcp } from "./commands/mcp.js";
+import { runInit } from "./commands/init.js";
 import { runPatterns } from "./commands/patterns.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -206,6 +207,24 @@ program
     "Run Sentinel as an MCP server (stdio transport) for IDE integration with Claude Code, Cursor, VS Code",
   )
   .action(runMcp);
+
+program
+  .command("init")
+  .description(
+    "Wire Sentinel into your AI coding agent — installs a Claude Code skill that scans before pushes, PRs, and deploys",
+  )
+  .option("--with-claude-code", "Install the Claude Code skill (default and only target today)")
+  .option(
+    "--project",
+    "Install into ./.claude/skills of the current repo (committable — the whole team's agents pick it up) instead of ~/.claude/skills",
+  )
+  .action(async (options) => {
+    const exitCode = await runInit({
+      withClaudeCode: !!options.withClaudeCode,
+      project: !!options.project,
+    });
+    exitAfterDrain(exitCode);
+  });
 
 program
   .command("patterns")

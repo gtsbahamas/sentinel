@@ -10,6 +10,18 @@ npx shipsafe-sentinel scan .
 
 Runs on your machine. No code leaves your box unless you `--format json` and pipe it somewhere yourself.
 
+## Let your coding agent run it for you
+
+```bash
+npx shipsafe-sentinel init            # this machine (~/.claude/skills)
+npx shipsafe-sentinel init --project  # this repo — commit it, whole team gets it
+```
+
+Installs a Claude Code skill so the agent runs a Sentinel scan before pushes,
+PRs, and deploys, and after touching auth, API routes, uploads, headers, or
+secrets — instead of only when a human remembers to. The `--project` install
+lives in `.claude/skills/` and rides the repo to every contributor.
+
 ## What it catches
 
 - Hardcoded secrets (OpenAI keys, Supabase service roles, JWT secrets, generic AWS/GCP credentials)
