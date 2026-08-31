@@ -94,3 +94,58 @@ export async function walkProject(
 
   return files.filter((f) => !isDeniedPath(f));
 }
+
+// ---------------------------------------------------------------------------
+// Repo-artifact walk (repo-integrity domain)
+// ---------------------------------------------------------------------------
+
+/** One file found by `walkRepoArtifacts`. `size` is bytes on disk. */
+export interface RepoArtifact {
+  /** Absolute path. */
+  path: string;
+  /** Path relative to the project root, POSIX separators — what we report. */
+  rel: string;
+  size: number;
+}
+
+// `walkProject` is extension-allowlisted to text source
+// (**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yaml,yml,toml}), which is correct for
+// every rule that parses code. It also means a committed .exe, .zip or .cmd is
+// not scored low — it is never enumerated at all, so no rule can see it.
+//
+// This walk is the deliberate complement: EVERY file, no extension allowlist,
+// stat'd but never read. Rules decide what to open.
+//
+// `public` is dropped from the caller's exclude list here on purpose. It is
+// excluded from the source walk because it holds build output and static
+// assets — which is exactly where a committed binary would sit unremarked.
+// Ordinary assets (images, fonts, PDFs) match no rule in this domain, so
+// re-including the directory costs a stat and buys the coverage that matters.
+export async function walkRepoArtifacts(
+  projectPath: string,
+  exclude: string[],
+): Promise<RepoArtifact[]> {
+  const ignore = exclude.filter((e) => e !== "public").map((e) => `**/${e}/**`);
+
+  const entries = await fg("**/*", {
+    cwd: projectPath,
+    absolute: true,
+    ignore,
+    dot: true,
+    followSymbolicLinks: false,
+    onlyFiles: true,
+    stats: true,
+    suppressErrors: true,
+  });
+
+  const out: RepoArtifact[] = [];
+  for (const e of entries) {
+    const abs = typeof e === "string" ? e : e.path;
+    if (isDeniedPath(abs)) continue;
+    const size = typeof e === "string" ? 0 : (e.stats?.size ?? 0);
+    let rel = abs.startsWith(projectPath) ? abs.slice(projectPath.length) : abs;
+    rel = rel.replace(/^[/\\]+/, "").split("\\").join("/");
+    out.push({ path: abs, rel, size });
+  }
+  return out;
+}
