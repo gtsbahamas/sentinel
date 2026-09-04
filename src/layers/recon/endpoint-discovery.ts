@@ -39,7 +39,7 @@ export function detectAuthCheck(source: string): boolean {
   // `await resolveActiveWorkspace()` — these are the canonical Next.js +
   // Supabase patterns the iteration-3 corpus revealed.
   const hasGuardCall =
-    /await\s+\w*(?:require|ensure|assert|verify|check|validate|guard|resolve|authenticate)\w*\s*\(/i.test(source);
+    /await\s+\w*(?:require|ensure|assert|verify|check|validate|guard|resolve|authenticate|authorize)\w*\s*\(/i.test(source);
 
   // (2) Verb + auth-domain noun call (sync or async). Case-sensitive because
   // real call sites are camelCase; lowercasing would over-match identifiers
@@ -49,8 +49,16 @@ export function detectAuthCheck(source: string): boolean {
   //                 Api, Bearer, Caller, Request, Origin, Csrf — these cover
   //                 the dominant FP pattern from v4 (validateProvisioningKey,
   //                 verifyWebhookSecret, validateApiKey, validateRequestOrigin).
+  // Added (2026-09-04): `authorize`. The verb list carried `authenticate` but
+  // not `authorize`, so the plainest possible name for an authorization guard
+  // was the one name the detector could not read. Found by self-scan: shipsafe-web
+  // collapsed eleven duplicate cron-bearer checks into one `authorizeCron(request)`
+  // helper and AUTH-001 immediately reported the route as unauthenticated. Note
+  // `Cron` was already in the noun list below — both halves of the identifier were
+  // known, and the verb alternation was the only thing standing between them.
+  // Any codebase that factors its guard into an authorize* helper hit this.
   const hasVerbNounCall =
-    /\b(?:require|ensure|assert|verify|check|validate|get|fetch|load|resolve|authenticate)\w*(?:Auth|Session|User|Permission|Role|Staff|Portal|Member|Principal|Token|Password|Workspace|Active|Tenant|Organization|Account|Agent|Provisioning|Key|Secret|Webhook|Hmac|Signature|Cron|Api|Bearer|Caller|Request|Origin|Csrf)\w*\s*\(/.test(source);
+    /\b(?:require|ensure|assert|verify|check|validate|get|fetch|load|resolve|authenticate|authorize)\w*(?:Auth|Session|User|Permission|Role|Staff|Portal|Member|Principal|Token|Password|Workspace|Active|Tenant|Organization|Account|Agent|Provisioning|Key|Secret|Webhook|Hmac|Signature|Cron|Api|Bearer|Caller|Request|Origin|Csrf)\w*\s*\(/.test(source);
 
   // (3) Bearer + Supabase getUser within proximity. The `[\s\S]{0,600}?` is a
   // lazy any-char window so we tolerate intervening token-extraction code.
