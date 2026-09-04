@@ -122,6 +122,58 @@ function extOf(rel: string): string {
 }
 
 /**
+ * Owner and repo of the GitHub remote, lowercased, or null when there is none
+ * to read (a zip upload, or a non-GitHub remote). REPO-004 reads the same
+ * `.git/config` for the owner alone; REPO-003 needs the repo name too, because
+ * "same owner, different repo" is still not this repository.
+ */
+async function githubRemote(root: string): Promise<{ owner: string; repo: string } | null> {
+  const gitConfig = join(root, ".git", "config");
+  if (!existsSync(gitConfig)) return null;
+  let cfg: string;
+  try {
+    cfg = await safeReadFile(gitConfig);
+  } catch {
+    return null;
+  }
+  const m =
+    /url\s*=\s*(?:https:\/\/github\.com\/|git@github\.com:)([^/\s]+)\/(\S+?)(?:\.git)?\s*$/im.exec(
+      cfg,
+    );
+  if (!m) return null;
+  return { owner: m[1].toLowerCase(), repo: m[2].toLowerCase() };
+}
+
+/**
+ * Split a GitHub file URL into the repository it addresses and the path inside
+ * that repository. Handles the three shapes that actually serve file bytes:
+ *
+ *   raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>
+ *   raw.githubusercontent.com/<owner>/<repo>/refs/heads/<branch>/<path>
+ *   github.com/<owner>/<repo>/(raw|blob)/<ref>/<path>
+ *
+ * Returns null when the URL is not one of those, which is the safe direction:
+ * an unrecognised link is not evidence of an in-repository download.
+ */
+function parseGithubFileUrl(
+  href: string,
+): { owner: string; repo: string; path: string } | null {
+  const m =
+    /^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(.+)$/i.exec(href) ??
+    /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:raw|blob)\/(.+)$/i.exec(href);
+  if (!m) return null;
+
+  // Strip the ref. Either an explicit refs/heads|tags/<name>/ prefix, or a
+  // single opaque segment (branch name, tag, or commit sha).
+  const rest = m[3];
+  const explicit = /^refs\/(?:heads|tags)\/[^/]+\/(.+)$/i.exec(rest);
+  const path = explicit ? explicit[1] : rest.split("/").slice(1).join("/");
+  if (!path) return null;
+
+  return { owner: m[1].toLowerCase(), repo: m[2].toLowerCase(), path };
+}
+
+/**
  * Archives a manifest deliberately vendors, e.g. npm's
  * `"dep": "file:./vendor/thing-1.2.3.tgz"`. Declared means expected: a vendored
  * tarball a package.json points at is a supply-chain question (is that tarball
@@ -287,6 +339,9 @@ export const repoIntegrityRules: SecurityRule[] = [
       // dist/app.zip) names a path that does not exist in the tree.
       const present = new Set(artifacts.map((a) => a.rel));
 
+      // Whose repository this is, when the tree carries a remote to say so.
+      const remote = await githubRemote(root);
+
       for (const doc of docs) {
         let text: string;
         try {
@@ -296,7 +351,20 @@ export const repoIntegrityRules: SecurityRule[] = [
         }
 
         const lines = text.split("\n");
+        // Inside a fenced block, `](url)` renders as literal text, not as a
+        // clickable link, so it cannot function as a download offer to a reader.
+        // Security writing quotes hostile markdown as evidence — the essay that
+        // surfaced this reproduces the Soup trojan's own download badge so the
+        // reader can grep for the shape — and that is documentation ABOUT a
+        // link, not the offer of one.
+        let inFence = false;
         for (let i = 0; i < lines.length; i++) {
+          if (/^\s*(?:```|~~~)/.test(lines[i])) {
+            inFence = !inFence;
+            continue;
+          }
+          if (inFence) continue;
+
           linkRe.lastIndex = 0; // /g keeps state across calls — reset per line.
           let m: RegExpExecArray | null;
           while ((m = linkRe.exec(lines[i])) !== null) {
@@ -309,6 +377,27 @@ export const repoIntegrityRules: SecurityRule[] = [
             if (isRelative && !isRawHost) {
               const norm = href.replace(/^\.\//, "").replace(/^\//, "").split(/[?#]/)[0];
               if (!present.has(norm)) continue; // names a file that isn't in the repo
+            }
+            if (isRawHost) {
+              // The relative branch above proves "resolves INTO this repository"
+              // before reporting it. This branch used to assert it without ever
+              // checking, so ANY third-party raw.githubusercontent link — the
+              // normal way to cite someone else's file — was reported as an
+              // in-repository download, in a finding whose own text said the
+              // link "resolves into this repository". Establish it instead:
+              //   - a remote we can read settles it outright;
+              //   - with no remote (zip upload, non-GitHub origin), fall back to
+              //     the same evidence the relative branch uses — is that exact
+              //     path actually sitting in this tree?
+              // The trojan case survives both ways: jochi2018/Soup's README
+              // points at jochi2018/Soup, and src/3.0.zip is right there.
+              const target = parseGithubFileUrl(href);
+              if (!target) continue;
+              if (remote) {
+                if (target.owner !== remote.owner || target.repo !== remote.repo) continue;
+              } else if (!present.has(target.path)) {
+                continue;
+              }
             }
 
             findings.push(

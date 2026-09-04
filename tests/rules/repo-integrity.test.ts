@@ -70,6 +70,91 @@ describe("repo-integrity — the trojan shape", () => {
     expect(hit!.severity).toBe("critical");
   });
 
+  // The trojan property REPO-003 actually exists to catch, now stated with a
+  // remote present: the README of jochi2018/Soup points at jochi2018/Soup.
+  it("flags a raw link when the remote says the link IS this repository (REPO-003)", async () => {
+    const findings = await scan(
+      project({
+        "package.json": JSON.stringify({ name: "x", version: "1.0.0" }),
+        ".git/config": '[remote "origin"]\n\turl = https://github.com/jochi2018/Soup.git\n',
+        "src/3.0.zip": "payload",
+        "README.md":
+          "# Download\n\n[![Download](https://img.shields.io/badge/x-y-green)](https://raw.githubusercontent.com/jochi2018/Soup/main/src/3.0.zip)\n",
+      }),
+    );
+    const hit = findings.find((f) => f.ruleId === "REPO-003");
+    expect(hit).toBeDefined();
+    expect(hit!.severity).toBe("critical");
+  });
+
+  // Regression, 2026-09-04, found by self-scan. The raw-host branch asserted
+  // "the link resolves into this repository" without ever checking whose repo
+  // the URL named, so citing ANYONE else's raw file read as critical. The
+  // relative-path branch had always proved presence before reporting; this is
+  // the same standard applied to the branch that skipped it.
+  it("does NOT flag a raw link into someone else's repository (REPO-003)", async () => {
+    const findings = await scan(
+      project({
+        "package.json": JSON.stringify({ name: "x", version: "1.0.0" }),
+        ".git/config":
+          '[remote "origin"]\n\turl = https://github.com/gtsbahamas/shipsafe-web.git\n',
+        "SECURITY.md":
+          "We investigated [the payload](https://raw.githubusercontent.com/jochi2018/Soup/main/src/3.0.zip) and reported it.\n",
+      }),
+    );
+    expect(ids(findings)).not.toContain("REPO-003");
+  });
+
+  // Same owner is not the same repository.
+  it("does NOT flag a raw link to a different repo under the same owner (REPO-003)", async () => {
+    const findings = await scan(
+      project({
+        "package.json": JSON.stringify({ name: "x", version: "1.0.0" }),
+        ".git/config": '[remote "origin"]\n\turl = git@github.com:acme/website.git\n',
+        "README.md":
+          "Grab [the installer](https://raw.githubusercontent.com/acme/installers/main/setup.exe).\n",
+      }),
+    );
+    expect(ids(findings)).not.toContain("REPO-003");
+  });
+
+  // With no remote to compare against, fall back to the evidence the relative
+  // branch uses: is that exact path actually in this tree?
+  it("does NOT flag a raw link whose path is absent, with no remote (REPO-003)", async () => {
+    const findings = await scan(
+      project({
+        "package.json": JSON.stringify({ name: "x", version: "1.0.0" }),
+        "README.md":
+          "See [upstream's build](https://raw.githubusercontent.com/someone/else/main/dist/app.zip).\n",
+      }),
+    );
+    expect(ids(findings)).not.toContain("REPO-003");
+  });
+
+  // Inside a fence, `](url)` renders as literal text and cannot be clicked, so
+  // it is documentation ABOUT a link. Security writing quotes hostile markdown
+  // as evidence; the essay that surfaced this reproduces Soup's own badge.
+  it("does NOT flag a raw link quoted inside a fenced code block (REPO-003)", async () => {
+    const findings = await scan(
+      project({
+        "package.json": JSON.stringify({ name: "x", version: "1.0.0" }),
+        ".git/config": '[remote "origin"]\n\turl = https://github.com/jochi2018/Soup.git\n',
+        "src/3.0.zip": "payload",
+        "essay.md": [
+          "The whole attack is visible in one grep:",
+          "",
+          "```",
+          "$ grep -rEi 'raw\\.githubusercontent' README.md",
+          "README.md:[![Download Soup](https://img.shields.io/badge/x-y-green)](https://raw.githubusercontent.com/jochi2018/Soup/main/src/3.0.zip)",
+          "```",
+          "",
+          "That is the entire thing.",
+        ].join("\n"),
+      }),
+    );
+    expect(ids(findings)).not.toContain("REPO-003");
+  });
+
   it("flags a committed Windows executable as critical (REPO-001)", async () => {
     const findings = await scan(
       project({
