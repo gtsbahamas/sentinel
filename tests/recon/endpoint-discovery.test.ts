@@ -367,4 +367,57 @@ describe("detectAuthCheck", () => {
     `;
     expect(detectAuthCheck(source)).toBe(false);
   });
+
+  // Regression, 2026-09-04. The verb alternation held `authenticate` but not
+  // `authorize`, so a guard with the plainest possible name was invisible.
+  // Real case: shipsafe-web replaced eleven copies of an inline cron-bearer
+  // check with one authorizeCron() helper. The inline copies had been detected
+  // by the shared-secret branch (authorization header + process.env.*SECRET*),
+  // and extracting them removed that text from the route, leaving only the call
+  // — which nothing matched. AUTH-001 then reported a guarded billing route as
+  // having no auth at all. `Cron` was already a known noun; only the verb was
+  // missing. Every one of these is a real handler with a real guard.
+  it("detects an authorize* guard helper (verb list regression)", () => {
+    const route = (call: string) => `
+      import { ${call.split("(")[0]} } from '@/lib/api-helpers/authorize-cron';
+      export async function POST(request: Request) {
+        const denied = ${call};
+        if (denied) return denied;
+        return NextResponse.json({ ok: true });
+      }
+    `;
+    for (const call of [
+      "authorizeCron(request)",
+      "authorizeRequest(request)",
+      "authorizeUser(request)",
+      "authorizeApiKey(request)",
+    ]) {
+      expect(detectAuthCheck(route(call)), call).toBe(true);
+    }
+  });
+
+  it("detects an awaited authorize* guard", () => {
+    const source = `
+      export async function DELETE(request: Request) {
+        await authorizeSession(request);
+        return NextResponse.json({ ok: true });
+      }
+    `;
+    expect(detectAuthCheck(source)).toBe(true);
+  });
+
+  // The counterweight: adding a verb must not turn every mention of the word
+  // into a detected guard. A noun from the list is still required, so prose,
+  // variable names and the header string itself stay unmatched.
+  it("does not treat the word authorization alone as a guard", () => {
+    const source = `
+      export async function POST(req) {
+        const authorization = req.headers.get('x-thing');
+        const authorized = false;
+        // authorize the user later
+        return NextResponse.json({ authorization, authorized });
+      }
+    `;
+    expect(detectAuthCheck(source)).toBe(false);
+  });
 });
