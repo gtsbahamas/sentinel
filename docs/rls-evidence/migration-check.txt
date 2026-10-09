@@ -1,0 +1,22 @@
+OK Agent Hub agent-talk-shell 27c531c8 supabase/migrations/20261006120000_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK primer primer 7e9fd85 supabase/migrations/20261006120000_rls_lockdown.sql branches: master remotes/origin/HEAD -> origin/master remotes/origin/master
+OK facegate facegate 22d6276536d1725a47c518566ac4f0745e19b0df packages/server/supabase/migrations/20261006155325_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK feedback-hub feedback-hub ca4ea9c058085b2537d224f041eb30e7883db94a supabase/migrations/20261006170100_rls_lockdown.sql branches: main remotes/origin/HEAD -> origin/main remotes/origin/main
+OK propria-core propria-core afa275001b65106f4f6a0ea173a7b7d3d4ad9da4 supabase/migrations/20261006170100_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK coral-harbour-pilot propria-core afa275001b65106f4f6a0ea173a7b7d3d4ad9da4 supabase/migrations/20261006170100_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK franklabs franklabs-website 037dc964bcf688861e9324ac22c7ebe0593b2359 supabase/migrations/20261006150100_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK Life OS _archive/justin-career 854d0f4866e0558409f660942af51648c03e126a app/supabase/migrations/20261006150200_rls_lockdown.sql branches: main remotes/origin/HEAD -> origin/main remotes/origin/main
+OK Secure Apps security-agent-dev 41eacd4 supabase/migrations/secure-apps/20261006150300_rls_lockdown.sql branches: fix/auth-verb-and-repo003-fp-clean
+OK seatrial-prod shipsafe-web fb65a4727ad6af6b158cecf85854b9d75b6e04ef supabase/migrations/20261006150400_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK LUCID hallucination-reversing-system a784366 supabase/migrations/20261006150500_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK e2e-test-app security-agent-dev 8e88637 supabase/migrations/e2e-test-app/20261006210000_demo_fixture_read_only.sql branches: fix/auth-verb-and-repo003-fp-clean
+OK Grab & Go grabgo d7bb535e62bb136f320d140a10f25fe6f9a567b2 supabase/migrations/20261006120000_rls_lockdown.sql branches: main remotes/origin/HEAD -> origin/main remotes/origin/main
+OK Fire-OS fire-os dc9de1ba1e4ae1952a3f0f3e0267c6517cdfc524 supabase/migrations/20261006120000_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK GTS Statements _archive/gts-statements-next 89d4111d9b1fe04ee7ca54db319e52cf2a53741d supabase/migrations/20261006170000_rls_lockdown.sql branches: main remotes/origin/HEAD -> origin/main remotes/origin/main
+OK DMP Tech Support _archive/dmp-tech-support ef316af1dd5114abb662071212f316a117242cd4 supabase/migrations/20261006171500_rls_lockdown.sql branches: main remotes/origin/HEAD -> origin/main remotes/origin/main
+OK MGO Support mgosupport 7fa7fe2 supabase/migrations/20261006200000_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK brazilnut-support mgosupport 7fa7fe2 supabase/migrations/20261006200000_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK mgo-asue mgo-asue 6588af5 supabase/migrations/20261006200100_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+OK MGO Kiosk mobilego-kiosk-nextjs 28853ac supabase/migrations/20261006200200_rls_lockdown.sql branches: + sec/rls-lockdown-20261006 remotes/origin/sec/rls-lockdown-20261006
+NO-MIGRATION (excluded) IslandFlow
+NO-MIGRATION (excluded) MGO Management Dashboard

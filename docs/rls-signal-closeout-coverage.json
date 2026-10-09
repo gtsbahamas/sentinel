@@ -1,0 +1,184 @@
+{
+  "schema_version": 2,
+  "ticket_id": "secagent-rls-signal-closeout",
+  "scope": "security-agent-dev docs/ (closure report, rls-exclusions.json, new scan + verify JSON/MD), scripts/rls-scan.mjs and scripts/rls-report.mjs (read the exclusion list), tests/ (exclusion test), supabase/migrations/ for any SQL the two PostGIS projects accept",
+  "environment": "/Users/tywells/Downloads/projects/security-agent-dev",
+  "run_id": "rls-signal-closeout-2026-10-07",
+  "source_revision": "dff463ccf010a5588ead5184fe6065dc258655c5",
+  "build_identity": "Mac committed source dff463ccf010a5588ead5184fe6065dc258655c5; live scan/verify on proxmox-worker via rbuild; Supabase PAT-visible ACTIVE_HEALTHY projects, postgres metadata role",
+  "requirements": [
+    {
+      "criterion": 1,
+      "criterion_id": "criterion-bbbaa16031e7d8cf",
+      "requirement": "docs/rls-signal-73-tables-closure.md exists and names the signal, the baseline totals, the fixed count, the verify result and the final status of each of the 3 remaining tables (fixed, or excluded with the tried command and its error) \u2014 check: test -f docs/rls-signal-73-tables-closure.md && grep -q 'spatial_ref_sys' docs/rls-signal-73-tables-closure.md && grep -q 'shipsafe_demo_customers' docs/rls-signal-73-tables-closure.md",
+      "expected": "Signal reconciled and all three residue dispositions documented, with exact trials/errors.",
+      "method": "Read baseline, lane results, fresh metadata rollback probes and closure report.",
+      "observed": "112 baseline off tables across22affected/45active;109fixed. Demo anon/auth all writes false, read206/count3. Each spatial_ref_sys owner supabase_admin: plain postgres revoke HTTP201 ineffective; owner-role trial400/42501 permission denied, all writes remain true in fresh readback. Explicit allowed fallback, not fixed.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-signal-73-tables-closure.md",
+          "sha256": "c43bc2c22738713ed23df53fcb489131c93c8af3051a79e9039c0bc1c714bb78"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-signal-evidence/residue-probes.json",
+          "sha256": "ba6cf86cd24c840beb556488bb8dd1fcc8d897c9df9cb38d604117a25d1673a1"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-scan-2026-10-06-before.json",
+          "sha256": "9c8c311c684a586a0e6180c9c8e587ad1f4a62238d157798b875c7af0c8cef20"
+        }
+      ],
+      "status": "passed",
+      "environment": "Supabase live, PAT-visible ACTIVE_HEALTHY projects; metadata postgres and REST anon/server keys; source dff463ccf010a5588ead5184fe6065dc258655c5"
+    },
+    {
+      "criterion": 2,
+      "criterion_id": "criterion-740add5f71c4ba2c",
+      "requirement": "docs/rls-exclusions.json lists every intentionally RLS-off table with project ref, table and reason, and a new dated scan MD/JSON pair under docs/ shows zero public RLS-off tables outside that list \u2014 check: node -e \"const e=require('./docs/rls-exclusions.json');if(!Array.isArray(e)||!e.every(x=>x.ref&&x.table&&x.reason))process.exit(1)\"",
+      "expected": "All public off rows covered by explicit exclusions; full active scan no errors or open findings.",
+      "method": "Fresh management catalog scan plus HEAD/count probes and exact identity/client-privilege classifier.",
+      "observed": "45active projects scanned;3off rows,3exact exclusions,0open,0collection errors. Demo expected client writes/truncate false; both catalogs true residual accepted with reason. No row content collected.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-exclusions.json",
+          "sha256": "f87834ce030cce47a5187c2a8871fbeb95ecd57adc0eeff90acc79d705ccb49b"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-scan-2026-10-07-signal-closeout.json",
+          "sha256": "7d9986df40a6ef46bffc18e577e2a90932c6f7b21dc0d19ff9c483b55830dc57"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-scan-2026-10-07-signal-closeout.md",
+          "sha256": "0667bd3fed3836b12b72dbeff0e9d5031004c66827a9aa10429e1f5476d6cc59"
+        }
+      ],
+      "status": "passed",
+      "environment": "Supabase live, PAT-visible ACTIVE_HEALTHY projects; metadata postgres and REST anon/server keys; source dff463ccf010a5588ead5184fe6065dc258655c5"
+    },
+    {
+      "criterion": 3,
+      "criterion_id": "criterion-5ff01af12217dcc4",
+      "requirement": "scripts/rls-report.mjs reports excluded tables separately from open ones, and a vitest in tests/ fails if the latest committed scan JSON contains an RLS-off public table not in rls-exclusions.json \u2014 check: npx vitest run tests/rls-exclusions.test.ts",
+      "expected": "Report separates reviewed exclusions/open; committed scan regression gate rejects unknown rows and privilege drift.",
+      "method": "Focused Vitest against actual committed Mac Git HEAD; worker fixture tests also run, worker Git inventory mismatch recorded.",
+      "observed": "6/6 tests pass, including committed full off-table inventory, unknown row, anon-write drift, cross-project identity, collection error and report stale-lane fixture with excluded1/open2. Live report fixed109/excluded3/open0.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/tests/rls-exclusions.test.ts",
+          "sha256": "20d73148684a58c854bd002373f80925cedcf344cec716089bb4ff92fd207ee7"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-signal-evidence/exclusion-tests.txt",
+          "sha256": "b158213d40632c1790e10914000a6fe419d20ef024b77630f105364b069c069d"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-signal-evidence/remediation-closeout.md",
+          "sha256": "417c32504d9c9a3616ea8cc069c028ea900f9b487a6183a65d7144aeb173b1dd"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-exclusions.mjs",
+          "sha256": "68957d7bf43957a30a86c96ac2cd03b21c5479986932a4d0cfba6d0fa527af8e"
+        }
+      ],
+      "status": "passed",
+      "environment": "Supabase live, PAT-visible ACTIVE_HEALTHY projects; metadata postgres and REST anon/server keys; source dff463ccf010a5588ead5184fe6065dc258655c5"
+    },
+    {
+      "criterion": 4,
+      "criterion_id": "criterion-fa2187a872050fcd",
+      "requirement": "A fresh `node scripts/rls-verify.mjs` run is saved under docs/ with fail 0 and pass equal to the fixed count \u2014 check: node -e \"const fs=require('fs');const f=fs.readdirSync('docs').filter(n=>/^rls-verify-.*\\.json$/.test(n)).sort().pop();const v=JSON.parse(fs.readFileSync('docs/'+f));if(v.fail!==0||v.pass<109)process.exit(1)\"",
+      "expected": "Fresh verify passes exactly109 fixed tables with no failures.",
+      "method": "Fresh node scripts/rls-verify.mjs using rbuild; inspect every target probe and server HEAD response.",
+      "observed": "109pass,0fail,109results. Every target has nonempty anon probes; all denied or zero-row/count under RLS.109/109server paths200/206. Proves anonymous table lockout, not every app/RPC workflow.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-verify-2026-10-07-signal-closeout.json",
+          "sha256": "ad39e62d64a0d4f18e30cacdb80383a10f4400acbb38854dadf35cb045077cc9"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-verify-2026-10-07-signal-closeout.md",
+          "sha256": "efe10bb58a299fb1aadd5e975ae41add6a14a4b65dd14e26adff071fd11deaf9"
+        }
+      ],
+      "status": "passed",
+      "environment": "Supabase live, PAT-visible ACTIVE_HEALTHY projects; metadata postgres and REST anon/server keys; source dff463ccf010a5588ead5184fe6065dc258655c5"
+    }
+  ],
+  "artefacts": [
+    "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-signal-73-tables-closure.md",
+    "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-exclusions.json"
+  ],
+  "workflow_coverage": [
+    {
+      "requirement": "ShipSafe demo fixture",
+      "expected": "Anonymous read retained;both client roles deny all writes",
+      "method": "BEGIN/ROLLBACK privilege readback;scan HEAD/count",
+      "observed": "anon/auth select true,CRUD/truncatefalse;HTTP206/count3",
+      "evidence_reference": "docs/rls-signal-evidence/residue-probes.json",
+      "environment": "Live Supabase / postgres rollback metadata and anon REST; source dff463ccf010a5588ead5184fe6065dc258655c5",
+      "status": "passed"
+    },
+    {
+      "requirement": "IslandFlow catalog",
+      "expected": "Try safe revoke;fix only if proved or document exact refusal",
+      "method": "BEGIN/ROLLBACK REVOKE, owner role trial, fresh readback",
+      "observed": "Ineffective revoke201;owner role400/42501;all writes remain;explicit exclusion",
+      "evidence_reference": "docs/rls-signal-evidence/residue-probes.json",
+      "environment": "Live Supabase / postgres rollback metadata and anon REST; source dff463ccf010a5588ead5184fe6065dc258655c5",
+      "status": "passed"
+    },
+    {
+      "requirement": "MGO dashboard catalog",
+      "expected": "Try safe revoke;fix only if proved or document exact refusal",
+      "method": "BEGIN/ROLLBACK REVOKE, owner role trial, fresh readback",
+      "observed": "Ineffective revoke201;owner role400/42501;all writes remain;explicit exclusion",
+      "evidence_reference": "docs/rls-signal-evidence/residue-probes.json",
+      "environment": "Live Supabase / postgres rollback metadata and anon REST; source dff463ccf010a5588ead5184fe6065dc258655c5",
+      "status": "passed"
+    },
+    {
+      "requirement": "Scanner collection and suppression",
+      "expected": "No new table hidden and errors unresolved",
+      "method": "Fresh45active catalog inventory and HEAD probes",
+      "observed": "0errors,0open,3exclusions;raw off inventory retained",
+      "evidence_reference": "docs/rls-scan-2026-10-07-signal-closeout.json",
+      "environment": "Live Supabase / postgres rollback metadata and anon REST; source dff463ccf010a5588ead5184fe6065dc258655c5",
+      "status": "passed"
+    },
+    {
+      "requirement": "Report and regression gate",
+      "expected": "Separate exclusions/open and reject stale suppression",
+      "method": "6focused tests plus live report",
+      "observed": "6/6pass;live report109fixed/3excluded/0open",
+      "evidence_reference": "docs/rls-signal-evidence/exclusion-tests.txt",
+      "environment": "Live Supabase / postgres rollback metadata and anon REST; source dff463ccf010a5588ead5184fe6065dc258655c5",
+      "status": "passed"
+    },
+    {
+      "requirement": "109 prior fixed targets",
+      "expected": "Anon denied or zero count;live server path available",
+      "method": "Fresh anon GET/count and server HEAD",
+      "observed": "109pass0fail;nonempty probes;109serverpaths200/206",
+      "evidence_reference": "docs/rls-verify-2026-10-07-signal-closeout.json",
+      "environment": "Live Supabase / postgres rollback metadata and anon REST; source dff463ccf010a5588ead5184fe6065dc258655c5",
+      "status": "passed"
+    }
+  ],
+  "notes": [
+    "Scope is PAT-visible active projects; no claim to inspect paused/inactive catalogs. No original remediation rerun. PostGIS residual write grants excluded under explicit capsule fallback, not remedied.",
+    "No fog recorded. Pre-existing docs/outbound untouched; guard files untouched.",
+    "rbuild worker file mirror lacks committed Git scan objects; worker fixture tests passed5/6 with Git evidence check environment failure. Final focused Mac test against actual HEAD passed6/6 in3.89s."
+  ]
+}

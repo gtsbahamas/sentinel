@@ -1,0 +1,44 @@
+[
+  {
+    "id": "secagent-rls-signal-closeout",
+    "status": "in_progress",
+    "created": "2026-10-07T18:08:42+00:00",
+    "schema_version": 4,
+    "updated_at": "2026-10-07T18:09:13+00:00",
+    "completed_by": null,
+    "started_by": "codex",
+    "completed_session": null,
+    "completed_session_id": null,
+    "started_session": "codex#01a1178d-f891-79d2-b1be-c66f32cae7d7",
+    "source_path_hash": "69bbba4eb1e6",
+    "source": "security-agent-dev",
+    "capsule": "@secagent-rls-signal-closeout\ndo: Close out the Propria signal \"73+ tables missing RLS across 25+ projects\": prove it against the live lockdown evidence, finish the three leftover public tables (the ShipSafe demo fixture and the two PostGIS spatial_ref_sys tables that still take anon writes), and make the residue an explicit, tested exclusion list so the scan cannot re-raise closed work.\nv1: docs/rls-signal-73-tables-closure.md mapping the signal's claim to the 2026-10-06 baseline (112 tables, 22 projects), the 109 fixed rows and the 109/109 verify of 2026-10-07, plus a fresh `node scripts/rls-scan.mjs` run saved under docs/; Ty sees it in the repo and the T3 card.\nin: security-agent-dev docs/ (closure report, rls-exclusions.json, new scan + verify JSON/MD), scripts/rls-scan.mjs and scripts/rls-report.mjs (read the exclusion list), tests/ (exclusion test), supabase/migrations/ for any SQL the two PostGIS projects accept\n!: No messages to anyone outside, no live money, no GTS live data; the MobileGo Java backend and its Heroku databases stay hands-off\n!: Every live SQL probe on IslandFlow and MGO Management Dashboard runs inside BEGIN/ROLLBACK first; apply only what was proved, and never drop or recreate the postgis extension under live geometry columns\n!: Do not touch secagent-rls-reverify-and-guard's files (rls-guard-results.md, rls-migration-check.mjs, the Primer/mgo-asue guard worktrees); that capsule owns the migration guard\n~: Prefer revoking the anon/authenticated INSERT/UPDATE/DELETE grants on spatial_ref_sys over any heavier change; if the Supabase roles refuse, record the exact command and error per project and keep the table excluded with that reason\n~: Keep the ShipSafe demo fixture readable by anon (it is the demo's target); only confirm its write grants are still revoked\n=: docs/rls-signal-73-tables-closure.md exists and names the signal, the baseline totals, the fixed count, the verify result and the final status of each of the 3 remaining tables (fixed, or excluded with the tried command and its error) \u2014 check: test -f docs/rls-signal-73-tables-closure.md && grep -q 'spatial_ref_sys' docs/rls-signal-73-tables-closure.md && grep -q 'shipsafe_demo_customers' docs/rls-signal-73-tables-closure.md\n=: docs/rls-exclusions.json lists every intentionally RLS-off table with project ref, table and reason, and a new dated scan MD/JSON pair under docs/ shows zero public RLS-off tables outside that list \u2014 check: node -e \"const e=require('./docs/rls-exclusions.json');if(!Array.isArray(e)||!e.every(x=>x.ref&&x.table&&x.reason))process.exit(1)\"\n=: scripts/rls-report.mjs reports excluded tables separately from open ones, and a vitest in tests/ fails if the latest committed scan JSON contains an RLS-off public table not in rls-exclusions.json \u2014 check: npx vitest run tests/rls-exclusions.test.ts\n=: A fresh `node scripts/rls-verify.mjs` run is saved under docs/ with fail 0 and pass equal to the fixed count \u2014 check: node -e \"const fs=require('fs');const f=fs.readdirSync('docs').filter(n=>/^rls-verify-.*\\.json$/.test(n)).sort().pop();const v=JSON.parse(fs.readFileSync('docs/'+f));if(v.fail!==0||v.pass<109)process.exit(1)\"\nwhy: The signal is a stale summary of the 2026-10-06 session note; the 112-table lockdown already landed and verified 109/109 on 2026-10-07, so \"fix\" here means prove it closed, finish the only real residue (anon INSERT still granted on two PostGIS catalog tables, which earlier probes could not revoke as postgres), and stop the scan from re-reporting documented exclusions as findings. Do not re-run the remediation across the 22 projects.",
+    "parsed": {
+      "fog": [],
+      "=": [
+        "docs/rls-signal-73-tables-closure.md exists and names the signal, the baseline totals, the fixed count, the verify result and the final status of each of the 3 remaining tables (fixed, or excluded with the tried command and its error) \u2014 check: test -f docs/rls-signal-73-tables-closure.md && grep -q 'spatial_ref_sys' docs/rls-signal-73-tables-closure.md && grep -q 'shipsafe_demo_customers' docs/rls-signal-73-tables-closure.md",
+        "docs/rls-exclusions.json lists every intentionally RLS-off table with project ref, table and reason, and a new dated scan MD/JSON pair under docs/ shows zero public RLS-off tables outside that list \u2014 check: node -e \"const e=require('./docs/rls-exclusions.json');if(!Array.isArray(e)||!e.every(x=>x.ref&&x.table&&x.reason))process.exit(1)\"",
+        "scripts/rls-report.mjs reports excluded tables separately from open ones, and a vitest in tests/ fails if the latest committed scan JSON contains an RLS-off public table not in rls-exclusions.json \u2014 check: npx vitest run tests/rls-exclusions.test.ts",
+        "A fresh `node scripts/rls-verify.mjs` run is saved under docs/ with fail 0 and pass equal to the fixed count \u2014 check: node -e \"const fs=require('fs');const f=fs.readdirSync('docs').filter(n=>/^rls-verify-.*\\.json$/.test(n)).sort().pop();const v=JSON.parse(fs.readFileSync('docs/'+f));if(v.fail!==0||v.pass<109)process.exit(1)\""
+      ],
+      "~": [
+        "Prefer revoking the anon/authenticated INSERT/UPDATE/DELETE grants on spatial_ref_sys over any heavier change; if the Supabase roles refuse, record the exact command and error per project and keep the table excluded with that reason",
+        "Keep the ShipSafe demo fixture readable by anon (it is the demo's target); only confirm its write grants are still revoked"
+      ],
+      "!": [
+        "No messages to anyone outside, no live money, no GTS live data; the MobileGo Java backend and its Heroku databases stay hands-off",
+        "Every live SQL probe on IslandFlow and MGO Management Dashboard runs inside BEGIN/ROLLBACK first; apply only what was proved, and never drop or recreate the postgis extension under live geometry columns",
+        "Do not touch secagent-rls-reverify-and-guard's files (rls-guard-results.md, rls-migration-check.mjs, the Primer/mgo-asue guard worktrees); that capsule owns the migration guard"
+      ],
+      "id": "secagent-rls-signal-closeout",
+      "do": "Close out the Propria signal \"73+ tables missing RLS across 25+ projects\": prove it against the live lockdown evidence, finish the three leftover public tables (the ShipSafe demo fixture and the two PostGIS spatial_ref_sys tables that still take anon writes), and make the residue an explicit, tested exclusion list so the scan cannot re-raise closed work.",
+      "v1": "docs/rls-signal-73-tables-closure.md mapping the signal's claim to the 2026-10-06 baseline (112 tables, 22 projects), the 109 fixed rows and the 109/109 verify of 2026-10-07, plus a fresh `node scripts/rls-scan.mjs` run saved under docs/; Ty sees it in the repo and the T3 card.",
+      "in": "security-agent-dev docs/ (closure report, rls-exclusions.json, new scan + verify JSON/MD), scripts/rls-scan.mjs and scripts/rls-report.mjs (read the exclusion list), tests/ (exclusion test), supabase/migrations/ for any SQL the two PostGIS projects accept",
+      "why": "The signal is a stale summary of the 2026-10-06 session note; the 112-table lockdown already landed and verified 109/109 on 2026-10-07, so \"fix\" here means prove it closed, finish the only real residue (anon INSERT still granted on two PostGIS catalog tables, which earlier probes could not revoke as postgres), and stop the scan from re-reporting documented exclusions as findings. Do not re-run the remediation across the 22 projects."
+    },
+    "started": "2026-10-07T18:09:12+00:00",
+    "done": null,
+    "proof": null,
+    "started_thread": "4b0d3aff-e382-427c-aed2-ce0b1ba2ced0"
+  }
+]

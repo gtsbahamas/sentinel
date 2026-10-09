@@ -1,0 +1,2250 @@
+{
+  "observed_at": "2026-10-07T18:22:03.173Z",
+  "pass": 109,
+  "fail": 0,
+  "results": [
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "affiliate_referrals_archive",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "affiliate_rewards_archive",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "agent_handoff_protocols",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "agent_learning_feedback",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "bizbox_agent_instances",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "bizbox_orchestration_plans",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "bizbox_team_agents",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 7
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "bizbox_team_instances",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "dynamic_confidence_thresholds",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "knowledge_base",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "semantic_analysis_cache",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "user_interaction_patterns",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "user_oauth_credential_audit",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 1
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement_comment",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 2
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement_section",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 4
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement_term",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 9
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement_term_acceptance",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 9
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_chat_message",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 26
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_document",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 16
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_document_chunk",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 26
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_grounding",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 39
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_instance",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 1
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_member",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 21
+      },
+      "pass": true
+    },
+    {
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "build_proposal",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 2
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "_migrations",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 18
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "action_assertions",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 7
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "audit_log",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 1828
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "consent_records",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 242
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "deletion_audit_log",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 7
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "face_enrollments",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 175
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "face_templates",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "face_templates_512",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "liveness_challenges",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 21
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "oidc_clients",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "oidc_grants",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "oidc_sessions",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "oidc_signing_keys",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "processed_webhook_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "risk_policies",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "sessions",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 70
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "tenant_transform_seeds",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "tenants",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 2
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "threat_entries",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "usage_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 297
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "usage_summaries",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 10
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "users",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 175
+      },
+      "pass": true
+    },
+    {
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "verification_attempts",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 606
+      },
+      "pass": true
+    },
+    {
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_event_reservations",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 6
+      },
+      "pass": true
+    },
+    {
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 12
+      },
+      "pass": true
+    },
+    {
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_reservation_edits",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 2
+      },
+      "pass": true
+    },
+    {
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_reservations",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 1
+      },
+      "pass": true
+    },
+    {
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_seat_assignments",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 24
+      },
+      "pass": true
+    },
+    {
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "claude_sessions",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 3
+      },
+      "pass": true
+    },
+    {
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "specialists",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 1
+      },
+      "pass": true
+    },
+    {
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "test_runs",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 5
+      },
+      "pass": true
+    },
+    {
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "test_steps",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 38
+      },
+      "pass": true
+    },
+    {
+      "ref": "wjkfldyrifvvvtpxcjxp",
+      "table": "agent_proposals",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 684
+      },
+      "pass": true
+    },
+    {
+      "ref": "wjkfldyrifvvvtpxcjxp",
+      "table": "hermes_voice_calls",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 7
+      },
+      "pass": true
+    },
+    {
+      "ref": "oilrcfmjjdqkqdegqaqc",
+      "table": "agent_proposals",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "oilrcfmjjdqkqdegqaqc",
+      "table": "hermes_voice_calls",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "oilrcfmjjdqkqdegqaqc",
+      "table": "pilot_email_replies",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 13
+      },
+      "pass": true
+    },
+    {
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "action_cost_estimates",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 12
+      },
+      "pass": true
+    },
+    {
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "action_risk_classifications",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 22
+      },
+      "pass": true
+    },
+    {
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "assay_audit_results",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "assay_outreach",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "assay_prospects",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 92
+      },
+      "pass": true
+    },
+    {
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "default_network_allowlist",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 9
+      },
+      "pass": true
+    },
+    {
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "monthly_spend_archive",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 6
+      },
+      "pass": true
+    },
+    {
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "outreach_drafts",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 9
+      },
+      "pass": true
+    },
+    {
+      "ref": "kkjjyigipbhfazsaihqf",
+      "table": "stripe_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "kmjnujsqmijxdkbrwmql",
+      "table": "sbom_generation_queue",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 34
+      },
+      "pass": true
+    },
+    {
+      "ref": "zcxdjvwgpgotebehcfqv",
+      "table": "cli_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 98
+      },
+      "pass": true
+    },
+    {
+      "ref": "naznedwtakirzhkubtjb",
+      "table": "cli_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 92
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "legacy_user_migration",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 7
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "pin_auth_sessions",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 83
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "geo_promotions",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "review_prompts",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "sms_rate_limits",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "pickup_id_registry",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 8
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "pickup_transactions",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "performance_logs_2025_08",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "order_modification_requests",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 1
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "order_favorites",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "order_abandonments",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "order_preparation_metrics",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "pickup_confirmations",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "social_shares",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "table_qr_codes",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "table_ordering_sessions",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "walk_in_queues",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "ijqceszwouwiwxmpirqm",
+      "table": "memory_audit_log",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 5261
+      },
+      "pass": true
+    },
+    {
+      "ref": "iscllkdaqrvwmjcfhqsh",
+      "table": "statement_tokens",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 867
+      },
+      "pass": true
+    },
+    {
+      "ref": "iscllkdaqrvwmjcfhqsh",
+      "table": "statement_sends",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 727
+      },
+      "pass": true
+    },
+    {
+      "ref": "iiniwmvcdfdgefyhgzte",
+      "table": "knowledge_chunks",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 722
+      },
+      "pass": true
+    },
+    {
+      "ref": "iiniwmvcdfdgefyhgzte",
+      "table": "knowledge_docs",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 230
+      },
+      "pass": true
+    },
+    {
+      "ref": "euvfjkvsqpajvjnmmznc",
+      "table": "service_status_updates",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "euvfjkvsqpajvjnmmznc",
+      "table": "transaction_anomaly_action_configs",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 5
+      },
+      "pass": true
+    },
+    {
+      "ref": "euvfjkvsqpajvjnmmznc",
+      "table": "transaction_anomaly_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "euvfjkvsqpajvjnmmznc",
+      "table": "webhook_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 29022
+      },
+      "pass": true
+    },
+    {
+      "ref": "gtbhsoqljstkxokspaqn",
+      "table": "service_status_updates",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "gtbhsoqljstkxokspaqn",
+      "table": "transaction_anomaly_action_configs",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 5
+      },
+      "pass": true
+    },
+    {
+      "ref": "gtbhsoqljstkxokspaqn",
+      "table": "transaction_anomaly_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "gtbhsoqljstkxokspaqn",
+      "table": "webhook_events",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "ghjclgcvcasmhtfdwbeu",
+      "table": "forfeitures",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 0
+      },
+      "pass": true
+    },
+    {
+      "ref": "ghjclgcvcasmhtfdwbeu",
+      "table": "goal_contracts",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 3
+      },
+      "pass": true
+    },
+    {
+      "ref": "ghjclgcvcasmhtfdwbeu",
+      "table": "goal_fees",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 200,
+        "total": 1
+      },
+      "pass": true
+    },
+    {
+      "ref": "ghjclgcvcasmhtfdwbeu",
+      "table": "goal_locks",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "server_path": {
+        "key": "service_role",
+        "status": 206,
+        "total": 4
+      },
+      "pass": true
+    },
+    {
+      "ref": "qixunwahanapilwaaknn",
+      "table": "voice_interaction_metrics",
+      "probes": [
+        {
+          "key": "anon",
+          "status": 401,
+          "total": null
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null
+        }
+      ],
+      "server_path": {
+        "key": "kiosk_server",
+        "status": 206,
+        "total": 23
+      },
+      "pass": true
+    }
+  ]
+}

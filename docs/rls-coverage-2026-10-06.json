@@ -1,0 +1,167 @@
+{
+  "schema_version": 2,
+  "ticket_id": "sec-rls-lockdown",
+  "scope": "security-agent-dev (scanner and report); supabase/migrations/ in each affected project repo; the Supabase projects behind them via the supabase MCP or CLI",
+  "environment": "/Users/tywells/Downloads/projects/security-agent-dev",
+  "run_id": "sec-rls-lockdown-2026-10-06T2138Z",
+  "source_revision": "7b23c62a49bd8d7969054ffe70f94e72a8e5f55c",
+  "build_identity": "scripts/rls-scan.mjs after-scan 2026-10-06T21:38:11Z; scripts/rls-verify.mjs run 2026-10-06 (docs/rls-verify-2026-10-06.json)",
+  "requirements": [
+    {
+      "criterion": 1,
+      "criterion_id": "criterion-7d11ab6f8d167420",
+      "requirement": "docs/rls-remediation-2026-10-06.md lists every scanned project and every public-schema table found with RLS off, with columns project, table, sensitive yes/no, action taken, and status fixed/excluded-with-reason \u2014 check: test -f docs/rls-remediation-2026-10-06.md && grep -qi \"status\" docs/rls-remediation-2026-10-06.md",
+      "expected": "Report lists every scanned project and every RLS-off public table with project, table, sensitive, action taken, status fixed/excluded-with-reason",
+      "method": "node scripts/rls-report.mjs from the baseline scan + lane results + after-scan; then the capsule check command; a row audit that every fixed row has access path, migration, anon-after and app-path-after filled",
+      "observed": "Report has 112 rows (every RLS-off public table from the 45-project baseline scan, 22 projects), columns project | table | sensitive | anon before | access path found | action taken | migration | anon after | app path after | status. Totals: fixed 109, excluded 3 (shipsafe_demo_customers: intentional demo fixture; 2x PostGIS spatial_ref_sys: extension-owned, owner supabase_admin), open 0. Scope notes list the 31 paused projects (not scannable) and the MobileGo Java backend (Heroku, not Supabase, excluded and untouched). Check command printed C1-PASS. Row audit: 112 rows, 0 fixed rows missing a field.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-remediation-2026-10-06.md",
+          "sha256": "d930fb87a3047e3774e9f97fadd9f34016e1da5a7406980e20b722982e12f0a0"
+        },
+        {
+          "type": "command",
+          "run_id": "sec-rls-lockdown-2026-10-06T2138Z",
+          "command": "test -f docs/rls-remediation-2026-10-06.md && grep -qi \"status\" docs/rls-remediation-2026-10-06.md && echo C1-PASS",
+          "artifact": {
+            "type": "file",
+            "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/criteria-checks.txt",
+            "sha256": "1c1e67d195eff2685a7914fc9e79ce1ba7a4decd633fccc3a06d6cb841d4a0f8"
+          }
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "criterion": 2,
+      "criterion_id": "criterion-e4656e3fd12e1990",
+      "requirement": "A rerunnable scan script exists in security-agent-dev and its latest output, saved next to the report, shows zero public-schema tables with RLS off outside the documented exclusions \u2014 check: ls docs/ | grep -qi \"rls-scan\"",
+      "expected": "Rerunnable scan script; latest output next to the report shows 0 RLS-off public tables outside documented exclusions",
+      "method": "node scripts/rls-scan.mjs --out docs/rls-scan-2026-10-06-after (read-only; pg_class.relrowsecurity + grants via Management API, every RLS-off table probed with every anon-role key)",
+      "observed": "After-scan 2026-10-06T21:38:11Z over 45 live projects, 0 scan errors: 3 public tables with RLS off, exactly the 3 documented exclusions (e2e-test-app shipsafe_demo_customers; IslandFlow and MGO Management Dashboard spatial_ref_sys). Baseline was 112. ls docs | grep rls-scan lists before/after .json/.md; check printed C2-PASS.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-scan.mjs",
+          "sha256": "00169a241a64234197dd235ac3d73d25bd48019c4582543dec3cfb656888f92f"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-scan-2026-10-06-after.md",
+          "sha256": "40520f7dfa0c55abb966571288266705a0047abe79265a49761fe69d09b3d3b5"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-scan-2026-10-06-after.json",
+          "sha256": "ab9b2b7a52df88ac4f1c0e79fd0a611a3b4d756d67463d9cffd687e024c41031"
+        },
+        {
+          "type": "command",
+          "run_id": "sec-rls-lockdown-2026-10-06T2138Z",
+          "command": "node scripts/rls-scan.mjs --out docs/rls-scan-2026-10-06-after; ls docs/ | grep -qi \"rls-scan\" && echo C2-PASS",
+          "artifact": {
+            "type": "file",
+            "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/criteria-checks.txt",
+            "sha256": "1c1e67d195eff2685a7914fc9e79ce1ba7a4decd633fccc3a06d6cb841d4a0f8"
+          }
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "criterion": 3,
+      "criterion_id": "criterion-5970f2afb14f64ce",
+      "requirement": "For every fixed table, the report records a read using the project's anon key that returns no rows or a permission error, plus one read or write of the owning app's normal path that still succeeds",
+      "expected": "Each fixed table: anon read returns no rows or a permission error; the owning app's normal path still succeeds",
+      "method": "Per-lane proofs recorded per row (anon after / app path after), then an independent re-check with scripts/rls-verify.mjs: every anon-role key (legacy anon JWT + publishable) and the server key (service_role/secret) against each of the 109 fixed tables",
+      "observed": "rls-verify: anon lock-out 109 pass / 0 fail (401, or 200/206 with 0 rows); server-key read 109/109 readable, 41,564 rows. Lane app-path proofs per row: service_role/postgres counts matching baseline for server-side apps (facegate live server connects as postgres; primer drizzle as postgres), simulated authenticated users for Grab & Go client tables (e.g. pin_auth_sessions own 28 / stranger 0; order_modification_requests customer 1 / owner 1 / stranger 0), live HTTP: primer.rocksteady.ai/proposal/<approved token> 200 + bogus 404; gts-statements-next /view/<expired token> 200 'Link Expired' on the new service-role deploy while the old anon-key deploy now 404s; techsupport.gtsbahamas.com RAG rpc as service_role returns 5 rows.",
+      "evidence": [
+        {
+          "type": "command",
+          "run_id": "sec-rls-lockdown-2026-10-06T2138Z",
+          "command": "node scripts/rls-verify.mjs",
+          "artifact": {
+            "type": "file",
+            "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-verify-2026-10-06.json",
+            "sha256": "4ae120f359e252e212df2cffe7e999812b8c905ed1c7ce66b89a07d6c1280f50"
+          }
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-remediation-2026-10-06.md",
+          "sha256": "d930fb87a3047e3774e9f97fadd9f34016e1da5a7406980e20b722982e12f0a0"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-verify.mjs",
+          "sha256": "24e2b298e293395191e5a4a8eb5ae124dfc5fea969548f528eeeb0ddf6ccd5ed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "criterion": 4,
+      "criterion_id": "criterion-6f0c029ba8b45c45",
+      "requirement": "Each project changed has a committed migration file under supabase/migrations/ whose name is listed in the report next to its tables",
+      "expected": "Every changed project has a committed migration under supabase/migrations/, named in the report beside its tables",
+      "method": "git cat-file -e <commit>:<migration path> for every lane result, plus git branch -r --contains for remote presence",
+      "observed": "20 projects changed, 18 migration files (propria-core file covers coral-harbour-pilot; mgosupport file covers brazilnut-support): all present in their commits. Pushed to private remotes for 16 repos (main or sec/rls-lockdown-20261006); the two no-repo projects (Secure Apps, e2e-test-app) are committed under security-agent-dev/supabase/migrations/<project>/ and kept local because that repo is public. facegate's file is in packages/server/supabase/migrations (repo forbids a root folder; the boot runner reads it). Report migration column lists repo/path@commit for every fixed row.",
+      "evidence": [
+        {
+          "type": "command",
+          "run_id": "sec-rls-lockdown-2026-10-06T2138Z",
+          "command": "git cat-file -e <commit>:<migration> and git branch -a --contains <commit> for every lane result",
+          "artifact": {
+            "type": "file",
+            "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/migration-check.txt",
+            "sha256": "dbba3e1d64c3b008f42f06d37dda53447f6d5ece2e0b6a0ddcc8690a1b00001b"
+          }
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-remediation-2026-10-06.md",
+          "sha256": "d930fb87a3047e3774e9f97fadd9f34016e1da5a7406980e20b722982e12f0a0"
+        }
+      ],
+      "status": "passed"
+    }
+  ],
+  "artefacts": [
+    {
+      "type": "file",
+      "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-remediation-2026-10-06.md",
+      "sha256": "d930fb87a3047e3774e9f97fadd9f34016e1da5a7406980e20b722982e12f0a0"
+    },
+    {
+      "type": "file",
+      "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-scan-2026-10-06-before.md",
+      "sha256": "ac19ce524de61c9117c0a5b1af807f4436921c7768114b3e3bb7947fe9523e8e"
+    },
+    {
+      "type": "file",
+      "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-scan-2026-10-06-after.md",
+      "sha256": "40520f7dfa0c55abb966571288266705a0047abe79265a49761fe69d09b3d3b5"
+    },
+    {
+      "type": "file",
+      "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-verify-2026-10-06.json",
+      "sha256": "4ae120f359e252e212df2cffe7e999812b8c905ed1c7ce66b89a07d6c1280f50"
+    },
+    {
+      "type": "file",
+      "path": "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-scan.mjs",
+      "sha256": "00169a241a64234197dd235ac3d73d25bd48019c4582543dec3cfb656888f92f"
+    },
+    {
+      "type": "file",
+      "path": "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-verify.mjs",
+      "sha256": "24e2b298e293395191e5a4a8eb5ae124dfc5fea969548f528eeeb0ddf6ccd5ed"
+    },
+    {
+      "type": "file",
+      "path": "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-report.mjs",
+      "sha256": "990b560365892c557af36e4c8484efa501e858da4228ba35f78bfa2184c2ed1b"
+    }
+  ]
+}

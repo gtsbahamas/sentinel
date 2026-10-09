@@ -1,0 +1,27 @@
+{
+  "revision": "dff463ccf010a5588ead5184fe6065dc258655c5",
+  "observed_at": "2026-10-07T18:17:56.534Z",
+  "baseline": {
+    "active": 45,
+    "affected": 22,
+    "rls_off": 112
+  },
+  "exact_fixed_partition": 109,
+  "builder_scan": {
+    "scanned_at": "2026-10-07T18:13:49.416Z",
+    "active": 45,
+    "excluded": 3,
+    "open": 0,
+    "errors": 0
+  },
+  "builder_verify": {
+    "verified_at": "2026-10-07T18:12:42.222Z",
+    "pass": 109,
+    "fail": 0,
+    "actual_nonempty_safe_probes": 109,
+    "server_paths_available": 109,
+    "probe_count": 187
+  },
+  "builder_residue_saved_evidence_valid": true,
+  "live_independent_confirmation": "blocked: worker unreachable"
+}

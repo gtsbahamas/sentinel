@@ -1,0 +1,27 @@
+[
+{"project":"MGO Support","ref":"euvfjkvsqpajvjnmmznc","repo":"mgosupport","migration":"supabase/migrations/20261006200000_rls_lockdown.sql","commit":"7fa7fe2 (cherry-pick of 3fe4b49 on local main)","branch":"sec/rls-lockdown-20261006 (pushed; local main has others' unpushed work so main was not pushed)",
+ "notes":"Not the MobileGo Java database: mgosupport reaches the MobileGo Heroku DB through a separate read-only connection (MOBILEGO_DATABASE_URL).",
+ "tables":[
+  {"table":"service_status_updates","sensitive":true,"access":"service_role via src/features/monitoring/transaction-actions.ts:247","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0 (empty)"},
+  {"table":"transaction_anomaly_action_configs","sensitive":false,"access":"service_role via src/features/agents/agents/transaction-health.ts:140","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (had 5)","app_path_after":"service_role 206 / 5"},
+  {"table":"transaction_anomaly_events","sensitive":true,"access":"service_role via transaction-health.ts:100; app/api/monitoring/cron/route.ts:234","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0 (empty)"},
+  {"table":"webhook_events","sensitive":true,"access":"service_role via src/lib/webhook-idempotency.ts:35","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (had 28928)","app_path_after":"service_role 206 / 28933 (still receiving new rows)"}]},
+{"project":"brazilnut-support","ref":"gtbhsoqljstkxokspaqn","repo":"mgosupport","migration":"supabase/migrations/20261006200000_rls_lockdown.sql (same file as MGO Support; identical schema, applied to both)","commit":"7fa7fe2","branch":"sec/rls-lockdown-20261006 (pushed)",
+ "notes":"Dormant copy of the mgosupport schema (created 2026-07-15, last ticket 2026-07-15); no repo config references this ref. Candidate to pause.",
+ "tables":[
+  {"table":"service_status_updates","sensitive":true,"access":"service_role (mgosupport code)","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0"},
+  {"table":"transaction_anomaly_action_configs","sensitive":false,"access":"service_role (mgosupport code)","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (had 5)","app_path_after":"service_role 206 / 5"},
+  {"table":"transaction_anomaly_events","sensitive":true,"access":"service_role (mgosupport code)","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0"},
+  {"table":"webhook_events","sensitive":true,"access":"service_role (mgosupport code)","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0"}]},
+{"project":"mgo-asue","ref":"ghjclgcvcasmhtfdwbeu","repo":"mgo-asue","migration":"supabase/migrations/20261006200100_rls_lockdown.sql","commit":"6588af5 (cherry-pick of 376684b on local main)","branch":"sec/rls-lockdown-20261006 (pushed; local main has 22 others' unpushed commits so main was not pushed)",
+ "notes":"drizzle/0012_goal_lock.sql created these tables without RLS; a fresh database built from drizzle would recreate the gap.",
+ "tables":[
+  {"table":"forfeitures","sensitive":true,"access":"Drizzle over DATABASE_URL as postgres via src/app/api/internal/ops/defaults/route.ts:132","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"postgres count 0 (empty)"},
+  {"table":"goal_contracts","sensitive":true,"access":"Drizzle as postgres via src/lib/ops/goal-engine.ts","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (had 3)","app_path_after":"postgres count 3; service_role 206 / 3"},
+  {"table":"goal_fees","sensitive":true,"access":"Drizzle as postgres via src/lib/ops/goal-engine.ts:624","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (had 1)","app_path_after":"postgres count 1; service_role 1"},
+  {"table":"goal_locks","sensitive":true,"access":"Drizzle as postgres via src/lib/ops/goal-engine.ts:580","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (had 4)","app_path_after":"postgres count 4; service_role 206 / 4"}]},
+{"project":"MGO Kiosk","ref":"qixunwahanapilwaaknn","repo":"mobilego-kiosk-nextjs","migration":"supabase/migrations/20261006200200_rls_lockdown.sql","commit":"28853ac","branch":"sec/rls-lockdown-20261006 (pushed)",
+ "notes":"Legacy JWT keys are disabled on this project, so the baseline anon-JWT probe said 401 while the publishable key read all 23 rows. Scanner now probes every anon-role key.",
+ "tables":[
+  {"table":"voice_interaction_metrics","sensitive":false,"access":"no live code (only writer, a service-role API route, was deleted 2026-09-03)","action":"enable rls + revoke all from anon, authenticated","status":"fixed","anon_after":"publishable key 401 (was 206 / 23)","app_path_after":"secret key 206 / 23"}]}
+]

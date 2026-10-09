@@ -1,0 +1,180 @@
+[
+ {
+  "project": "franklabs",
+  "ref": "oyjyffqjhnhiacpcymdp",
+  "repo": "franklabs-website",
+  "migration": "supabase/migrations/20261006150100_rls_lockdown.sql",
+  "commit": "037dc964bcf688861e9324ac22c7ebe0593b2359",
+  "branch": "sec/rls-lockdown-20261006 (pushed)",
+  "tables": [
+   {
+    "table": "action_cost_estimates",
+    "sensitive": false,
+    "access": "service_role via src/lib/actions/security.ts:412",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0",
+    "app_path_after": "service_role 206 / 12"
+   },
+   {
+    "table": "action_risk_classifications",
+    "sensitive": false,
+    "access": "service_role via src/lib/actions/security.ts:101",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0",
+    "app_path_after": "service_role 206 / 22"
+   },
+   {
+    "table": "assay_audit_results",
+    "sensitive": false,
+    "access": "service_role via src/lib/inngest/functions/assay-audit-run.ts:180",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0",
+    "app_path_after": "service_role 200 / 0 (empty)"
+   },
+   {
+    "table": "assay_outreach",
+    "sensitive": true,
+    "access": "service_role via src/lib/inngest/functions/assay-outreach-generate.ts:59",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0",
+    "app_path_after": "service_role 200 / 0 (empty)"
+   },
+   {
+    "table": "assay_prospects",
+    "sensitive": true,
+    "access": "service_role via src/lib/inngest/functions/assay-repo-discover.ts:74",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0 (had 92 with contact emails)",
+    "app_path_after": "service_role 206 / 92"
+   },
+   {
+    "table": "default_network_allowlist",
+    "sensitive": false,
+    "access": "no code (seed only)",
+    "action": "enable rls + revoke all from anon, authenticated",
+    "status": "fixed",
+    "anon_after": "401",
+    "app_path_after": "service_role 206 / 9"
+   },
+   {
+    "table": "monthly_spend_archive",
+    "sensitive": false,
+    "access": "service_role via src/app/api/cron/reset-budgets/route.ts:57",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0",
+    "app_path_after": "service_role 206 / 6"
+   },
+   {
+    "table": "outreach_drafts",
+    "sensitive": true,
+    "access": "service_role via src/lib/inngest/functions/intelligence-outreach.ts",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0",
+    "app_path_after": "service_role 206 / 9"
+   }
+  ]
+ },
+ {
+  "project": "Life OS",
+  "ref": "kkjjyigipbhfazsaihqf",
+  "repo": "_archive/justin-career",
+  "migration": "app/supabase/migrations/20261006150200_rls_lockdown.sql",
+  "commit": "854d0f4866e0558409f660942af51648c03e126a",
+  "branch": "main (pushed)",
+  "tables": [
+   {
+    "table": "stripe_events",
+    "sensitive": false,
+    "access": "no code",
+    "action": "enable rls + revoke all from anon, authenticated",
+    "status": "fixed",
+    "anon_after": "401",
+    "app_path_after": "service_role 200 / 0 (empty)"
+   }
+  ]
+ },
+ {
+  "project": "Secure Apps",
+  "ref": "kmjnujsqmijxdkbrwmql",
+  "repo": "security-agent-dev (no owning repo exists)",
+  "migration": "supabase/migrations/secure-apps/20261006150300_rls_lockdown.sql",
+  "commit": "41eacd4 (cherry-pick of 94a1d1b)",
+  "branch": "fix/auth-verb-and-repo003-fp-clean, local only (this repo is public)",
+  "tables": [
+   {
+    "table": "sbom_generation_queue",
+    "sensitive": true,
+    "access": "trigger_sbom_generation() SECURITY DEFINER (insert); edge fn process-sbom-queue with service role",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0 (had 34)",
+    "app_path_after": "service_role 206 / 34"
+   }
+  ]
+ },
+ {
+  "project": "seatrial-prod",
+  "ref": "zcxdjvwgpgotebehcfqv",
+  "repo": "shipsafe-web",
+  "migration": "supabase/migrations/20261006150400_rls_lockdown.sql",
+  "commit": "fb65a4727ad6af6b158cecf85854b9d75b6e04ef",
+  "branch": "sec/rls-lockdown-20261006 (pushed)",
+  "tables": [
+   {
+    "table": "cli_events",
+    "sensitive": true,
+    "access": "service_role via hallucination-reversing-system api/v1/telemetry.ts:75; CLI posts to the API, never to Supabase directly",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0 (had 98)",
+    "app_path_after": "service_role 206 / 98"
+   }
+  ]
+ },
+ {
+  "project": "LUCID",
+  "ref": "naznedwtakirzhkubtjb",
+  "repo": "hallucination-reversing-system",
+  "migration": "supabase/migrations/20261006150500_rls_lockdown.sql",
+  "commit": "a784366 (cherry-pick of e80e1be)",
+  "branch": "sec/rls-lockdown-20261006 (pushed; local main holds someone else's unpushed commit)",
+  "tables": [
+   {
+    "table": "cli_events",
+    "sensitive": true,
+    "access": "service_role via api/v1/telemetry.ts:75",
+    "action": "enable rls, no policies",
+    "status": "fixed",
+    "anon_after": "200 / 0 (had 92)",
+    "app_path_after": "service_role 206 / 92"
+   }
+  ]
+ },
+ {
+  "project": "e2e-test-app",
+  "ref": "eiqntvlwhfgvnqjdyuip",
+  "repo": "security-agent-dev (no owning repo)",
+  "migration": "supabase/migrations/e2e-test-app/20261006210000_demo_fixture_read_only.sql",
+  "commit": "8e88637",
+  "branch": "fix/auth-verb-and-repo003-fp-clean, local only (this repo is public)",
+  "tables": [
+   {
+    "table": "shipsafe_demo_customers",
+    "sensitive": false,
+    "access": "anon by design: target of ShipSafe's /scan/supabase demo ('anyone can read 3 rows'); all rows fake (Demo Person A-C, @example.invalid)",
+    "action": "RLS left off by design; revoked anon/authenticated insert/update/delete/truncate so the demo rows cannot be vandalised",
+    "status": "excluded",
+    "reason": "intentional RLS-off demo fixture for the ShipSafe database check, fake data only",
+    "anon_after": "read 206 / 3 (by design); anon INSERT/DELETE privilege false",
+    "app_path_after": "demo read 206 / 3"
+   }
+  ]
+ }
+]

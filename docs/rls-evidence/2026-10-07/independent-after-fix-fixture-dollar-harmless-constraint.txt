@@ -1,0 +1,15 @@
+{
+  "case": "dollar-harmless-constraint",
+  "sql": "CREATE TABLE public.x(id integer); ALTER TABLE public.x ENABLE ROW LEVEL SECURITY; DO $$ BEGIN ALTER /* gap */ TABLE public.x ADD CONSTRAINT x_unique UNIQUE(id); INSERT INTO public.x VALUES(1) ON CONFLICT DO NOTHING; EXCEPTION WHEN duplicate_object THEN null; END $$;",
+  "command": [
+    "node",
+    "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+    "--root",
+    "/tmp/independent-rls-after-fix-k90zgoft/dollar-harmless-constraint"
+  ],
+  "expected_exit": 0,
+  "actual_exit": 0,
+  "stdout": "RLS migration guard: PASS (1 SQL files, 1 public tables, 0 errors)\n",
+  "stderr": "",
+  "status": "passed"
+}

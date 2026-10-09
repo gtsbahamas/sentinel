@@ -1,0 +1,14 @@
+[
+  {
+    "sql": "DO $$ BEGIN CREATE /* gap */ TABLE public.comment_bypass(id int); END $$;",
+    "files": 1,
+    "tables": 0,
+    "errors": []
+  },
+  {
+    "sql": "DO $$ BEGIN ALTER TABLE public.existing DISABLE ROW /* gap */ LEVEL SECURITY; END $$;",
+    "files": 1,
+    "tables": 0,
+    "errors": []
+  }
+]

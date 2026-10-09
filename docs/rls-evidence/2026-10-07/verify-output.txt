@@ -1,0 +1,1 @@
+anon lock-out: 109 pass, 0 fail across 109 fixed tables -> docs/rls-verify-2026-10-07.json

@@ -1,0 +1,14 @@
+[
+  {
+    "app": "primer",
+    "worktree": "/tmp/rls-guard-worktrees/primer",
+    "commit": "37c22aa7760a1c0ee0ff2242a0c284d971d20351",
+    "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830"
+  },
+  {
+    "app": "mgo-asue",
+    "worktree": "/tmp/rls-guard-worktrees/mgo-asue",
+    "commit": "08f5a42de2bea0ef438bec020a2057efa3d0a3d8",
+    "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830"
+  }
+]

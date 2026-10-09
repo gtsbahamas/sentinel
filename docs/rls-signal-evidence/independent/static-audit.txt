@@ -1,0 +1,2 @@
+wrote report.md: 3 tables, fixed 0, excluded 1, open 2
+Static evidence reconciliation and independent fixture challenges passed. Live audit blocked.

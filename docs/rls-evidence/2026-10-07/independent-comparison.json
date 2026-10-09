@@ -1,0 +1,139 @@
+{
+  "inventory_statuses": {
+    "ACTIVE_HEALTHY": 45,
+    "INACTIVE": 30
+  },
+  "active_missing": [],
+  "unexpected_scanned": [],
+  "counts": {
+    "before": {
+      "projects": 45,
+      "tables": 3654,
+      "off": 112,
+      "affected": 22,
+      "errors": []
+    },
+    "after": {
+      "projects": 45,
+      "tables": 3654,
+      "off": 3,
+      "affected": 3,
+      "errors": []
+    },
+    "parent_today": {
+      "projects": 45,
+      "tables": 3660,
+      "off": 3,
+      "affected": 3,
+      "errors": []
+    },
+    "independent": {
+      "projects": 45,
+      "tables": 3663,
+      "off": 3,
+      "affected": 3,
+      "errors": []
+    }
+  },
+  "exact_off_matches_parent_today": true,
+  "exact_off_matches_after": true,
+  "off_observations": [
+    {
+      "ref": "eiqntvlwhfgvnqjdyuip",
+      "name": "e2e-test-app",
+      "table": "shipsafe_demo_customers",
+      "est_rows": 0,
+      "anon_select": true,
+      "anon_write": false,
+      "auth_select": true,
+      "policies": 0,
+      "sensitive_columns": [
+        "name",
+        "email",
+        "note"
+      ],
+      "anon_probe": {
+        "status": 206,
+        "total": 3
+      }
+    },
+    {
+      "ref": "tyqxwawlgdhcpisyqyfd",
+      "name": "IslandFlow",
+      "table": "spatial_ref_sys",
+      "est_rows": 8500,
+      "anon_select": true,
+      "anon_write": true,
+      "auth_select": true,
+      "policies": 0,
+      "sensitive_columns": [
+        "auth_name"
+      ],
+      "anon_probe": {
+        "status": 206,
+        "total": 8500
+      }
+    },
+    {
+      "ref": "qfxgiyeufgjsovxupfej",
+      "name": "MGO Management Dashboard",
+      "table": "spatial_ref_sys",
+      "est_rows": 8500,
+      "anon_select": true,
+      "anon_write": true,
+      "auth_select": true,
+      "policies": 0,
+      "sensitive_columns": [
+        "auth_name"
+      ],
+      "anon_probe": {
+        "status": 206,
+        "total": 8500
+      }
+    }
+  ],
+  "table_delta_from_parent": {
+    "added": [
+      {
+        "ref": "wjkfldyrifvvvtpxcjxp",
+        "project": "propria-core",
+        "table": "classifier_examples",
+        "rls": true,
+        "force_rls": false,
+        "est_rows": 9691,
+        "anon_select": true,
+        "anon_write": true,
+        "auth_select": true,
+        "policies": 0,
+        "columns": "id,content_sha256,embedding,pinged,score,summary,engine,decided_at,created_at"
+      },
+      {
+        "ref": "wjkfldyrifvvvtpxcjxp",
+        "project": "propria-core",
+        "table": "nudge_passes",
+        "rls": true,
+        "force_rls": false,
+        "est_rows": 0,
+        "anon_select": true,
+        "anon_write": true,
+        "auth_select": true,
+        "policies": 0,
+        "columns": "id,ran_at,dry_run,candidates,writer,writer_ms,local_error,proposed,sent,skipped_reason,error"
+      },
+      {
+        "ref": "wjkfldyrifvvvtpxcjxp",
+        "project": "propria-core",
+        "table": "nudges",
+        "rls": true,
+        "force_rls": false,
+        "est_rows": 0,
+        "anon_select": true,
+        "anon_write": true,
+        "auth_select": true,
+        "policies": 0,
+        "columns": "id,pass_id,created_at,kind,text,why_now,due_at,ref_keys,fingerprint,writer,status,drop_reason,telegram_message_id,sent_at,feedback,feedback_at"
+      }
+    ],
+    "removed": []
+  }
+}

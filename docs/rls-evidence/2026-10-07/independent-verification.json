@@ -1,0 +1,511 @@
+{
+  "schema_version": 1,
+  "capsule": "secagent-rls-reverify-and-guard",
+  "recorded_at": "2026-10-07T17:58:57.763960+00:00",
+  "overall_status": "blocked",
+  "independent_session": {
+    "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+    "CLAUDE_CODE_SESSION_ID": null,
+    "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+  },
+  "builder": {
+    "CODEX_THREAD_ID": "01a11725-a148-7861-957d-459c0136e5c4",
+    "T3TY_THREAD_ID": "57d1e994-09c2-4432-8e2b-60c173743cd1"
+  },
+  "environment": {
+    "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "node": "v26.8.1",
+    "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+    "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+    "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+    "session": {
+      "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+      "CLAUDE_CODE_SESSION_ID": null,
+      "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+    }
+  },
+  "requested_check_statuses": {
+    "1_identity": "passed",
+    "2_scan": "blocked (active scan passed; inactive literal coverage blocked)",
+    "3_tests_and_safety": "failed (16 focused tests passed; source safety gap found)",
+    "4_app_checks": "blocked (MGO passed; Primer failed)",
+    "5_report": "passed"
+  },
+  "original_capsule_criterion_statuses": {
+    "1": "blocked",
+    "2": "passed",
+    "3": "passed",
+    "4": "blocked"
+  },
+  "workflows": [
+    {
+      "requirement": "Independent real-session identity",
+      "expected_behavior": "Different actual session/thread from builder",
+      "method": "Read environment without override",
+      "actual_observation": "{'CODEX_THREAD_ID': '01a11782-4018-7ca0-806a-9f5ecdd72ed5', 'CLAUDE_CODE_SESSION_ID': None, 'T3TY_THREAD_ID': '9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f'}; both present identities differ from parent; CLAUDE_CODE_SESSION_ID unset",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-verification-plan.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Inventory all visible projects",
+      "expected_behavior": "Read-only inventory without secrets or database resume",
+      "method": "GET /v1/projects, explicit safe-field projection",
+      "actual_observation": "75 IDs: 45 ACTIVE_HEALTHY, 30 INACTIVE",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-project-inventory.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Active scan and exact exclusion reconciliation",
+      "expected_behavior": "All active IDs, no errors, same exact off identities",
+      "method": "Unchanged scanner locally with creds-supplied environment, exit 0; JSON comparison",
+      "actual_observation": "45/45 active IDs, zero missing/unexpected IDs, zero catalog errors; 3663 tables; 3 off in 3 projects; exclusions match parent today and October6 after exactly",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-scan.json",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-scan.md",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-scan-output.txt",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-comparison.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Inactive catalogs / original capsule criterion 1 literal coverage",
+      "expected_behavior": "Scan all projects token can see",
+      "method": "Inspect inventory and unchanged scanner ACTIVE_HEALTHY filter",
+      "actual_observation": "30 INACTIVE catalogs not scanned; no resume authorized",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-project-inventory.json",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-comparison.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "blocked"
+    },
+    {
+      "requirement": "Signal arithmetic / original capsule criterion 2",
+      "expected_behavior": "Claim and baseline/fresh counts and verdict accurately distinguished",
+      "method": "Recompute JSON counts and read report",
+      "actual_observation": "Claim73+/25+; before112 off/22 affected/45 scanned; after3/3; parent today3660 tables versus independent3663, same3/3; stale verdict supported; 3 new propria-core tables all RLS true",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-comparison.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Focused guard fixtures / original capsule criterion 3",
+      "expected_behavior": "Exact focused worker suite observes unsafe1/safe0 in app layouts",
+      "method": "RBUILD_NO_FALLBACK=1 rbuild -- sh -c npm-ci-and-vitest exact requested command",
+      "actual_observation": "First sandbox worker attempt exit255; authorized host retry exit0, 1 test file/16 tests passed; worker confirmed",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-guard-tests.txt"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Guard safety source review",
+      "expected_behavior": "Ambiguous table/RLS DDL fails closed",
+      "method": "Read lexer/events/checkMigrations and existing fixtures; no new tests or SQL execution",
+      "actual_observation": "Source-derived bypass: DO raw body regex at lines74-76 misses comment-separated CREATE /*gap*/ TABLE or ROW /*gap*/ LEVEL SECURITY. Body remains opaque string token; unsafe events are omitted. No runtime/PostgreSQL reproduction performed. Existing16 fixtures do not cover this syntax.",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-build-metadata.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "failed"
+    },
+    {
+      "requirement": "MGO wiring/current migrations",
+      "expected_behavior": "SHA/hooks match report and guard passes",
+      "method": "Run node scripts/rls-migration-check.mjs --root /tmp/rls-guard-worktrees/mgo-asue; read git metadata/package scripts",
+      "actual_observation": "271dbb38fd0231a9df77b3b21a752935c92df900; clean isolated branch; exit0,14SQL/16tables/0errors; check:rls,pretest,prebuild present; guard hash identical",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-mgo-asue-guard.txt",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-app-metadata.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Primer committed wiring / original capsule criterion 4",
+      "expected_behavior": "Both apps pass current migrations within wiring-only scope",
+      "method": "Run unchanged CLI --root /tmp/rls-guard-worktrees/primer; read SHA/hooks",
+      "actual_observation": "86bf62af8f93f43d49266da888f6ad82379a2676; clean isolated branch; exit1,58SQL/52tables/39errors; check:rls/pretest/prebuild present. Passing current Primer history requires scope widening; no passing delivery proof.",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-primer-guard.txt",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-app-metadata.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "blocked"
+    },
+    {
+      "requirement": "Original dirty Primer migration visibility",
+      "expected_behavior": "Include unfinished migration; do not hide/edit it",
+      "method": "CLI --root /Users/tywells/Downloads/projects/primer; git status and read header",
+      "actual_observation": "master7e9fd85e164a7e7196981ffa91de48e29e962d5d; untracked0057_discovery_engagement.sql remains; exit1,59SQL/63tables/50errors, 11additional discovery-table errors; original package has no new guard hooks. Header says not applied as of2026-09-11; not independently checked live.",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-primer-original-guard.txt",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-app-metadata.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "blocked"
+    },
+    {
+      "requirement": "Prior109 anon lockout/server recheck",
+      "expected_behavior": "Do not promote parent evidence to independent live verification",
+      "method": "Read parent report only; additional verifier execution outside requested reruns",
+      "actual_observation": "Parent reports109 anon passes and109 successful server paths. Not independently rerun in this limited verification task.",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-build-metadata.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "untested"
+    },
+    {
+      "requirement": "Evidence-only report and parent reconciliation",
+      "expected_behavior": "Separate MD/JSON, scope intact, no queue closure/delivery claim",
+      "method": "Write own evidence and reconcile original four criteria",
+      "actual_observation": "Overall blocked, consistent with parent blocked outcome; source safety finding adds a failed workflow. No queue commands, commit, implementation, fixes, pushes, merges, deploys, schema/data writes, UI, MobileGo Java/Heroku access or GTS changes performed.",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-verification-plan.json"
+      ],
+      "environment_tenant_role_build": {
+        "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+        "tenant_role": "All token-visible Supabase orgs; Management API read_only catalogs and existing anon-role REST keys; no row bodies persisted",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6, npm ci, Vitest 1.6.1",
+        "session": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        }
+      },
+      "status": "passed"
+    }
+  ],
+  "comparison": {
+    "inventory_statuses": {
+      "ACTIVE_HEALTHY": 45,
+      "INACTIVE": 30
+    },
+    "active_missing": [],
+    "unexpected_scanned": [],
+    "counts": {
+      "before": {
+        "projects": 45,
+        "tables": 3654,
+        "off": 112,
+        "affected": 22,
+        "errors": []
+      },
+      "after": {
+        "projects": 45,
+        "tables": 3654,
+        "off": 3,
+        "affected": 3,
+        "errors": []
+      },
+      "parent_today": {
+        "projects": 45,
+        "tables": 3660,
+        "off": 3,
+        "affected": 3,
+        "errors": []
+      },
+      "independent": {
+        "projects": 45,
+        "tables": 3663,
+        "off": 3,
+        "affected": 3,
+        "errors": []
+      }
+    },
+    "exact_off_matches_parent_today": true,
+    "exact_off_matches_after": true,
+    "off_observations": [
+      {
+        "ref": "eiqntvlwhfgvnqjdyuip",
+        "name": "e2e-test-app",
+        "table": "shipsafe_demo_customers",
+        "est_rows": 0,
+        "anon_select": true,
+        "anon_write": false,
+        "auth_select": true,
+        "policies": 0,
+        "sensitive_columns": [
+          "name",
+          "email",
+          "note"
+        ],
+        "anon_probe": {
+          "status": 206,
+          "total": 3
+        }
+      },
+      {
+        "ref": "tyqxwawlgdhcpisyqyfd",
+        "name": "IslandFlow",
+        "table": "spatial_ref_sys",
+        "est_rows": 8500,
+        "anon_select": true,
+        "anon_write": true,
+        "auth_select": true,
+        "policies": 0,
+        "sensitive_columns": [
+          "auth_name"
+        ],
+        "anon_probe": {
+          "status": 206,
+          "total": 8500
+        }
+      },
+      {
+        "ref": "qfxgiyeufgjsovxupfej",
+        "name": "MGO Management Dashboard",
+        "table": "spatial_ref_sys",
+        "est_rows": 8500,
+        "anon_select": true,
+        "anon_write": true,
+        "auth_select": true,
+        "policies": 0,
+        "sensitive_columns": [
+          "auth_name"
+        ],
+        "anon_probe": {
+          "status": 206,
+          "total": 8500
+        }
+      }
+    ],
+    "table_delta_from_parent": {
+      "added": [
+        {
+          "ref": "wjkfldyrifvvvtpxcjxp",
+          "project": "propria-core",
+          "table": "classifier_examples",
+          "rls": true,
+          "force_rls": false,
+          "est_rows": 9691,
+          "anon_select": true,
+          "anon_write": true,
+          "auth_select": true,
+          "policies": 0,
+          "columns": "id,content_sha256,embedding,pinged,score,summary,engine,decided_at,created_at"
+        },
+        {
+          "ref": "wjkfldyrifvvvtpxcjxp",
+          "project": "propria-core",
+          "table": "nudge_passes",
+          "rls": true,
+          "force_rls": false,
+          "est_rows": 0,
+          "anon_select": true,
+          "anon_write": true,
+          "auth_select": true,
+          "policies": 0,
+          "columns": "id,ran_at,dry_run,candidates,writer,writer_ms,local_error,proposed,sent,skipped_reason,error"
+        },
+        {
+          "ref": "wjkfldyrifvvvtpxcjxp",
+          "project": "propria-core",
+          "table": "nudges",
+          "rls": true,
+          "force_rls": false,
+          "est_rows": 0,
+          "anon_select": true,
+          "anon_write": true,
+          "auth_select": true,
+          "policies": 0,
+          "columns": "id,pass_id,created_at,kind,text,why_now,due_at,ref_keys,fingerprint,writer,status,drop_reason,telegram_message_id,sent_at,feedback,feedback_at"
+        }
+      ],
+      "removed": []
+    }
+  },
+  "guard_safety_findings": [
+    {
+      "severity": "high",
+      "source": "scripts/rls-migration-check.mjs:74-76",
+      "observation": "Raw DO-body regex fails to normalize SQL comments, while lexer treats dollar-quoted body as opaque.",
+      "illustrative_sql_not_executed": [
+        "DO $$ BEGIN CREATE /* gap */ TABLE public.guard_gap(id integer); END $$;",
+        "CREATE TABLE public.x(id integer); ALTER TABLE public.x ENABLE ROW LEVEL SECURITY; DO $$ BEGIN ALTER TABLE public.x DISABLE ROW /* gap */ LEVEL SECURITY; END $$;"
+      ],
+      "proof_level": "Source-derived deterministic control-flow finding, not newly executed test or live SQL",
+      "impact": "Guard can omit unprotected public creates or later disables and report PASS; contradicts claimed fail-closed DO handling."
+    }
+  ],
+  "execution_attempts": [
+    {
+      "command": "creds get authorized/supabase-access-token (captured in memory)",
+      "initial": "sandbox exit1, Not found; scan/inventory not started",
+      "retry": "authorized host access succeeded; no token printed/saved"
+    },
+    {
+      "command": "RBUILD_NO_FALLBACK=1 rbuild -- sh -c 'npm ci --no-audit --no-fund && npx vitest run tests/rls-migration-check.test.ts'",
+      "initial_exit": 255,
+      "retry_exit": 0,
+      "log": "independent-guard-tests.txt"
+    },
+    {
+      "command": "node scripts/rls-scan.mjs --out docs/rls-evidence/2026-10-07/independent-scan",
+      "exit": 0,
+      "log": "independent-scan-output.txt"
+    }
+  ],
+  "limitations": [
+    "Inactive projects never resumed; literal all-visible catalog criterion blocked.",
+    "Focused tests prove their fixtures, not complete SQL parsing or secure delivery. Source bypass not runtime-reproduced per no-new-tests scope.",
+    "Hook definitions inspected; independent app hook/build/test lifecycles were not executed. CLI checks are not app builds, deployments or branch protection.",
+    "No independent rerun of rls-verify.mjs; parent109-path observations remain parent evidence.",
+    "No independent queue verification/closure performed, as instructed. No queue state inferred from this session; parent recovery file reports in_progress.",
+    "Shared parent report gained a Recovery and second look section concurrently; this session did not write it or overwrite prior evidence."
+  ],
+  "parent_actual_outcome": "Parent documented blocked criterion1 (30 inactive) and criterion4 (Primer39/50errors), passed focused16tests and active scan. Independently corroborated with updated3663table live count, not delivered/complete.",
+  "preservation": {
+    "source_hashes": {
+      "scripts/rls-scan.mjs": "00169a241a64234197dd235ac3d73d25bd48019c4582543dec3cfb656888f92f",
+      "scripts/rls-migration-check.mjs": "bf14e6d172afa1d0cf5ce20a656fbd4b19255e1c3a05db0a542d9b26f1bb650b",
+      "tests/rls-migration-check.test.ts": "f74f36c8c40657a8eb90219678a9df644551409b3d14e835420f73395c6e1845",
+      "docs/rls-signal-1e615aab-verification.md": "766acd2cb35302215e0649a38156c35336613947ef54d87464e2bfa07db1a2f2",
+      "docs/rls-guard-results.md": "644a72d5911edbbd5cd97d39b3400567b42e8a289c3ef14a64339667628ebabc",
+      "docs/rls-reverify-coverage.json": "5f6cfd6462ed0e055840cbbee05146c81e5198dcb5b0814a5da99f10ec82ae80"
+    },
+    "source_matches_HEAD": {
+      "scripts/rls-scan.mjs": true,
+      "scripts/rls-migration-check.mjs": true,
+      "tests/rls-migration-check.test.ts": true
+    },
+    "existing_evidence": "No prior evidence overwritten; own independent-prefixed files only.",
+    "before_fix_source_snapshot": "independent-before-fix-guard-source.txt"
+  },
+  "snapshot_phase": "before fix",
+  "steering": "User reports root is reproducing/fixing the DO comment bypass. This report preserves before-fix observations. No corrected revision supplied or rerun yet; same independent session may rerun later under authorization. No queue verification/completion."
+}

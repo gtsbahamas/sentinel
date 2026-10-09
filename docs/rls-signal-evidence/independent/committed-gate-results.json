@@ -1,0 +1,7 @@
+{
+  "isolated_fixture_root": "/private/tmp/secagent-cold-committed-gate-_vze2a_q",
+  "clean_exit": 0,
+  "unknown_exit": 1,
+  "unknown_committed_table_rejected": true,
+  "real_repository_head_unchanged": "dff463ccf010a5588ead5184fe6065dc258655c5"
+}

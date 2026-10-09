@@ -1,0 +1,11 @@
+{
+  "docs/rls-signal-73-tables-closure.md": "c43bc2c22738713ed23df53fcb489131c93c8af3051a79e9039c0bc1c714bb78",
+  "docs/rls-signal-closeout-coverage.json": "8b159cc05c3e2324eecccf9377fd33b4b8d1e0c21c9561b8890f6eeb6228ea42",
+  "docs/rls-exclusions.json": "f87834ce030cce47a5187c2a8871fbeb95ecd57adc0eeff90acc79d705ccb49b",
+  "scripts/rls-scan.mjs": "325627fd4351e9a68d3bcf6aeebe5dff36d92977dfe1830517528d4ff42f936f",
+  "scripts/rls-report.mjs": "e16f6392f989ddf3efc7473612d318f8a17cd1ed023ffd6bdbc6d7c316145fef",
+  "scripts/rls-exclusions.mjs": "68957d7bf43957a30a86c96ac2cd03b21c5479986932a4d0cfba6d0fa527af8e",
+  "scripts/rls-residue-probe.mjs": "a062ce605915b7b0be5d0f4238f5f40cd73b4e5af6baebd53dbd37d5c9f75c22",
+  "scripts/rls-verify.mjs": "24e2b298e293395191e5a4a8eb5ae124dfc5fea969548f528eeeb0ddf6ccd5ed",
+  "tests/rls-exclusions.test.ts": "20d73148684a58c854bd002373f80925cedcf344cec716089bb4ff92fd207ee7"
+}

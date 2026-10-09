@@ -1,0 +1,10 @@
+
+ RUN  v1.6.1 /private/tmp/secagent-cold-committed-gate-_vze2a_q
+
+ ✓ tests/rls-exclusions.test.ts  (6 tests) 251ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  13:18:10
+   Duration  1.86s (transform 139ms, setup 0ms, collect 151ms, tests 251ms, environment 0ms, prepare 432ms)
+

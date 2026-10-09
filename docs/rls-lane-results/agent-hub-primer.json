@@ -1,0 +1,33 @@
+[
+{"project":"Agent Hub","ref":"zqxujnxmyfvnrjasjeye","repo":"agent-talk-shell","migration":"supabase/migrations/20261006120000_rls_lockdown.sql","commit":"27c531c8","branch":"sec/rls-lockdown-20261006 (pushed)",
+ "tables":[
+  {"table":"affiliate_referrals_archive","sensitive":true,"access":"none (archive; only its CREATE migration)","action":"enable rls + revoke all from anon, authenticated","status":"fixed","anon_after":"401","app_path_after":"service_role 200 / 0"},
+  {"table":"affiliate_rewards_archive","sensitive":true,"access":"none (archive)","action":"enable rls + revoke all from anon, authenticated","status":"fixed","anon_after":"401","app_path_after":"service_role 200 / 0"},
+  {"table":"agent_handoff_protocols","sensitive":false,"access":"service_role via supabase/functions/agent-handoff-coordinator/index.ts:247","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0 (empty)"},
+  {"table":"agent_learning_feedback","sensitive":true,"access":"service_role via supabase/functions/agent-feedback-processor/index.ts:222","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0 (empty)"},
+  {"table":"bizbox_agent_instances","sensitive":false,"access":"none","action":"enable rls + revoke all from anon, authenticated","status":"fixed","anon_after":"401","app_path_after":"service_role 200 / 0"},
+  {"table":"bizbox_orchestration_plans","sensitive":false,"access":"none","action":"enable rls + revoke all from anon, authenticated","status":"fixed","anon_after":"401","app_path_after":"service_role 200 / 0"},
+  {"table":"bizbox_team_agents","sensitive":false,"access":"none (seed data only)","action":"enable rls + revoke all from anon, authenticated","status":"fixed","anon_after":"401 (was 206 / 7)","app_path_after":"service_role 206 / 7"},
+  {"table":"bizbox_team_instances","sensitive":false,"access":"none","action":"enable rls + revoke all from anon, authenticated","status":"fixed","anon_after":"401","app_path_after":"service_role 200 / 0"},
+  {"table":"dynamic_confidence_thresholds","sensitive":false,"access":"service_role via supabase/functions/dynamic-confidence-manager/index.ts:216","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0 (empty)"},
+  {"table":"knowledge_base","sensitive":true,"access":"service_role via supabase/functions/ai-orchestration-engine/index.ts:475","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0 (empty)"},
+  {"table":"semantic_analysis_cache","sensitive":true,"access":"none","action":"enable rls + revoke all from anon, authenticated","status":"fixed","anon_after":"401","app_path_after":"service_role 200 / 0"},
+  {"table":"user_interaction_patterns","sensitive":true,"access":"none","action":"enable rls + revoke all from anon, authenticated","status":"fixed","anon_after":"401","app_path_after":"service_role 200 / 0"},
+  {"table":"user_oauth_credential_audit","sensitive":true,"access":"service_role via supabase/functions/manage-oauth-credentials/index.ts:391","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0 (empty)"}
+ ]},
+{"project":"primer","ref":"wcodsaclbcwwbqgdrpsc","repo":"primer","migration":"supabase/migrations/20261006120000_rls_lockdown.sql","commit":"7e9fd85","branch":"master",
+ "tables":[
+  {"table":"agreement","sensitive":true,"access":"drizzle as postgres (src/lib/db.ts:9)","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 1)","app_path_after":"postgres 1; service_role 1"},
+  {"table":"agreement_comment","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 2)","app_path_after":"postgres 2; service_role 2"},
+  {"table":"agreement_section","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 4)","app_path_after":"postgres 4; service_role 4"},
+  {"table":"agreement_term","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 9)","app_path_after":"postgres 9; service_role 9"},
+  {"table":"agreement_term_acceptance","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 9)","app_path_after":"postgres 9; service_role 9"},
+  {"table":"box_chat_message","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 26)","app_path_after":"postgres 26; service_role 26"},
+  {"table":"box_document","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 16)","app_path_after":"postgres 16; service_role 16"},
+  {"table":"box_document_chunk","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 26)","app_path_after":"postgres 26; service_role 26"},
+  {"table":"box_grounding","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 39)","app_path_after":"postgres 39; service_role 39"},
+  {"table":"box_instance","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 1)","app_path_after":"postgres 1; service_role 1"},
+  {"table":"box_member","sensitive":true,"access":"drizzle as postgres","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 21)","app_path_after":"postgres 21; service_role 21"},
+  {"table":"build_proposal","sensitive":true,"access":"drizzle as postgres; share link resolved server-side in src/app/proposal/[token]/route.ts:27","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (was 2, share_token exposed)","app_path_after":"postgres 2; live primer.rocksteady.ai/proposal/<approved token> 200, bogus token 404"}
+ ]}
+]

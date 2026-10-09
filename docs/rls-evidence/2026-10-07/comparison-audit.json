@@ -1,0 +1,244 @@
+{
+  "before": {
+    "projects_scanned": 45,
+    "public_tables": 3654,
+    "rls_off": 112,
+    "affected_projects": 22,
+    "query_errors": []
+  },
+  "after": {
+    "projects_scanned": 45,
+    "public_tables": 3654,
+    "rls_off": 3,
+    "affected_projects": 3,
+    "query_errors": []
+  },
+  "fresh": {
+    "projects_scanned": 45,
+    "public_tables": 3660,
+    "rls_off": 3,
+    "affected_projects": 3,
+    "query_errors": []
+  },
+  "active_inventory_matches_scan": true,
+  "exclusion_identities_unchanged": true,
+  "excluded_tables": [
+    {
+      "project": "e2e-test-app",
+      "ref": "eiqntvlwhfgvnqjdyuip",
+      "table": "shipsafe_demo_customers",
+      "est_rows": 0,
+      "anon_select": true,
+      "anon_write": false,
+      "auth_select": true,
+      "policies": 0,
+      "sensitive_columns": [
+        "name",
+        "email",
+        "note"
+      ],
+      "anon_probe": {
+        "status": 206,
+        "total": 3
+      }
+    },
+    {
+      "project": "IslandFlow",
+      "ref": "tyqxwawlgdhcpisyqyfd",
+      "table": "spatial_ref_sys",
+      "est_rows": 8500,
+      "anon_select": true,
+      "anon_write": true,
+      "auth_select": true,
+      "policies": 0,
+      "sensitive_columns": [
+        "auth_name"
+      ],
+      "anon_probe": {
+        "status": 206,
+        "total": 8500
+      }
+    },
+    {
+      "project": "MGO Management Dashboard",
+      "ref": "qfxgiyeufgjsovxupfej",
+      "table": "spatial_ref_sys",
+      "est_rows": 8500,
+      "anon_select": true,
+      "anon_write": true,
+      "auth_select": true,
+      "policies": 0,
+      "sensitive_columns": [
+        "auth_name"
+      ],
+      "anon_probe": {
+        "status": 206,
+        "total": 8500
+      }
+    }
+  ],
+  "inactive_not_scanned": [
+    {
+      "name": "RSS Client Portal",
+      "ref": "fzvhjwwqdrfkrcvbatco",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Third Quarter",
+      "ref": "exnawhhgrrjkxkmzabjd",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "AI Audit",
+      "ref": "wnlavktbsmfdqlqajbsl",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "AI Engage",
+      "ref": "tfpknhhehhlqkhevpwsc",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Consulting Collective",
+      "ref": "jelrmysbmxmnbcvogiik",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Demoflow",
+      "ref": "swwugefujljgsnowrlzp",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Genius Finder",
+      "ref": "rxhibkoeydhvnwzjnrrt",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Green Vista",
+      "ref": "dymffwahbrwdldgmgvdm",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Hack Flow",
+      "ref": "mrfzljeruveleixbgbqu",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Idea Validator",
+      "ref": "auyskunixbxxhsfqgtkx",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "InSights",
+      "ref": "diddrypjokhoqepmevfp",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Proof Flow",
+      "ref": "vhltlnwhnyfwlayuyumx",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Proposals",
+      "ref": "yvgdnykbeipmcefagcoo",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Skutt Catholic Graduation System",
+      "ref": "jgnpbpztedoluxkjowxd",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Skutt Grads",
+      "ref": "cdmrnbxyajkypvsilbtb",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "TAH-DEV",
+      "ref": "zjbqkducetdgunfxefmx",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "TAHDEV",
+      "ref": "qehqogwasijelqxvbyrc",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Travel Smart",
+      "ref": "nbhjwuexpbzwumydygkv",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "algome",
+      "ref": "ofzlvaustamzaapjicql",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "brainspark",
+      "ref": "dibgvjomxpcrhwbhmxnc",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "myTrimmy",
+      "ref": "xglntcntiwvkmioepspl",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "shipsafe-stale-snapshot",
+      "ref": "kauxywhqsnlqlbknidpe",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Customer Service Manager",
+      "ref": "lptutizoyxtxdcvnotdi",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "MGO Kiosk Agent",
+      "ref": "zttcljqwzgjjfbxhtohf",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "MGO Remote Access",
+      "ref": "enfcvxjoyopaajpfqwyl",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "MGO VPN Gift Cards",
+      "ref": "qdhaxubiynlxvwqmvras",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "islandlink",
+      "ref": "xjzzphmzkznwifbltqkd",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Mental Models SDLC",
+      "ref": "kqhzbwsnfjjguthdybqt",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Whisper",
+      "ref": "tqdrjjnxbdsysjeextbt",
+      "status": "INACTIVE"
+    },
+    {
+      "name": "Community Nexus",
+      "ref": "vqfeuotbocuzamkbvuvb",
+      "status": "INACTIVE"
+    }
+  ],
+  "empty_public_catalogs": [
+    {
+      "project": "TGW Suite",
+      "ref": "gjooanlevaqmjnvtxddh",
+      "observed": "Successful pg_class query of public ordinary/partitioned tables returned [] with no query error; empty catalog expected at query scope, not an ingestion test."
+    },
+    {
+      "project": "little-farmers-investor",
+      "ref": "ozdawqlcidixmabynmju",
+      "observed": "Successful pg_class query of public ordinary/partitioned tables returned [] with no query error; empty catalog expected at query scope, not an ingestion test."
+    }
+  ]
+}

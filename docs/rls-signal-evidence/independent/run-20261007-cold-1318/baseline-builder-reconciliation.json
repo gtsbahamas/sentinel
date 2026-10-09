@@ -1,0 +1,10 @@
+{
+  "baseline": 112,
+  "affected": 22,
+  "active": 45,
+  "fixed": 109,
+  "builder_verified_at": "2026-10-07T18:12:42.222Z",
+  "builder_actual_nonempty_safe": 109,
+  "builder_server_success": 109,
+  "exact_partition": true
+}

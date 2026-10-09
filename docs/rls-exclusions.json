@@ -1,0 +1,32 @@
+[
+  {
+    "ref": "eiqntvlwhfgvnqjdyuip",
+    "table": "shipsafe_demo_customers",
+    "reason": "Intentional ShipSafe scanner demo containing three fake rows; anonymous reads are the demo target. Anon and authenticated writes must remain revoked.",
+    "expected_anon_write": false,
+    "evidence": "docs/rls-signal-evidence/residue-probes.json",
+    "expected_auth_write": false,
+    "expected_anon_truncate": false,
+    "expected_auth_truncate": false
+  },
+  {
+    "ref": "tyqxwawlgdhcpisyqyfd",
+    "table": "spatial_ref_sys",
+    "reason": "PostGIS public EPSG catalog owned by supabase_admin; rollback REVOKE INSERT, UPDATE, DELETE as postgres did not remove anon/authenticated INSERT. No extension recreation under live geometry columns authorized. Residual write privilege is explicitly accepted by this capsule exclusion, not fixed. Owner-role attempt failed with ERROR 42501: permission denied to set role \"supabase_admin\". UPDATE, DELETE and TRUNCATE also remain granted for both client roles.",
+    "expected_anon_write": true,
+    "evidence": "docs/rls-signal-evidence/residue-probes.json",
+    "expected_auth_write": true,
+    "expected_anon_truncate": true,
+    "expected_auth_truncate": true
+  },
+  {
+    "ref": "qfxgiyeufgjsovxupfej",
+    "table": "spatial_ref_sys",
+    "reason": "PostGIS public EPSG catalog owned by supabase_admin; rollback REVOKE INSERT, UPDATE, DELETE as postgres did not remove anon/authenticated INSERT. No extension recreation under live geometry columns authorized. Residual write privilege is explicitly accepted by this capsule exclusion, not fixed. Owner-role attempt failed with ERROR 42501: permission denied to set role \"supabase_admin\". UPDATE, DELETE and TRUNCATE also remain granted for both client roles.",
+    "expected_anon_write": true,
+    "evidence": "docs/rls-signal-evidence/residue-probes.json",
+    "expected_auth_write": true,
+    "expected_anon_truncate": true,
+    "expected_auth_truncate": true
+  }
+]

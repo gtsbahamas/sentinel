@@ -1,0 +1,2437 @@
+{
+  "verified_at": "2026-10-06T21:38:01.110Z",
+  "pass": 109,
+  "fail": 0,
+  "results": [
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "affiliate_referrals_archive",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "affiliate_rewards_archive",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "agent_handoff_protocols",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "agent_learning_feedback",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "bizbox_agent_instances",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "bizbox_orchestration_plans",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "bizbox_team_agents",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 7
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "bizbox_team_instances",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "dynamic_confidence_thresholds",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "knowledge_base",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "semantic_analysis_cache",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "user_interaction_patterns",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Agent Hub",
+      "ref": "zqxujnxmyfvnrjasjeye",
+      "table": "user_oauth_credential_audit",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 1
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement_comment",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 2
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement_section",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 4
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement_term",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 9
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "agreement_term_acceptance",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 9
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_chat_message",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 26
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_document",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 16
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_document_chunk",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 26
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_grounding",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 39
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_instance",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 1
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "box_member",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 21
+      }
+    },
+    {
+      "project": "primer",
+      "ref": "wcodsaclbcwwbqgdrpsc",
+      "table": "build_proposal",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 2
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "_migrations",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 18
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "action_assertions",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 7
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "audit_log",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 1807
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "consent_records",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 238
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "deletion_audit_log",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 7
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "face_enrollments",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 172
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "face_templates",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "face_templates_512",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "liveness_challenges",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 21
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "oidc_clients",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "oidc_grants",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "oidc_sessions",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "oidc_signing_keys",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "processed_webhook_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "risk_policies",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "sessions",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 62
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "tenant_transform_seeds",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "tenants",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 2
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "threat_entries",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "usage_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 293
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "usage_summaries",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 10
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "users",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 172
+      }
+    },
+    {
+      "project": "facegate",
+      "ref": "qglzivwbaflnbrlcuvyc",
+      "table": "verification_attempts",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 597
+      }
+    },
+    {
+      "project": "feedback-hub",
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_event_reservations",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 6
+      }
+    },
+    {
+      "project": "feedback-hub",
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 12
+      }
+    },
+    {
+      "project": "feedback-hub",
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_reservation_edits",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 2
+      }
+    },
+    {
+      "project": "feedback-hub",
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_reservations",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 1
+      }
+    },
+    {
+      "project": "feedback-hub",
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "_demo_seat_assignments",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 24
+      }
+    },
+    {
+      "project": "feedback-hub",
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "claude_sessions",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 3
+      }
+    },
+    {
+      "project": "feedback-hub",
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "specialists",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 1
+      }
+    },
+    {
+      "project": "feedback-hub",
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "test_runs",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 5
+      }
+    },
+    {
+      "project": "feedback-hub",
+      "ref": "xbprebqvcgehtmrsvqep",
+      "table": "test_steps",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 38
+      }
+    },
+    {
+      "project": "propria-core",
+      "ref": "wjkfldyrifvvvtpxcjxp",
+      "table": "agent_proposals",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 684
+      }
+    },
+    {
+      "project": "propria-core",
+      "ref": "wjkfldyrifvvvtpxcjxp",
+      "table": "hermes_voice_calls",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 7
+      }
+    },
+    {
+      "project": "coral-harbour-pilot",
+      "ref": "oilrcfmjjdqkqdegqaqc",
+      "table": "agent_proposals",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "coral-harbour-pilot",
+      "ref": "oilrcfmjjdqkqdegqaqc",
+      "table": "hermes_voice_calls",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "coral-harbour-pilot",
+      "ref": "oilrcfmjjdqkqdegqaqc",
+      "table": "pilot_email_replies",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 13
+      }
+    },
+    {
+      "project": "franklabs",
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "action_cost_estimates",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 12
+      }
+    },
+    {
+      "project": "franklabs",
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "action_risk_classifications",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 22
+      }
+    },
+    {
+      "project": "franklabs",
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "assay_audit_results",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "franklabs",
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "assay_outreach",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "franklabs",
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "assay_prospects",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 92
+      }
+    },
+    {
+      "project": "franklabs",
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "default_network_allowlist",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 9
+      }
+    },
+    {
+      "project": "franklabs",
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "monthly_spend_archive",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 6
+      }
+    },
+    {
+      "project": "franklabs",
+      "ref": "oyjyffqjhnhiacpcymdp",
+      "table": "outreach_drafts",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 9
+      }
+    },
+    {
+      "project": "Life OS",
+      "ref": "kkjjyigipbhfazsaihqf",
+      "table": "stripe_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Secure Apps",
+      "ref": "kmjnujsqmijxdkbrwmql",
+      "table": "sbom_generation_queue",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 34
+      }
+    },
+    {
+      "project": "seatrial-prod",
+      "ref": "zcxdjvwgpgotebehcfqv",
+      "table": "cli_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 98
+      }
+    },
+    {
+      "project": "LUCID",
+      "ref": "naznedwtakirzhkubtjb",
+      "table": "cli_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 92
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "legacy_user_migration",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 7
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "pin_auth_sessions",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 83
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "geo_promotions",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "review_prompts",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "sms_rate_limits",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "pickup_id_registry",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 8
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "pickup_transactions",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "performance_logs_2025_08",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "order_modification_requests",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 1
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "order_favorites",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "order_abandonments",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "order_preparation_metrics",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "pickup_confirmations",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "social_shares",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "table_qr_codes",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "table_ordering_sessions",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Grab & Go",
+      "ref": "mcijisnotideuvpzzqqe",
+      "table": "walk_in_queues",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "Fire-OS",
+      "ref": "ijqceszwouwiwxmpirqm",
+      "table": "memory_audit_log",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 5205
+      }
+    },
+    {
+      "project": "GTS Statements",
+      "ref": "iscllkdaqrvwmjcfhqsh",
+      "table": "statement_tokens",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 867
+      }
+    },
+    {
+      "project": "GTS Statements",
+      "ref": "iscllkdaqrvwmjcfhqsh",
+      "table": "statement_sends",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 727
+      }
+    },
+    {
+      "project": "DMP Tech Support",
+      "ref": "iiniwmvcdfdgefyhgzte",
+      "table": "knowledge_chunks",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 722
+      }
+    },
+    {
+      "project": "DMP Tech Support",
+      "ref": "iiniwmvcdfdgefyhgzte",
+      "table": "knowledge_docs",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 230
+      }
+    },
+    {
+      "project": "MGO Support",
+      "ref": "euvfjkvsqpajvjnmmznc",
+      "table": "service_status_updates",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "MGO Support",
+      "ref": "euvfjkvsqpajvjnmmznc",
+      "table": "transaction_anomaly_action_configs",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 5
+      }
+    },
+    {
+      "project": "MGO Support",
+      "ref": "euvfjkvsqpajvjnmmznc",
+      "table": "transaction_anomaly_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "MGO Support",
+      "ref": "euvfjkvsqpajvjnmmznc",
+      "table": "webhook_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 28934
+      }
+    },
+    {
+      "project": "brazilnut-support",
+      "ref": "gtbhsoqljstkxokspaqn",
+      "table": "service_status_updates",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "brazilnut-support",
+      "ref": "gtbhsoqljstkxokspaqn",
+      "table": "transaction_anomaly_action_configs",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 5
+      }
+    },
+    {
+      "project": "brazilnut-support",
+      "ref": "gtbhsoqljstkxokspaqn",
+      "table": "transaction_anomaly_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "brazilnut-support",
+      "ref": "gtbhsoqljstkxokspaqn",
+      "table": "webhook_events",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "mgo-asue",
+      "ref": "ghjclgcvcasmhtfdwbeu",
+      "table": "forfeitures",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 0
+      }
+    },
+    {
+      "project": "mgo-asue",
+      "ref": "ghjclgcvcasmhtfdwbeu",
+      "table": "goal_contracts",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 3
+      }
+    },
+    {
+      "project": "mgo-asue",
+      "ref": "ghjclgcvcasmhtfdwbeu",
+      "table": "goal_fees",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 200,
+        "total": 1
+      }
+    },
+    {
+      "project": "mgo-asue",
+      "ref": "ghjclgcvcasmhtfdwbeu",
+      "table": "goal_locks",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 200,
+          "total": 0,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 4
+      }
+    },
+    {
+      "project": "MGO Kiosk",
+      "ref": "qixunwahanapilwaaknn",
+      "table": "voice_interaction_metrics",
+      "pass": true,
+      "probes": [
+        {
+          "key": "legacy-anon",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        },
+        {
+          "key": "publishable",
+          "status": 401,
+          "total": null,
+          "rows": 0
+        }
+      ],
+      "server_path": {
+        "status": 206,
+        "total": 23
+      }
+    }
+  ]
+}

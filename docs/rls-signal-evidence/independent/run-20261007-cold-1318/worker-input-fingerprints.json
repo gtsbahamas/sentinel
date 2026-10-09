@@ -1,0 +1,21 @@
+{
+  "platform": "linux",
+  "node": "v24.21.0",
+  "inputs": {
+    "scripts/rls-scan.mjs": "325627fd4351e9a68d3bcf6aeebe5dff36d92977dfe1830517528d4ff42f936f",
+    "scripts/rls-exclusions.mjs": "68957d7bf43957a30a86c96ac2cd03b21c5479986932a4d0cfba6d0fa527af8e",
+    "scripts/rls-verify.mjs": "24e2b298e293395191e5a4a8eb5ae124dfc5fea969548f528eeeb0ddf6ccd5ed",
+    "docs/rls-exclusions.json": "f87834ce030cce47a5187c2a8871fbeb95ecd57adc0eeff90acc79d705ccb49b",
+    "docs/rls-scan-2026-10-06-before.json": "9c8c311c684a586a0e6180c9c8e587ad1f4a62238d157798b875c7af0c8cef20",
+    "docs/rls-verify-2026-10-07-signal-closeout.json": "ad39e62d64a0d4f18e30cacdb80383a10f4400acbb38854dadf35cb045077cc9",
+    "docs/rls-signal-evidence/independent/audit.mjs": "8d8c696cb038b74214dc817daa74dc1aef0c5664160583c34aae287f885d90ca",
+    "docs/rls-lane-results/agent-hub-primer.json": "f336cf855e9aed72115b0434f336e4870326f22eb3f53982c33548d1443b2b97",
+    "docs/rls-lane-results/facegate.json": "2402fe18d29272c57613cf8ee8e4c7325945187346fde12ced13cbb0e211ad14",
+    "docs/rls-lane-results/feedback-propria.json": "784eb269f95cd42c7e71800320af226b1fad9ed2c5fbb7ac3e653885509625a5",
+    "docs/rls-lane-results/franklabs-family.json": "23dbbabe16dc85a0d4f859ccd9605a196cf726c189e4e644a9539c95b432ea85",
+    "docs/rls-lane-results/grabgo-fireos.json": "5083e20e58df4e2c9e85284831410c828b94e36ae32b848393cf9c7401a0628d",
+    "docs/rls-lane-results/gts-dmp.json": "8113bbfe6daa66f629bf614beb62c91509f77c6fd6018bb7f21ab300af6fb7dc",
+    "docs/rls-lane-results/mgo.json": "68decad9dbf67afa3cabae03024846bb4dca3ec1bf90521758e557307b5e4a09",
+    "docs/rls-lane-results/spatial-ref-sys.json": "aad46aad92ebf0f5817600a0be7a0d0966fe446a5f49ba4702201247d9a61494"
+  }
+}

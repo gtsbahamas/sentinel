@@ -1,0 +1,12 @@
+$ npm run prebuild
+
+> mgo-asue@0.1.0 prebuild
+> npm run check:rls
+
+
+> mgo-asue@0.1.0 check:rls
+> node scripts/rls-migration-check.mjs
+
+RLS migration guard: PASS (14 SQL files, 16 public tables, 0 errors)
+
+exit=0

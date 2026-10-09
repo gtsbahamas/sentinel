@@ -1,0 +1,15 @@
+{
+  "checked_at": "2026-10-07T17:56:32.129447+00:00",
+  "capsule": "secagent-rls-reverify-and-guard",
+  "recorded_session": "codex#01a11725-a148-7861-957d-459c0136e5c4",
+  "current_session": "codex#01a11725-a148-7861-957d-459c0136e5c4",
+  "recorded_thread": "57d1e994-09c2-4432-8e2b-60c173743cd1",
+  "current_thread": "57d1e994-09c2-4432-8e2b-60c173743cd1",
+  "same_session": true,
+  "same_thread": true,
+  "queue_status": "in_progress",
+  "original_progress_at": "2026-10-07T16:21:36+00:00",
+  "queue_implementation": "cmd_adopt rejects all holders other than capsule-drain without comparing caller session; it is one-shot launcher handoff, not resumed-session ownership check. No claim transfer/release/force or ledger edit performed.",
+  "original_work_commit": "b202d1564d865831bc946226a00c69c6494750b4",
+  "independent_evidence_thread": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+}

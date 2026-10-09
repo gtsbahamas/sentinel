@@ -1,0 +1,18 @@
+{
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "node": "v26.8.1",
+  "security_agent_sha": "b202d1564d865831bc946226a00c69c6494750b4",
+  "file_hashes": {
+    "scripts/rls-scan.mjs": "00169a241a64234197dd235ac3d73d25bd48019c4582543dec3cfb656888f92f",
+    "scripts/rls-migration-check.mjs": "bf14e6d172afa1d0cf5ce20a656fbd4b19255e1c3a05db0a542d9b26f1bb650b",
+    "tests/rls-migration-check.test.ts": "f74f36c8c40657a8eb90219678a9df644551409b3d14e835420f73395c6e1845",
+    "docs/rls-signal-1e615aab-verification.md": "766acd2cb35302215e0649a38156c35336613947ef54d87464e2bfa07db1a2f2",
+    "docs/rls-guard-results.md": "644a72d5911edbbd5cd97d39b3400567b42e8a289c3ef14a64339667628ebabc",
+    "docs/rls-reverify-coverage.json": "5f6cfd6462ed0e055840cbbee05146c81e5198dcb5b0814a5da99f10ec82ae80"
+  },
+  "source_matches_HEAD": {
+    "scripts/rls-scan.mjs": true,
+    "scripts/rls-migration-check.mjs": true,
+    "tests/rls-migration-check.test.ts": true
+  }
+}

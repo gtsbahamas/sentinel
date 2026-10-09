@@ -1,0 +1,240 @@
+{
+  "method": "Ephemeral temp SQL files; actual local Node CLI; no database connection; temp dirs removed after run",
+  "cases": [
+    {
+      "case": "dollar-create",
+      "sql": "DO $$ BEGIN CREATE /* gap */ TABLE public.guard_gap(id integer); END $$;",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/dollar-create"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stdout": "RLS migration guard: FAIL (1 SQL files, 0 public tables, 1 errors)\n",
+      "stderr": "drizzle/0001.sql: Dynamic table/RLS DDL in DO blocks is unsupported; use explicit top-level CREATE TABLE and ALTER TABLE ENABLE ROW LEVEL SECURITY\n",
+      "status": "passed",
+      "before_fix_control": {
+        "command": [
+          "node",
+          "/tmp/independent-rls-after-fix-k90zgoft/before-guard.mjs",
+          "--root",
+          "/tmp/independent-rls-after-fix-k90zgoft/dollar-create"
+        ],
+        "exit": 0,
+        "stdout": "RLS migration guard: PASS (1 SQL files, 0 public tables, 0 errors)\n",
+        "stderr": ""
+      }
+    },
+    {
+      "case": "ordinary-create",
+      "sql": "DO 'BEGIN CREATE /* gap */ TABLE public.guard_gap(id integer); END';",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/ordinary-create"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stdout": "RLS migration guard: FAIL (1 SQL files, 0 public tables, 1 errors)\n",
+      "stderr": "drizzle/0001.sql: Dynamic table/RLS DDL in DO blocks is unsupported; use explicit top-level CREATE TABLE and ALTER TABLE ENABLE ROW LEVEL SECURITY\n",
+      "status": "passed",
+      "before_fix_control": {
+        "command": [
+          "node",
+          "/tmp/independent-rls-after-fix-k90zgoft/before-guard.mjs",
+          "--root",
+          "/tmp/independent-rls-after-fix-k90zgoft/ordinary-create"
+        ],
+        "exit": 0,
+        "stdout": "RLS migration guard: PASS (1 SQL files, 0 public tables, 0 errors)\n",
+        "stderr": ""
+      }
+    },
+    {
+      "case": "dollar-disable",
+      "sql": "CREATE TABLE public.x(id integer); ALTER TABLE public.x ENABLE ROW LEVEL SECURITY; DO $$ BEGIN ALTER TABLE public.x DISABLE ROW /* gap */ LEVEL -- gap\n SECURITY; END $$;",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/dollar-disable"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stdout": "RLS migration guard: FAIL (1 SQL files, 0 public tables, 1 errors)\n",
+      "stderr": "drizzle/0001.sql: Dynamic table/RLS DDL in DO blocks is unsupported; use explicit top-level CREATE TABLE and ALTER TABLE ENABLE ROW LEVEL SECURITY\n",
+      "status": "passed",
+      "before_fix_control": {
+        "command": [
+          "node",
+          "/tmp/independent-rls-after-fix-k90zgoft/before-guard.mjs",
+          "--root",
+          "/tmp/independent-rls-after-fix-k90zgoft/dollar-disable"
+        ],
+        "exit": 0,
+        "stdout": "RLS migration guard: PASS (1 SQL files, 1 public tables, 0 errors)\n",
+        "stderr": ""
+      }
+    },
+    {
+      "case": "ordinary-disable",
+      "sql": "CREATE TABLE public.x(id integer); ALTER TABLE public.x ENABLE ROW LEVEL SECURITY; DO 'BEGIN ALTER TABLE public.x DISABLE ROW /* gap */ LEVEL SECURITY; END';",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/ordinary-disable"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stdout": "RLS migration guard: FAIL (1 SQL files, 0 public tables, 1 errors)\n",
+      "stderr": "drizzle/0001.sql: Dynamic table/RLS DDL in DO blocks is unsupported; use explicit top-level CREATE TABLE and ALTER TABLE ENABLE ROW LEVEL SECURITY\n",
+      "status": "passed",
+      "before_fix_control": {
+        "command": [
+          "node",
+          "/tmp/independent-rls-after-fix-k90zgoft/before-guard.mjs",
+          "--root",
+          "/tmp/independent-rls-after-fix-k90zgoft/ordinary-disable"
+        ],
+        "exit": 0,
+        "stdout": "RLS migration guard: PASS (1 SQL files, 1 public tables, 0 errors)\n",
+        "stderr": ""
+      }
+    },
+    {
+      "case": "tagged-nested-comment-create",
+      "sql": "DO $body$ BEGIN CREATE -- gap\n UNLOGGED /* outer /* inner */ gap */ TABLE public.guard_gap(id integer); END $body$;",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/tagged-nested-comment-create"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stdout": "RLS migration guard: FAIL (1 SQL files, 0 public tables, 1 errors)\n",
+      "stderr": "drizzle/0001.sql: Dynamic table/RLS DDL in DO blocks is unsupported; use explicit top-level CREATE TABLE and ALTER TABLE ENABLE ROW LEVEL SECURITY\n",
+      "status": "passed",
+      "before_fix_control": {
+        "command": [
+          "node",
+          "/tmp/independent-rls-after-fix-k90zgoft/before-guard.mjs",
+          "--root",
+          "/tmp/independent-rls-after-fix-k90zgoft/tagged-nested-comment-create"
+        ],
+        "exit": 0,
+        "stdout": "RLS migration guard: PASS (1 SQL files, 0 public tables, 0 errors)\n",
+        "stderr": ""
+      }
+    },
+    {
+      "case": "dollar-harmless-enum",
+      "sql": "DO $$ BEGIN /* CREATE TABLE fake(id int); */ CREATE TYPE mood AS ENUM ('CREATE TABLE fake(id int)', 'DO', 'EXECUTE'); EXCEPTION WHEN duplicate_object THEN null; END $$;",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/dollar-harmless-enum"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stdout": "RLS migration guard: PASS (1 SQL files, 0 public tables, 0 errors)\n",
+      "stderr": "",
+      "status": "passed"
+    },
+    {
+      "case": "ordinary-harmless-enum",
+      "sql": "DO 'BEGIN CREATE TYPE mood AS ENUM (''CREATE TABLE fake(id int)'', ''DO'', ''EXECUTE''); EXCEPTION WHEN duplicate_object THEN null; END';",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/ordinary-harmless-enum"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stdout": "RLS migration guard: PASS (1 SQL files, 0 public tables, 0 errors)\n",
+      "stderr": "",
+      "status": "passed"
+    },
+    {
+      "case": "dollar-harmless-constraint",
+      "sql": "CREATE TABLE public.x(id integer); ALTER TABLE public.x ENABLE ROW LEVEL SECURITY; DO $$ BEGIN ALTER /* gap */ TABLE public.x ADD CONSTRAINT x_unique UNIQUE(id); INSERT INTO public.x VALUES(1) ON CONFLICT DO NOTHING; EXCEPTION WHEN duplicate_object THEN null; END $$;",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/dollar-harmless-constraint"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stdout": "RLS migration guard: PASS (1 SQL files, 1 public tables, 0 errors)\n",
+      "stderr": "",
+      "status": "passed"
+    },
+    {
+      "case": "ordinary-harmless-constraint",
+      "sql": "CREATE TABLE public.x(id integer); ALTER TABLE public.x ENABLE ROW LEVEL SECURITY; DO 'BEGIN ALTER TABLE public.x ADD CONSTRAINT x_unique UNIQUE(id); INSERT INTO public.x VALUES(1) ON CONFLICT(id) DO UPDATE SET id=1; EXCEPTION WHEN duplicate_object THEN null; END';",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/ordinary-harmless-constraint"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stdout": "RLS migration guard: PASS (1 SQL files, 1 public tables, 0 errors)\n",
+      "stderr": "",
+      "status": "passed"
+    },
+    {
+      "case": "schema-move",
+      "sql": "DO $$ BEGIN ALTER /* gap */ TABLE private.x SET /* gap */ SCHEMA public; END $$;",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/schema-move"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stdout": "RLS migration guard: FAIL (1 SQL files, 0 public tables, 1 errors)\n",
+      "stderr": "drizzle/0001.sql: Dynamic table/RLS DDL in DO blocks is unsupported; use explicit top-level CREATE TABLE and ALTER TABLE ENABLE ROW LEVEL SECURITY\n",
+      "status": "passed"
+    },
+    {
+      "case": "nested-do",
+      "sql": "DO $outer$ BEGIN DO $inner$ BEGIN CREATE /* gap */ TABLE public.x(id int); END $inner$; END $outer$;",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/nested-do"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stdout": "RLS migration guard: FAIL (1 SQL files, 0 public tables, 1 errors)\n",
+      "stderr": "drizzle/0001.sql: Dynamic table/RLS DDL in DO blocks is unsupported; use explicit top-level CREATE TABLE and ALTER TABLE ENABLE ROW LEVEL SECURITY\n",
+      "status": "passed"
+    },
+    {
+      "case": "search-path",
+      "sql": "DO $$ BEGIN PERFORM set_config('search_path','private',false); END $$;",
+      "command": [
+        "node",
+        "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+        "--root",
+        "/tmp/independent-rls-after-fix-k90zgoft/search-path"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stdout": "RLS migration guard: FAIL (1 SQL files, 0 public tables, 1 errors)\n",
+      "stderr": "drizzle/0001.sql: Dynamic table/RLS DDL in DO blocks is unsupported; use explicit top-level CREATE TABLE and ALTER TABLE ENABLE ROW LEVEL SECURITY\n",
+      "status": "passed"
+    }
+  ]
+}

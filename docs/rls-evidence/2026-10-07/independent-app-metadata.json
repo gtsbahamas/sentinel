@@ -1,0 +1,126 @@
+{
+  "primer": {
+    "sha": {
+      "exit": 0,
+      "output": "86bf62af8f93f43d49266da888f6ad82379a2676\n"
+    },
+    "branch": {
+      "exit": 0,
+      "output": "sec/rls-migration-guard\n"
+    },
+    "status": {
+      "exit": 0,
+      "output": ""
+    },
+    "commit_files": {
+      "exit": 0,
+      "output": "86bf62a sec(db): enforce public-table RLS migration guard before test and build\n package.json                    |   5 +-\n scripts/rls-migration-check.mjs | 161 ++++++++++++++++++++++++++++++++++++++++\n scripts/rls-migration-guard.md  |  22 ++++++\n 3 files changed, 187 insertions(+), 1 deletion(-)\n"
+    },
+    "scripts": {
+      "dev": "next dev",
+      "build": "next build",
+      "start": "next start",
+      "lint": "eslint",
+      "typecheck": "tsc --noEmit",
+      "test": "vitest run --passWithNoTests",
+      "test:watch": "vitest",
+      "check:rls": "node scripts/rls-migration-check.mjs",
+      "prebuild": "npm run check:rls",
+      "pretest": "npm run check:rls"
+    },
+    "guard_sha256": "bf14e6d172afa1d0cf5ce20a656fbd4b19255e1c3a05db0a542d9b26f1bb650b",
+    "guard_exit": 1
+  },
+  "mgo-asue": {
+    "sha": {
+      "exit": 0,
+      "output": "271dbb38fd0231a9df77b3b21a752935c92df900\n"
+    },
+    "branch": {
+      "exit": 0,
+      "output": "sec/rls-migration-guard\n"
+    },
+    "status": {
+      "exit": 0,
+      "output": ""
+    },
+    "commit_files": {
+      "exit": 0,
+      "output": "271dbb3 sec(db): enforce public-table RLS migration guard before test and build\n package.json                    |   6 +-\n scripts/rls-migration-check.mjs | 161 ++++++++++++++++++++++++++++++++++++++++\n scripts/rls-migration-guard.md  |  22 ++++++\n 3 files changed, 188 insertions(+), 1 deletion(-)\n"
+    },
+    "scripts": {
+      "dev": "next dev",
+      "build": "next build",
+      "start": "next start",
+      "lint": "eslint",
+      "typecheck": "tsc --noEmit",
+      "simulate": "tsx scripts/simulate-defaults.ts",
+      "db:apply": "tsx scripts/apply-sql.ts",
+      "test:round": "tsx scripts/test-round-orchestrator.ts",
+      "test:guards": "tsx scripts/test-premortem-guards.ts",
+      "test:enrollment": "tsx scripts/test-enrollment-guards.ts",
+      "test:exposure": "tsx scripts/test-cross-pool-exposure.ts",
+      "test:merchant": "tsx scripts/test-merchant-view.ts",
+      "sms:test": "tsx scripts/send-test-sms.ts",
+      "probe:smsenv": "tsx scripts/probe-sms-env.ts",
+      "seed:demo": "tsx scripts/seed-demo-pool.ts",
+      "seed:ops": "tsx scripts/seed-ops-fixtures.ts",
+      "seed:ops:reset": "tsx scripts/seed-ops-fixtures.ts --clean",
+      "backfill:deposits": "tsx scripts/backfill-merchant-deposits.ts",
+      "shortlist": "tsx scripts/pilot-shortlist.ts",
+      "scorecard": "tsx scripts/scorecard.ts",
+      "whatsapp:submit": "tsx scripts/submit-whatsapp-templates.ts",
+      "whatsapp:status": "tsx scripts/whatsapp-template-status.ts",
+      "prove:nudge": "tsx scripts/prove-live-nudge.ts",
+      "prove:seating": "tsx scripts/prove-live-seating.ts",
+      "prove:haircut": "tsx scripts/prove-live-haircut.ts",
+      "prove:frontdoor": "tsx scripts/prove-front-door.ts",
+      "prove:walk": "tsx scripts/prove-participant-walk.ts",
+      "prove:transfer": "tsx scripts/prove-seat-transfer.ts",
+      "prove:crosspool": "tsx scripts/prove-cross-pool.ts",
+      "probe:rail": "tsx scripts/probe-rail-gate.ts",
+      "check:residue": "tsx scripts/check-sim-residue.ts",
+      "test:custody": "tsx scripts/test-custody-derivation.ts",
+      "prove:coverage": "tsx scripts/prove-coverage-gate.ts",
+      "prove:console": "tsx scripts/prove-console-lifecycle.ts",
+      "prove:hold-saga": "tsx scripts/prove-deposit-hold-saga.ts",
+      "test:goal": "tsx scripts/test-goal-domain.ts",
+      "prove:goal": "tsx scripts/prove-goal-waterfalls.ts",
+      "check:rls": "node scripts/rls-migration-check.mjs",
+      "prebuild": "npm run check:rls",
+      "pretest": "npm run check:rls",
+      "test": "npm run check:rls"
+    },
+    "guard_sha256": "bf14e6d172afa1d0cf5ce20a656fbd4b19255e1c3a05db0a542d9b26f1bb650b",
+    "guard_exit": 0
+  },
+  "primer-original": {
+    "sha": {
+      "exit": 0,
+      "output": "7e9fd85e164a7e7196981ffa91de48e29e962d5d\n"
+    },
+    "branch": {
+      "exit": 0,
+      "output": "master\n"
+    },
+    "status": {
+      "exit": 0,
+      "output": "?? .sentinel/\n?? drizzle/migrations/0057_discovery_engagement.sql\n?? src/lib/discovery/\n?? tests/lib/discovery.test.ts\n"
+    },
+    "commit_files": {
+      "exit": 0,
+      "output": "7e9fd85 fix(security): enable RLS on the 12 tables added after the June lockdown\n .../migrations/20261006120000_rls_lockdown.sql     | 25 ++++++++++++++++++++++\n 1 file changed, 25 insertions(+)\n"
+    },
+    "scripts": {
+      "dev": "next dev",
+      "build": "next build",
+      "start": "next start",
+      "lint": "eslint",
+      "typecheck": "tsc --noEmit",
+      "test": "vitest run --passWithNoTests",
+      "test:watch": "vitest"
+    },
+    "guard_sha256": null,
+    "guard_exit": 1
+  }
+}

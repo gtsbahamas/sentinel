@@ -1,0 +1,14 @@
+$ test -f docs/rls-remediation-2026-10-06.md && grep -qi "status" docs/rls-remediation-2026-10-06.md && echo C1-PASS
+C1-PASS
+$ ls docs/ | grep -qi "rls-scan" && echo C2-PASS
+C2-PASS
+$ ls docs | grep rls-scan
+rls-scan-2026-10-06-after.json
+rls-scan-2026-10-06-after.md
+rls-scan-2026-10-06-before.json
+rls-scan-2026-10-06-before.md
+$ head -3 docs/rls-scan-2026-10-06-after.md
+# RLS scan 2026-10-06T21:38:11.274Z
+
+Projects scanned: 45. Public tables with RLS off: 3. Of those, readable with the anon key right now: 3.
+Tue Oct  6 21:44:41 UTC 2026

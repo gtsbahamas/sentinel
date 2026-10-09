@@ -1,0 +1,38 @@
+[
+ {
+  "project": "IslandFlow",
+  "ref": "tyqxwawlgdhcpisyqyfd",
+  "repo": "-",
+  "migration": null,
+  "tables": [
+   {
+    "table": "spatial_ref_sys",
+    "sensitive": false,
+    "access": "PostGIS extension catalog (owner supabase_admin, pg_depend on extension postgis)",
+    "action": "none",
+    "status": "excluded",
+    "reason": "extension-owned PostGIS reference table (public EPSG coordinate systems, no user data). Owner is supabase_admin and the anon/authenticated grants were issued by supabase_admin: ALTER TABLE ... ENABLE RLS is refused and a REVOKE run as postgres leaves anon INSERT=true (tested inside a rolled-back transaction 2026-10-06). The only full remedy is moving PostGIS out of public, which means dropping and recreating the extension under live geometry columns; not done.",
+    "anon_after": "206 / 8500 (public EPSG reference rows)",
+    "app_path_after": "n/a"
+   }
+  ]
+ },
+ {
+  "project": "MGO Management Dashboard",
+  "ref": "qfxgiyeufgjsovxupfej",
+  "repo": "-",
+  "migration": null,
+  "tables": [
+   {
+    "table": "spatial_ref_sys",
+    "sensitive": false,
+    "access": "PostGIS extension catalog (owner supabase_admin, pg_depend on extension postgis)",
+    "action": "none",
+    "status": "excluded",
+    "reason": "extension-owned PostGIS reference table (public EPSG coordinate systems, no user data). Owner is supabase_admin and the anon/authenticated grants were issued by supabase_admin: ALTER TABLE ... ENABLE RLS is refused and a REVOKE run as postgres leaves anon INSERT=true (tested inside a rolled-back transaction 2026-10-06). The only full remedy is moving PostGIS out of public, which means dropping and recreating the extension under live geometry columns; not done.",
+    "anon_after": "206 / 8500 (public EPSG reference rows)",
+    "app_path_after": "n/a"
+   }
+  ]
+ }
+]

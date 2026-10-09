@@ -1,0 +1,49 @@
+
+ RUN  v1.6.1 /private/tmp/secagent-cold-committed-gate-_vze2a_q
+
+ ❯ tests/rls-exclusions.test.ts  (6 tests | 1 failed) 575ms
+   ❯ tests/rls-exclusions.test.ts > RLS residual exclusion coverage > covers every public RLS-off table in the latest committed scan with no collection errors
+     → docs/rls-scan-2026-10-07-signal-closeout.json: unknown tables or changed grants require remediation: expected [ { …(10) } ] to deeply equal []
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  13:18:12
+   Duration  2.09s (transform 180ms, setup 0ms, collect 213ms, tests 575ms, environment 0ms, prepare 341ms)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/rls-exclusions.test.ts > RLS residual exclusion coverage > covers every public RLS-off table in the latest committed scan with no collection errors
+AssertionError: docs/rls-scan-2026-10-07-signal-closeout.json: unknown tables or changed grants require remediation: expected [ { …(10) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "anon_probe": Object {
++       "status": 206,
++       "total": 0,
++     },
++     "anon_truncate": false,
++     "anon_write": false,
++     "auth_truncate": false,
++     "auth_write": false,
++     "project": "homecue",
++     "ref": "ivakuuhrtdtqqcmelshy",
++     "rls": false,
++     "sensitive_columns": Array [],
++     "table": "independent_unknown_rls_off",
++   },
++ ]
+
+ ❯ tests/rls-exclusions.test.ts:58:90
+     56|     const result = classifyRlsOff(scan, exclusions);
+     57|     expect(result.errors, `${file}: collection errors cannot be exclud…
+     58|     expect(result.open, `${file}: unknown tables or changed grants req…
+       |                                                                                          ^
+     59|     expect(result.excluded.length).toBe(scan.projects.reduce((sum, pro…
+     60|     // The capsule permits only these two owner-controlled PostGIS cat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

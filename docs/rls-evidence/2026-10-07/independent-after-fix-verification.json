@@ -1,0 +1,465 @@
+{
+  "schema_version": 1,
+  "capsule": "secagent-rls-reverify-and-guard",
+  "recorded_at": "2026-10-07T18:02:24.878652+00:00",
+  "phase": "after-fix, same independent real session",
+  "defect_verification_status": "passed",
+  "overall_capsule_status": "blocked",
+  "environment": {
+    "identity": {
+      "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+      "CLAUDE_CODE_SESSION_ID": null,
+      "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+    },
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "node": "v26.8.1",
+    "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+    "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+    "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+    "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+  },
+  "source_app_metadata": {
+    "identity": {
+      "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+      "CLAUDE_CODE_SESSION_ID": null,
+      "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+    },
+    "root_sha": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+    "expected_guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+    "apps": {
+      "primer": {
+        "root": "/tmp/rls-guard-worktrees/primer",
+        "sha": "37c22aa7760a1c0ee0ff2242a0c284d971d20351",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "status": "",
+        "scripts": {
+          "dev": "next dev",
+          "build": "next build",
+          "start": "next start",
+          "lint": "eslint",
+          "typecheck": "tsc --noEmit",
+          "test": "vitest run --passWithNoTests",
+          "test:watch": "vitest",
+          "check:rls": "node scripts/rls-migration-check.mjs",
+          "prebuild": "npm run check:rls",
+          "pretest": "npm run check:rls"
+        }
+      },
+      "mgo-asue": {
+        "root": "/tmp/rls-guard-worktrees/mgo-asue",
+        "sha": "08f5a42de2bea0ef438bec020a2057efa3d0a3d8",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "status": "",
+        "scripts": {
+          "dev": "next dev",
+          "build": "next build",
+          "start": "next start",
+          "lint": "eslint",
+          "typecheck": "tsc --noEmit",
+          "simulate": "tsx scripts/simulate-defaults.ts",
+          "db:apply": "tsx scripts/apply-sql.ts",
+          "test:round": "tsx scripts/test-round-orchestrator.ts",
+          "test:guards": "tsx scripts/test-premortem-guards.ts",
+          "test:enrollment": "tsx scripts/test-enrollment-guards.ts",
+          "test:exposure": "tsx scripts/test-cross-pool-exposure.ts",
+          "test:merchant": "tsx scripts/test-merchant-view.ts",
+          "sms:test": "tsx scripts/send-test-sms.ts",
+          "probe:smsenv": "tsx scripts/probe-sms-env.ts",
+          "seed:demo": "tsx scripts/seed-demo-pool.ts",
+          "seed:ops": "tsx scripts/seed-ops-fixtures.ts",
+          "seed:ops:reset": "tsx scripts/seed-ops-fixtures.ts --clean",
+          "backfill:deposits": "tsx scripts/backfill-merchant-deposits.ts",
+          "shortlist": "tsx scripts/pilot-shortlist.ts",
+          "scorecard": "tsx scripts/scorecard.ts",
+          "whatsapp:submit": "tsx scripts/submit-whatsapp-templates.ts",
+          "whatsapp:status": "tsx scripts/whatsapp-template-status.ts",
+          "prove:nudge": "tsx scripts/prove-live-nudge.ts",
+          "prove:seating": "tsx scripts/prove-live-seating.ts",
+          "prove:haircut": "tsx scripts/prove-live-haircut.ts",
+          "prove:frontdoor": "tsx scripts/prove-front-door.ts",
+          "prove:walk": "tsx scripts/prove-participant-walk.ts",
+          "prove:transfer": "tsx scripts/prove-seat-transfer.ts",
+          "prove:crosspool": "tsx scripts/prove-cross-pool.ts",
+          "probe:rail": "tsx scripts/probe-rail-gate.ts",
+          "check:residue": "tsx scripts/check-sim-residue.ts",
+          "test:custody": "tsx scripts/test-custody-derivation.ts",
+          "prove:coverage": "tsx scripts/prove-coverage-gate.ts",
+          "prove:console": "tsx scripts/prove-console-lifecycle.ts",
+          "prove:hold-saga": "tsx scripts/prove-deposit-hold-saga.ts",
+          "test:goal": "tsx scripts/test-goal-domain.ts",
+          "prove:goal": "tsx scripts/prove-goal-waterfalls.ts",
+          "check:rls": "node scripts/rls-migration-check.mjs",
+          "prebuild": "npm run check:rls",
+          "pretest": "npm run check:rls",
+          "test": "npm run check:rls"
+        }
+      }
+    },
+    "source_hashes": {
+      "scripts/rls-migration-check.mjs": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+      "scripts/rls-scan.mjs": "00169a241a64234197dd235ac3d73d25bd48019c4582543dec3cfb656888f92f",
+      "tests/rls-migration-check.test.ts": "d6dabb5cbe40f169070f272fadfc6e3d4343f77e3b9ae435097799a961119e48"
+    },
+    "preserved_before_artifacts": {
+      "independent-scan.md": "d5c99224f24eb1e915b7294d8aa8e3aebeaeec570277110646641b8ba39b50b5",
+      "independent-verification.json": "fb69a456857dbf606a8dba34a4a5fbd081a5cfd61c5f2d5ca8715a5bd64653ac",
+      "independent-mgo-asue-guard.txt": "4b0b98bb52f2d9a32a1199d28464f21a0cd755bde4d7c30d40bc16411f5169af",
+      "independent-verification-plan.json": "998a6f30008babd4f08c6d16e821103ea1892441fe02a544d93312a6d668b81c",
+      "independent-comparison.json": "e769a2cd7572089285b7d4d9be24c4deebb43ff4362dd343d929d00e57238a88",
+      "independent-scan.json": "eb6d30929a04be6393aabc1e71612f6e12673f7f3bc50273eceb2e7311faf943",
+      "independent-scanner-source.txt": "00169a241a64234197dd235ac3d73d25bd48019c4582543dec3cfb656888f92f",
+      "independent-before-fix-focused-tests-source.txt": "f74f36c8c40657a8eb90219678a9df644551409b3d14e835420f73395c6e1845",
+      "independent-app-metadata.json": "b830be600adc47a3d0cc6ae31a9839e11f2a1f56423c751200b1c2caba9282b6",
+      "independent-build-metadata.json": "13fa07b1351551b1964e662cbf9830038bf900b76ee2e646e19b78eaa2470a9e",
+      "independent-primer-guard.txt": "005a75c917e6cda729ba6588ae93b667c6ab7c952292ac91f087677fe7f04b51",
+      "independent-guard-tests.txt": "f77a2470533b58e2ca197eaa0b475526f8194629bad7b9d8ca6d37507034e989",
+      "independent-scan-output.txt": "3a9ddf2cb2012f1340c4840043a3e388b1f9af3fbbbfa4a5e8a1a7673db7a0d1",
+      "independent-evidence-sha256.json": "e2da4d3f1c94b7b2754138f8c2f7c2bd14fccecf34f5410a37c5ba5973d48acc",
+      "independent-verification.md": "f1bd57971511b9863fb5f336d6b76c940ca64d5dce907afa661935c08d64a532",
+      "independent-project-inventory.json": "d6acdbff2ad819bde25459b37998839a534ee9f50fa5b0c95d708cd0b16a530a",
+      "independent-before-fix-guard-source.txt": "bf14e6d172afa1d0cf5ce20a656fbd4b19255e1c3a05db0a542d9b26f1bb650b",
+      "independent-primer-original-guard.txt": "4712a67afa83e9d62af98a88255492bd8ad38a4fd108f0acae888e87c118aa55"
+    }
+  },
+  "workflows": [
+    {
+      "requirement": "Actual verifier identity",
+      "expected_behavior": "Same separate real session as before",
+      "method": "Read CODEX_THREAD_ID/CLAUDE_CODE_SESSION_ID/T3TY_THREAD_ID without override",
+      "actual_observation": "Same01a11782-4018-7ca0-806a-9f5ecdd72ed5 /9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f; Claude unset; distinct from builder",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-plan.json"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Corrected root/app hashes",
+      "expected_behavior": "Exact user-supplied revision and identical guard bytes",
+      "method": "git rev-parse/git show and SHA256 comparisons",
+      "actual_observation": "Root7b570b361c9924974394b2afdebd1736cce5d3e6; Primer37c22aa7760a1c0ee0ff2242a0c284d971d20351; MGO08f5a42de2bea0ef438bec020a2057efa3d0a3d8; all guards306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830; all committed bytes exact",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-plan.json",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-guard-source.txt"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Focused worker tests",
+      "expected_behavior": "Exact requested19tests pass on worker",
+      "method": "RBUILD_NO_FALLBACK=1 rbuild -- sh -c exact npm-ci/vitest command",
+      "actual_observation": "Exit0;1file/19tests passed; worker execution confirmed; npm emitted allowScripts warnings but test executed successfully, no settings changed",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-guard-tests.txt"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Dollar/ordinary DO CREATE/DISABLE regressions",
+      "expected_behavior": "CLI rejects comment-separated unsafe operations with exit1",
+      "method": "Ephemeral /tmp SQL files; corrected actual CLI; before-source control copy, no live SQL",
+      "actual_observation": "5unsafe variants all corrected exit1 versus preserved old guard exit0; includes dollar/ordinary CREATE and DISABLE, tagged/nested-comment CREATE",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-fixtures.json"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Harmless enum/constraint bodies",
+      "expected_behavior": "CLI accepts harmless dollar/ordinary string bodies, ignores quoted/comment fake DDL",
+      "method": "Four ephemeral actual CLI cases",
+      "actual_observation": "All4exit0: dollar/ordinary enums and constraints; fake quotedCREATE/DO/EXECUTE ignored; ONCONFLICT DONOTHING and DOUPDATE preserved",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-fixtures.json"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Related DO scope/nesting checks",
+      "expected_behavior": "Reject schema move, search path, nested DO",
+      "method": "Three ephemeral actual CLI cases",
+      "actual_observation": "All3exit1; source tokenization strips comments, excludes literal/quoted keywords and rejects direct unsafe token sequences",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-fixtures.json",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-guard-source.txt"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "MGO current guard/prebuild",
+      "expected_behavior": "Actual guard and npm prebuild run corrected guard successfully",
+      "method": "CLI --root /tmp/rls-guard-worktrees/mgo-asue and npm run prebuild from worktree",
+      "actual_observation": "Both exit0;14SQL/16tables/0errors; prebuild invokes check:rls; no full build",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-mgo-asue-guard.txt",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-mgo-asue-prebuild.txt"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Primer guard/prebuild acceptance, original capsule criterion4",
+      "expected_behavior": "Both current app migration histories pass within wiring-only scope",
+      "method": "CLI --root /tmp/rls-guard-worktrees/primer and npm run prebuild",
+      "actual_observation": "Both exit1;58SQL/52tables/39errors. Hook faithfully rejects history; overall passing criterion remains impossible under wiring-only scope",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-primer-guard.txt",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-primer-prebuild.txt"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "blocked"
+    },
+    {
+      "requirement": "Original dirty Primer acceptance",
+      "expected_behavior": "Current history includes unfinished migration, no hidden errors",
+      "method": "CLI --root /Users/tywells/Downloads/projects/primer and git status",
+      "actual_observation": "Exit1;59SQL/63tables/50errors; untracked0057discovery SQL remains;11extra errors not hidden; HEAD7e9fd85e164a7e7196981ffa91de48e29e962d5d",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-primer-original-guard.txt",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-final-state.json"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "blocked"
+    },
+    {
+      "requirement": "All-visible catalog scope, original criterion1",
+      "expected_behavior": "All visible catalogs verified",
+      "method": "Reuse unchanged scanner/prior authorized independent live evidence as instructed",
+      "actual_observation": "Prior45active IDs/0errors/3663tables/3same exclusions retained;30INACTIVE catalogs remain unscanned, no resume or new scan",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-comparison.json",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-project-inventory.json",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-scan.json"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "blocked"
+    },
+    {
+      "requirement": "Before evidence preservation",
+      "expected_behavior": "Before report and fresh scan intact, separate after files",
+      "method": "Compare every prior artifact SHA256 and final source/app states",
+      "actual_observation": "Every recorded prior hash unchanged; corrected source files unchanged during checks; isolated app status clean before/after",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-plan.json",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-final-state.json"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "passed"
+    },
+    {
+      "requirement": "Residual source review for original finding",
+      "expected_behavior": "Assess comment/string DO safety without broad parser assurance",
+      "method": "Read corrected tokens/bodyCode/nestedDo control flow and19fixtures; bounded ephemeral cases",
+      "actual_observation": "No residual comment-separation gap found for direct table/RLS forms tested; quoted literals cannot synthesize executable keywords. Arbitrary function calls via SELECT/PERFORM are not recursively analyzed; general SQL semantics, all languages and paths remain outside this defect-level proof",
+      "evidence_reference": [
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-guard-source.txt",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-tests-source.txt",
+        "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-fixtures.json"
+      ],
+      "environment_tenant_role_build": {
+        "identity": {
+          "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+          "CLAUDE_CODE_SESSION_ID": null,
+          "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+        },
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "node": "v26.8.1",
+        "root_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "worker": "proxmox-worker /home/ty/work/security-agent-dev-89d04ff6; Vitest1.6.1",
+        "tenant_role": "Local static SQL files only in after-fix rerun; prior authorized Supabase token-visible scan preserved, no new live connections"
+      },
+      "status": "passed"
+    }
+  ],
+  "fixture_summary": {
+    "total": 12,
+    "passed": 12,
+    "before_pass_after_reject_controls": 5
+  },
+  "commands": [
+    {
+      "command": "RBUILD_NO_FALLBACK=1 rbuild -- sh -c 'npm ci --no-audit --no-fund && npx vitest run tests/rls-migration-check.test.ts'",
+      "exit": 0,
+      "log": "independent-after-fix-guard-tests.txt"
+    },
+    {
+      "command": "node scripts/rls-migration-check.mjs --root /tmp/rls-guard-worktrees/primer",
+      "exit": 1,
+      "log": "independent-after-fix-primer-guard.txt"
+    },
+    {
+      "command": "node scripts/rls-migration-check.mjs --root /tmp/rls-guard-worktrees/mgo-asue",
+      "exit": 0,
+      "log": "independent-after-fix-mgo-asue-guard.txt"
+    },
+    {
+      "command": "node scripts/rls-migration-check.mjs --root /Users/tywells/Downloads/projects/primer",
+      "exit": 1,
+      "log": "independent-after-fix-primer-original-guard.txt"
+    },
+    {
+      "cwd": "/tmp/rls-guard-worktrees/primer",
+      "command": "npm run prebuild",
+      "exit": 1,
+      "log": "independent-after-fix-primer-prebuild.txt"
+    },
+    {
+      "cwd": "/tmp/rls-guard-worktrees/mgo-asue",
+      "command": "npm run prebuild",
+      "exit": 0,
+      "log": "independent-after-fix-mgo-asue-prebuild.txt"
+    }
+  ],
+  "original_capsule_criteria": {
+    "1": "blocked:30inactive catalogs",
+    "2": "passed from preserved independent scan arithmetic",
+    "3": "passed:now19focused tests",
+    "4": "blocked:Primer39committed/50original errors"
+  },
+  "limitations": [
+    "Defect-level static CLI proof; no PostgreSQL execution or full SQL-parser guarantee.",
+    "Source review does not recursively inspect functions invoked by SELECT/PERFORM or every SQL/language/migration/deployment path.",
+    "No full app builds/test lifecycles, pushes, merges, deployments, independent queue verification or closure.",
+    "Prior live scan unchanged and preserved; no after-fix live scan needed/requested.",
+    "Original inactive coverage and Primer history cannot be waived by defect fix; scope widening requires explicit user authorization."
+  ],
+  "actions": "Only separate evidence files, ephemeral temp SQL fixtures and authorized worker test environment writes; no repo code/tests edits, implementation, live/schema/privilege/data changes, UI, MobileGo Java/Heroku, GTS changes, queue commands, commits or nested delegation."
+}

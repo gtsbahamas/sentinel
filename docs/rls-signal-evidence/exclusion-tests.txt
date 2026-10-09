@@ -1,0 +1,10 @@
+
+ RUN  v1.6.1 /Users/tywells/Downloads/projects/security-agent-dev
+
+ ✓ tests/rls-exclusions.test.ts  (6 tests) 361ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  13:14:59
+   Duration  3.89s (transform 87ms, setup 0ms, collect 59ms, tests 361ms, environment 0ms, prepare 183ms)
+

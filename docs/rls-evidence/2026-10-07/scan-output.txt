@@ -1,0 +1,46 @@
+homecue                              tables=30 rls_off=0
+franklabs                            tables=108 rls_off=0
+facegate                             tables=26 rls_off=0
+Agent Hub                            tables=203 rls_off=0
+Share Cuterie                        tables=41 rls_off=0
+MGO Support                          tables=166 rls_off=0
+Personal-AI-Hub                      tables=46 rls_off=0
+In Person                            tables=60 rls_off=0
+e2e-test-app                         tables=5 rls_off=1
+Life OS                              tables=73 rls_off=0
+Lugga Memorial                       tables=38 rls_off=0
+TGW Suite                            tables=0 rls_off=0
+primer                               tables=53 rls_off=0
+feedback-hub                         tables=22 rls_off=0
+Wise Time                            tables=45 rls_off=0
+encoding-floor                       tables=14 rls_off=0
+tee-time-locator                     tables=44 rls_off=0
+propria-core                         tables=115 rls_off=0
+Slotly                               tables=12 rls_off=0
+KindMark                             tables=23 rls_off=0
+Secure Apps                          tables=115 rls_off=0
+ResolveLayer                         tables=14 rls_off=0
+Michelle Studio                      tables=19 rls_off=0
+coral-harbour-pilot                  tables=72 rls_off=0
+ocean-cabin                          tables=6 rls_off=0
+brazilnut-support                    tables=107 rls_off=0
+shef                                 tables=10 rls_off=0
+seatrial-prod                        tables=114 rls_off=0
+LUCID                                tables=25 rls_off=0
+mgo-asue                             tables=16 rls_off=0
+life-platform                        tables=37 rls_off=0
+Fire-OS                              tables=123 rls_off=0
+switchboard                          tables=4 rls_off=0
+little-farmers-investor              tables=0 rls_off=0
+Secure Transfer                      tables=4 rls_off=0
+GTS Life Safety System Portal        tables=62 rls_off=0
+Grab & Go                            tables=231 rls_off=0
+GTS Statements                       tables=2 rls_off=0
+DMP Tech Support                     tables=5 rls_off=0
+conchpass-prod                       tables=30 rls_off=0
+camino-map                           tables=3 rls_off=0
+IslandFlow                           tables=1369 rls_off=1
+MGO Management Dashboard             tables=42 rls_off=1
+MGO Kiosk                            tables=96 rls_off=0
+franklabs-platform                   tables=30 rls_off=0
+wrote docs/rls-scan-2026-10-07.json and docs/rls-scan-2026-10-07.md

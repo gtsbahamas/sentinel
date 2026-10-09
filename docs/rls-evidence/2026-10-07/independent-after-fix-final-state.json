@@ -1,0 +1,24 @@
+{
+  "before_artifacts_unchanged": true,
+  "corrected_sources_unchanged_during_checks": true,
+  "apps": {
+    "primer": {
+      "root": "/tmp/rls-guard-worktrees/primer",
+      "sha": "37c22aa7760a1c0ee0ff2242a0c284d971d20351",
+      "status": "",
+      "discovery_migration_exists": false
+    },
+    "mgo-asue": {
+      "root": "/tmp/rls-guard-worktrees/mgo-asue",
+      "sha": "08f5a42de2bea0ef438bec020a2057efa3d0a3d8",
+      "status": "",
+      "discovery_migration_exists": false
+    },
+    "primer-original": {
+      "root": "/Users/tywells/Downloads/projects/primer",
+      "sha": "7e9fd85e164a7e7196981ffa91de48e29e962d5d",
+      "status": "?? .sentinel/\n?? drizzle/migrations/0057_discovery_engagement.sql\n?? src/lib/discovery/\n?? tests/lib/discovery.test.ts\n",
+      "discovery_migration_exists": true
+    }
+  }
+}

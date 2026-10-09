@@ -1,0 +1,54 @@
+COMMAND: node scripts/rls-migration-check.mjs --root /Users/tywells/Downloads/projects/primer
+RLS migration guard: FAIL (59 SQL files, 63 public tables, 50 errors)
+Migration history leaves public.engagement with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.intake_response with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.intake_template with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.organization with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.participant with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.tailoring_output with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.pending_auths with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.engagement_sponsor with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.rate_limit with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.runtime_integration_connection with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.runtime_approval_item with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.runtime_integration_secret with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.runtime_setup_settings with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.runtime_run with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.runtime_run_event with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.runtime_processed_event with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.runtime_delivery_target with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.runtime_action with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.organization_member with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.integration_availability with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.behavioral_signal with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.grounding_consent with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.act_as_audit with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.partner_assignment with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.framework_section with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.prospect_activity with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.memory_entity with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.memory_event with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.prospect_deck with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.engagement_kickoff with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.booking_click with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.target_cohort with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.cohort_member with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.intake_draft with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.operating_model_capture with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.operating_model_live_event with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.owned_context_chunk with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.companion_session with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.companion_live_event with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_engagement with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_participant with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_session with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_material with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_claim with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_claim_source with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_question with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_blueprint with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_approval with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_work_order with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+Migration history leaves public.discovery_feedback with RLS off: CREATE TABLE requires matching ALTER TABLE ENABLE ROW LEVEL SECURITY
+
+EXIT_STATUS=1

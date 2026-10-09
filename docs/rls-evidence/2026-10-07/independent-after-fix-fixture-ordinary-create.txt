@@ -1,0 +1,26 @@
+{
+  "case": "ordinary-create",
+  "sql": "DO 'BEGIN CREATE /* gap */ TABLE public.guard_gap(id integer); END';",
+  "command": [
+    "node",
+    "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+    "--root",
+    "/tmp/independent-rls-after-fix-k90zgoft/ordinary-create"
+  ],
+  "expected_exit": 1,
+  "actual_exit": 1,
+  "stdout": "RLS migration guard: FAIL (1 SQL files, 0 public tables, 1 errors)\n",
+  "stderr": "drizzle/0001.sql: Dynamic table/RLS DDL in DO blocks is unsupported; use explicit top-level CREATE TABLE and ALTER TABLE ENABLE ROW LEVEL SECURITY\n",
+  "status": "passed",
+  "before_fix_control": {
+    "command": [
+      "node",
+      "/tmp/independent-rls-after-fix-k90zgoft/before-guard.mjs",
+      "--root",
+      "/tmp/independent-rls-after-fix-k90zgoft/ordinary-create"
+    ],
+    "exit": 0,
+    "stdout": "RLS migration guard: PASS (1 SQL files, 0 public tables, 0 errors)\n",
+    "stderr": ""
+  }
+}

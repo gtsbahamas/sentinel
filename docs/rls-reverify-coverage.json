@@ -1,0 +1,303 @@
+{
+  "schema_version": 2,
+  "ticket_id": "secagent-rls-reverify-and-guard",
+  "scope": "scripts/rls-scan.mjs, scripts/rls-verify.mjs, new scripts/rls-migration-check.mjs, tests/ (new tests for the migration check), docs/rls-*, supabase/migrations/ for any new fix; plus primer and mgo-asue repos (migration guard wiring only)",
+  "environment": "/Users/tywells/Downloads/projects/security-agent-dev",
+  "run_id": "secagent-rls-reverify-2026-10-07",
+  "source_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+  "build_identity": "Mac original scanner/verification16:15; distinct real-session scan17:56 at3663tables; corrected guard7b570b3 SHA256306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830; independent after-fix19worker tests/12CLI cases18:02",
+  "requirements": [
+    {
+      "criterion": 1,
+      "criterion_id": "criterion-ab0aa0120f335c72",
+      "requirement": "A fresh scan exists for all projects the token can see, and every RLS-off table it lists is either a documented exclusion or has a fix migration and anon-after proof recorded in docs/rls-signal-1e615aab-verification.md \u2014 check: test -f docs/rls-scan-2026-10-07.json && test -f docs/rls-scan-2026-10-07.md && grep -q \"Projects scanned\" docs/rls-scan-2026-10-07.md",
+      "expected": "All 45 active projects scan without errors; all RLS-off tables exactly match the three exclusions. Inventory all 75 visible projects, document inactive limitations.",
+      "method": "Read-only Management API inventory/catalog query; anon REST probes; compare exact table identities with prior after-scan.",
+      "observed": "Every active project in the visible inventory scanned:45/45,3660 public tables,0 query errors,3 exact existing exclusions, no new exposure/live fix required.109 prior fixed targets passed anon lockout and109/109 server paths HTTP200/206. Literal all-visible coverage remains blocked for30 inactive projects; read-only scan cannot resume their databases. Separate real-session scan independently confirms45/45active,3663tables,0errors,3same exclusions;3new propria-core tables since root scan all RLSenabled.30inactive catalogs remain blocked. See independent-scan and comparison evidence.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-scan-2026-10-07.json",
+          "sha256": "655940ecc309260bd95762e8d2976c179d67f77362804b0061810c23e8808e91"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-scan-2026-10-07.md",
+          "sha256": "58ff3243ebd88a260017df0245cb151326db8d5b53ebc7882e4190ce846ef33e"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/project-inventory.json",
+          "sha256": "12f0ae9adb453b2e0237096b2ca3d23c64e1b55bac007649cd683a19676c7991"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/comparison-audit.json",
+          "sha256": "765ca5ac29f417a9a0a4ac64dc0a8324a1ccc2de20aada88255fd10dfcddac41"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-verify-2026-10-07.json",
+          "sha256": "d4ead54a294e3c95f509c8e8217e2a60bfc7e60d1efcba908b8d1e3618d2852e"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-scan.json",
+          "sha256": "eb6d30929a04be6393aabc1e71612f6e12673f7f3bc50273eceb2e7311faf943"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-comparison.json",
+          "sha256": "e769a2cd7572089285b7d4d9be24c4deebb43ff4362dd343d929d00e57238a88"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-verification.json",
+          "sha256": "fb69a456857dbf606a8dba34a4a5fbd081a5cfd61c5f2d5ca8715a5bd64653ac"
+        }
+      ],
+      "status": "blocked"
+    },
+    {
+      "criterion": 2,
+      "criterion_id": "criterion-5b34e87eb9d14840",
+      "requirement": "docs/rls-signal-1e615aab-verification.md states the signal's claimed numbers (73+ tables, 25+ projects), the before-scan numbers (112 tables, 22 projects), the fresh-scan numbers, and a verdict line \"signal summary: confirmed|stale|wrong\" with the delta explained \u2014 check: grep -qE \"signal summary: (confirmed|stale|wrong)\" docs/rls-signal-1e615aab-verification.md",
+      "expected": "Report distinguishes claimed 73+ / 25+ from observed baseline 112 / 22 and current scan, explains stale delta.",
+      "method": "Recompute counts from before and fresh JSON and inspect verdict/document.",
+      "observed": "Comparison recomputes before112 off/22 affected in45 scanned; after3/3; today3/3 in45 scanned with3660 total public tables (6 newly added, all RLS on). Report signal summary: stale; claims73+tables/25+projects differ from baseline and no longer represent exposure state. Latest independent read-only scan has3663public tables (3more,allRLSon) with unchanged3off/3affected; preserved initial3660observation and actual delta.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-signal-1e615aab-verification.md",
+          "sha256": "4c543bc3c8d0c9d8be0591db93ae46319ce5b6da8503d5534452e2700b7d7640"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/comparison-audit.json",
+          "sha256": "765ca5ac29f417a9a0a4ac64dc0a8324a1ccc2de20aada88255fd10dfcddac41"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "criterion": 3,
+      "criterion_id": "criterion-dca29a3fe041d515",
+      "requirement": "scripts/rls-migration-check.mjs exits 1 on a fixture migration that creates a public table without ENABLE ROW LEVEL SECURITY and exits 0 on one that does, with unit tests under tests/ covering both and the primer and mgo-asue drizzle layouts \u2014 check: npm ci --no-audit --no-fund >/dev/null 2>&1 && npx vitest run tests/rls-migration-check.test.ts",
+      "expected": "CLI rejects unprotected public CREATE TABLE and accepts RLS-enabled fixtures in both app layouts.",
+      "method": "Run focused Vitest suite through rbuild; inspect CLI exit codes and fixtures.",
+      "observed": "Corrected source7b570b3. Root exact worker npm-ci/focused Vitest run exit0,1file19tests passed. Distinct real session01a11782 independently reran19tests on worker and12temporary CLI cases all expected exits, including5old-guard controls exit0 versus corrected exit1 for comment-hidden DOcreates/disables. Both flat/nested Drizzle and Supabase fixture requirements satisfied. Bounded static parser behavior, not universal PostgreSQL safety.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+          "sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/tests/rls-migration-check.test.ts",
+          "sha256": "d6dabb5cbe40f169070f272fadfc6e3d4343f77e3b9ae435097799a961119e48"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/guard-tests-after-recovery-fix.txt",
+          "sha256": "fc3876b59572792a48c81e0d06c5bf85691d67c3703f4e64289b7841a8a71256"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-guard-tests.txt",
+          "sha256": "f9bff417af0200c0778489badb7d87803800ad8e9d2c627cf37654f5dc98bea5"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-fixtures.json",
+          "sha256": "95e93021c2dd5051ee2841ef8e2ed63b10eab8dcb22c609580cca1a760544d85"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-verification.json",
+          "sha256": "ec465c2e10c97d3c09b30fc310b6c38a74d9db47aaf8681a0a80a409431f11dc"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "criterion": 4,
+      "criterion_id": "criterion-892f78fe4a00d441",
+      "requirement": "docs/rls-signal-1e615aab-verification.md has a \"Recurrence guard\" section recording, for primer and for mgo-asue, the commit SHA that wires the check in and the exact command plus its passing output on that repo's current migrations \u2014 check: grep -q \"Recurrence guard\" docs/rls-signal-1e615aab-verification.md && grep -c \"primer\\|mgo-asue\" docs/rls-signal-1e615aab-verification.md | awk '$1>=2{exit 0}{exit 1}'",
+      "expected": "Committed guard wiring for both app repos passes against current migrations; future unsafe migrations rejected.",
+      "method": "Inspect app scripts/hooks and commit SHAs; run actual migration guard and injected fixture negatives in each layout.",
+      "observed": "Isolated wiring commits primer86bf62af8f93f43d49266da888f6ad82379a2676/mgo271dbb38fd0231a9df77b3b21a752935c92df900. mgo check/prebuild/test PASS14SQL/16tables/0errors. Primer committed check/prebuild FAIL58SQL/52tables/39errors; original dirty history FAIL59SQL/63tables/50errors. Missing historical RLS SQL and11unsafe untracked discovery creates cannot be repaired within guard-wiring-only scope; no exemptions, original tree edits, pushes, merges or DB changes. Corrected isolated heads Primer37c22aa7760a1c0ee0ff2242a0c284d971d20351/MGO08f5a42de2bea0ef438bec020a2057efa3d0a3d8. Separate session independently checked guards and executed npm prebuild: Primer exit1 (39errors), MGO exit0 (0errors), original Primer50errors. No exemption/SQL repair/merge/deploy.",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-results.md",
+          "sha256": "b0df3fb630f8e75cf0fd40d84055716da3291e5ad5ee650af47e019f254131e4"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-evidence/primer-committed.txt",
+          "sha256": "1a776494625f36d44fedb1c4edb8dfb258067fd85a211d4c15800a987f7bda8d"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-evidence/primer-working.txt",
+          "sha256": "402257158b0579fa23734d2de5556d504ceffde85ffcf362f19b075add97c039"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-evidence/primer-prebuild.txt",
+          "sha256": "f5cc318ca5930d55e8f49f417eb546d29b40ed3fb26104f12bcbcc244d51717c"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-evidence/mgo-asue-check-rls.txt",
+          "sha256": "cc603e06204357bb9cd471816416c244ef58eb0f344cbd2b327ddc320ae8d211"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-evidence/mgo-asue-prebuild.txt",
+          "sha256": "7fc5454f73bfb5d349896176fd810f262654bc2736abcd7c7830bdc3226fb3e1"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-primer-prebuild.txt",
+          "sha256": "edce6beb4fc61ed62258fb41f553a093104415343f3c34e19a2c8e024f00549b"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-mgo-asue-prebuild.txt",
+          "sha256": "6b82bcfa146a1af7209e03ed39acfd443124edfb9dac43ff8e79fefa315bea43"
+        },
+        {
+          "type": "file",
+          "path": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-verification.json",
+          "sha256": "ec465c2e10c97d3c09b30fc310b6c38a74d9db47aaf8681a0a80a409431f11dc"
+        }
+      ],
+      "status": "blocked"
+    }
+  ],
+  "artefacts": [
+    "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-signal-1e615aab-verification.md",
+    "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-results.md",
+    "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+    "/Users/tywells/Downloads/projects/security-agent-dev/tests/rls-migration-check.test.ts",
+    "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-verification.md",
+    "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-verification.md"
+  ],
+  "workflows": [
+    {
+      "requirement": "All visible project inventory",
+      "expected": "Enumerate active and inactive projects without mutation",
+      "method": "Read-only GET /v1/projects with Keychain token",
+      "actual_observation": "75 visible:45 ACTIVE_HEALTHY/30 INACTIVE",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/project-inventory.json",
+      "environment_tenant_role_build": "Mac / token-visible Supabase organizations / Management API / unchanged October6 scanner",
+      "status": "passed"
+    },
+    {
+      "requirement": "Active public schema scan and exclusion reconciliation",
+      "expected": "All45 active catalogs queried, any off table resolved or same exclusion",
+      "method": "Unchanged catalog query read_only=true + anon REST probes",
+      "actual_observation": "3660 tables,0 catalog errors,3 exact documented exclusions",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/comparison-audit.json",
+      "environment_tenant_role_build": "45 Supabase refs in scan JSON / management token + anon-role keys / scanner3058a1b tree",
+      "status": "passed"
+    },
+    {
+      "requirement": "Inactive project catalogs",
+      "expected": "Verify all projects token can see",
+      "method": "Inventory status inspection; do not resume (non-read-only)",
+      "actual_observation": "30 INACTIVE databases unavailable to unchanged active-only scanner",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/project-inventory.json",
+      "environment_tenant_role_build": "30 inactive Supabase refs listed in inventory / management token",
+      "status": "blocked"
+    },
+    {
+      "requirement": "Prior fixed-table anon lockout and server readback",
+      "expected": "Every target has anon probes denied/zero and successful server key path",
+      "method": "rls-verify.mjs read-only REST followed by audit of probes and server_path JSON",
+      "actual_observation": "109/109 anon passes,0 missing anon probe arrays;109/109 server HTTP200/206;41740 rows exact aggregate",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-verify-2026-10-07.json",
+      "environment_tenant_role_build": "109 fixed public tables / anon + server keys / October6 verifier unchanged",
+      "status": "passed"
+    },
+    {
+      "requirement": "Independent verification",
+      "expected": "Different real session reruns scan and guard tests",
+      "method": "Distinct real T3/Codex session reran live scan, worker tests, static CLI controls and actual isolated prebuild hooks; no queue verify while scope blocked",
+      "actual_observation": "Observer Codex01a11782/T3 9f9ccbe6 distinct from builder01a11725/T3 57d1e994; active45scan3663tables0errors3exclusions; fixed-guard19tests/12CLI cases passed; overall capsule independently corroborated blocked for30inactive/Primer39or50gaps",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-verification.json",
+      "environment_tenant_role_build": "Distinct real Mac session / read-only token-visible Supabase / corrected7b570b3 guard and isolated app branch heads37c22aa,08f5a42 / worker tests",
+      "status": "passed"
+    },
+    {
+      "requirement": "Guard CLI fixture behavior",
+      "expected": "Unsafe public creates exit1,secured creates exit0 in both app layouts",
+      "method": "Recorded command/CLI output and branch inspection",
+      "actual_observation": "Corrected19focused tests plus12independent CLI cases pass, including old false-pass controls and safe body acceptance",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-fixtures.json",
+      "environment_tenant_role_build": "proxmox-worker / npm-ci / fixture-only",
+      "status": "passed"
+    },
+    {
+      "requirement": "MGO Asue wiring",
+      "expected": "npm build/test lifecycle executes guard on current migration history",
+      "method": "Recorded command/CLI output and branch inspection",
+      "actual_observation": "check/prebuild/test exit0:14files16tables0errors",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-evidence/mgo-asue-check-rls.txt",
+      "environment_tenant_role_build": "isolated mgo-asue branch271dbb38 / node static SQL / no database",
+      "status": "passed"
+    },
+    {
+      "requirement": "Primer committed wiring",
+      "expected": "Guard passes current migrations and future unsafe creates fail",
+      "method": "Recorded command/CLI output and branch inspection",
+      "actual_observation": "check/prebuild exit1:58files52tables39errors",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-evidence/primer-committed.txt",
+      "environment_tenant_role_build": "isolated primer branch86bf62af / node static SQL / no database",
+      "status": "blocked"
+    },
+    {
+      "requirement": "Primer working-tree migration inventory",
+      "expected": "Guard passes all current files including unfinished migrations",
+      "method": "Recorded command/CLI output and branch inspection",
+      "actual_observation": "exit1:59files63tables50errors, including11new discovery tables",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-guard-evidence/primer-working.txt",
+      "environment_tenant_role_build": "original primer working tree / other session untracked0057 unchanged",
+      "status": "blocked"
+    },
+    {
+      "requirement": "Recovery ownership and prior evidence preservation",
+      "expected": "Resume original owner without duplicate claim/work, preserve prior proof",
+      "method": "Compare actual harness/session/thread against read-only ledger and inspect cmd_adopt implementation",
+      "actual_observation": "Exact same session/thread; adopt is one-time drain handoff and falsely reports another holder on repeats. No transfer/release/force/ledger edit. Before evidence retained; independent before/after hashes unchanged. Earlier ownership reports retracted.",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/recovery-investigation.json",
+      "environment_tenant_role_build": "Mac original Codex01a11725/T3 57d1e994 / intent-queue read-only implementation investigation",
+      "status": "passed"
+    },
+    {
+      "requirement": "DO-comment guard bypass correction",
+      "expected": "Unsafe executable CREATE/DISABLE comments cannot bypass guard; harmless enum/constraint blocks accepted",
+      "method": "Independent source review, builder local reproduction, parser correction, then separate-session worker suite and12CLI controls",
+      "actual_observation": "Before guard falsely passed5independent unsafe cases; after rejects same5exit1.19tests/12CLI cases pass; fix copies match committed SHA256306b9966. General PostgreSQL/stored-function behavior not claimed.",
+      "evidence_reference": "/Users/tywells/Downloads/projects/security-agent-dev/docs/rls-evidence/2026-10-07/independent-after-fix-verification.json",
+      "environment_tenant_role_build": "Builder7b570b3 / distinct observer01a11782 / static local fixtures and proxmox-worker / no liveSQL",
+      "status": "passed"
+    }
+  ],
+  "history": [
+    {
+      "phase": "initial implementation",
+      "source_revision": "b202d1564d865831bc946226a00c69c6494750b4",
+      "evidence": "docs/rls-evidence/2026-10-07/independent-verification.json",
+      "observed": "Independent scan corroborated active protection and Primer blockers but found DO-comment bypass despite16tests; before evidence retained."
+    },
+    {
+      "phase": "corrected guard",
+      "source_revision": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+      "evidence": "docs/rls-evidence/2026-10-07/independent-after-fix-verification.json",
+      "observed": "Reported defect corrected for independently tested forms; original all-visible and Primer criteria still blocked."
+    }
+  ]
+}

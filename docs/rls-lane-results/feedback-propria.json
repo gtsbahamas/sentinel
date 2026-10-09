@@ -1,0 +1,23 @@
+[
+{"project":"feedback-hub","ref":"xbprebqvcgehtmrsvqep","repo":"feedback-hub","migration":"supabase/migrations/20261006170100_rls_lockdown.sql","commit":"ca4ea9c058085b2537d224f041eb30e7883db94a","branch":"main (pushed)",
+ "notes":"The Isotope demo runner (src/lib/isotope/scenarios.ts) drops and re-creates the _demo_* tables, which came back RLS-off on every run; fixed in e5593cc (enables RLS right after each CREATE), pushed.",
+ "tables":[
+  {"table":"_demo_event_reservations","sensitive":false,"access":"service_role + Management API SQL via src/lib/isotope/scenarios.ts:620","action":"enable rls, no policies (+ runner re-enables on recreate)","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 206 / 6"},
+  {"table":"_demo_events","sensitive":true,"access":"service_role + Mgmt API via scenarios.ts:621","action":"enable rls, no policies (+ runner re-enables on recreate)","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 206 / 12"},
+  {"table":"_demo_reservation_edits","sensitive":true,"access":"service_role + Mgmt API via scenarios.ts:482","action":"enable rls, no policies (+ runner re-enables on recreate)","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 206 / 2"},
+  {"table":"_demo_reservations","sensitive":true,"access":"service_role + Mgmt API via scenarios.ts:289","action":"enable rls, no policies (+ runner re-enables on recreate)","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 1"},
+  {"table":"_demo_seat_assignments","sensitive":false,"access":"service_role + Mgmt API via scenarios.ts:288","action":"enable rls, no policies (+ runner re-enables on recreate)","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 206 / 24"},
+  {"table":"claude_sessions","sensitive":true,"access":"service_role via src/app/api/claude-questions/route.ts:163; super-intelligence engine/sense.py:564","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 206 / 3"},
+  {"table":"specialists","sensitive":true,"access":"service_role via src/app/api/admin/specialists/route.ts:78","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 1"},
+  {"table":"test_runs","sensitive":false,"access":"service_role via src/app/admin/test-runs/page.tsx:14","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 206 / 5"},
+  {"table":"test_steps","sensitive":false,"access":"service_role via src/app/admin/test-runs/[id]/page.tsx:57","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 206 / 38"}]},
+{"project":"propria-core","ref":"wjkfldyrifvvvtpxcjxp","repo":"propria-core","migration":"supabase/migrations/20261006170100_rls_lockdown.sql","commit":"afa275001b65106f4f6a0ea173a7b7d3d4ad9da4","branch":"sec/rls-lockdown-20261006 (pushed)",
+ "tables":[
+  {"table":"agent_proposals","sensitive":true,"access":"service_role via src/db/client.ts:5 used by src/api/hermes-routes.ts, src/box/proposals-bridge.ts","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (had 684); anon POST 401","app_path_after":"service_role 206 / 684"},
+  {"table":"hermes_voice_calls","sensitive":true,"access":"service_role via src/api/hermes-routes.ts:200","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (had 7)","app_path_after":"service_role 206 / 7"}]},
+{"project":"coral-harbour-pilot","ref":"oilrcfmjjdqkqdegqaqc","repo":"propria-core","migration":"supabase/migrations/20261006170100_rls_lockdown.sql (same file, applied to both refs; the pilot is the same codebase deployed via deploy/pilot)","commit":"afa275001b65106f4f6a0ea173a7b7d3d4ad9da4","branch":"sec/rls-lockdown-20261006 (pushed)",
+ "tables":[
+  {"table":"agent_proposals","sensitive":true,"access":"same propria-core code, service_role","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0 (empty before and after)"},
+  {"table":"hermes_voice_calls","sensitive":true,"access":"same propria-core code, service_role","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0","app_path_after":"service_role 200 / 0 (empty before and after)"},
+  {"table":"pilot_email_replies","sensitive":true,"access":"service_role via src/pilot/email-reply.ts:65","action":"enable rls, no policies","status":"fixed","anon_after":"200 / 0 (had 13)","app_path_after":"service_role 206 / 13"}]}
+]

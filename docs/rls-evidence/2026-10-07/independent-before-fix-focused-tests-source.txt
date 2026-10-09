@@ -1,0 +1,86 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+// @ts-expect-error Standalone executable deliberately has no TS build dependency.
+import { checkMigrations } from '../scripts/rls-migration-check.mjs';
+const roots: string[] = [];
+afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); });
+function fixture(layout: string, sql: string) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rls-guard-test-')); roots.push(root);
+  fs.mkdirSync(path.join(root,layout), { recursive: true });
+  fs.writeFileSync(path.join(root,layout,'0001.sql'), sql);
+  return root;
+}
+const cli = path.resolve('scripts/rls-migration-check.mjs');
+describe('migration-level RLS guard', () => {
+  for (const layout of ['drizzle', 'drizzle/migrations', 'supabase/migrations']) {
+    it(`rejects unsafe CREATE TABLE with exit 1 in ${layout}`, () => {
+      const root = fixture(layout, 'CREATE TABLE "users" (id integer);');
+      const result = spawnSync(process.execPath,[cli,'--root',root], { encoding:'utf8' });
+      expect(result.status).toBe(1); expect(result.stderr).toContain('public.users');
+    });
+    it(`accepts secured CREATE TABLE with exit 0 in ${layout}`, () => {
+      const root = fixture(layout, 'CREATE TABLE public."Users" (id integer); ALTER TABLE public."Users" ENABLE ROW LEVEL SECURITY;');
+      const result = spawnSync(process.execPath,[cli,'--root',root], { encoding:'utf8' });
+      expect(result.status).toBe(0); expect(result.stdout).toContain('PASS');
+    });
+  }
+  it('ignores comment/string/function-body fake enables and respects quoted case', () => {
+    const root = fixture('drizzle', `CREATE TABLE "User" (id int); /* nested /* ENABLE */ comment */
+      -- ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
+      SELECT 'ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;';
+      CREATE FUNCTION noop() RETURNS void AS $$ BEGIN ALTER TABLE "User" ENABLE ROW LEVEL SECURITY; END $$ LANGUAGE plpgsql;
+      ALTER TABLE "user" ENABLE ROW LEVEL SECURITY;`);
+    expect(checkMigrations(root).errors.join('\n')).toContain('public.User');
+  });
+  it('rejects later DISABLE even after an enable', () => {
+    const root = fixture('drizzle', 'CREATE UNLOGGED TABLE IF NOT EXISTS public.x(id int); ALTER TABLE ONLY public.x ENABLE ROW LEVEL SECURITY; ALTER TABLE IF EXISTS public.x DISABLE ROW LEVEL SECURITY;');
+    expect(checkMigrations(root).errors.join('\n')).toContain('DISABLE');
+  });
+  it('accepts historical creates enabled in a later migration stream', () => {
+    const root = fixture('drizzle','CREATE TABLE x(id int);');
+    fs.mkdirSync(path.join(root,'supabase/migrations'),{recursive:true});
+    fs.writeFileSync(path.join(root,'supabase/migrations/0002.sql'),'ALTER TABLE x ENABLE ROW LEVEL SECURITY;');
+    expect(checkMigrations(root).errors).toEqual([]);
+  });
+  it('rejects new table creation after previous enables and later disables in another file', () => {
+    const root = fixture('drizzle','ALTER TABLE x ENABLE ROW LEVEL SECURITY; CREATE TABLE x(id int);');
+    expect(checkMigrations(root).errors.join('\n')).toContain('public.x');
+    fs.writeFileSync(path.join(root,'drizzle/0002.sql'),'ALTER TABLE x ENABLE ROW LEVEL SECURITY; ALTER TABLE x DISABLE ROW LEVEL SECURITY;');
+    expect(checkMigrations(root).errors.join('\n')).toContain('DISABLE');
+  });
+  it('fails closed for dynamic table/RLS changes inside DO blocks', () => {
+    for (const sql of ["DO $$ BEGIN EXECUTE 'CREATE TABLE x(id int)'; END $$;", 'DO $body$ BEGIN CREATE TABLE x(id int); END $body$;', 'DO $$ BEGIN ALTER TABLE x DISABLE ROW LEVEL SECURITY; END $$;']) {
+      const root = fixture('drizzle',sql);
+      expect(checkMigrations(root).errors.join('\n')).toContain('Dynamic table/RLS');
+    }
+  });
+  it('fails closed on schema moves, renames, search_path functions and backslash strings', () => {
+    for (const sql of ['ALTER TABLE private.x SET SCHEMA public;', 'ALTER TABLE x RENAME TO y;', "SELECT set_config('search_path','private',false);", String.raw`SELECT 'escaped\'; CREATE TABLE x(id int);`]) {
+      const root = fixture('drizzle',sql);
+      expect(checkMigrations(root).errors.length).toBeGreaterThan(0);
+    }
+  });
+  it('does not let a historical enable mask a repeated create in a new migration', () => {
+    const root = fixture('drizzle','CREATE TABLE IF NOT EXISTS x(id int); ALTER TABLE x ENABLE ROW LEVEL SECURITY;');
+    fs.writeFileSync(path.join(root,'drizzle/0002.sql'),'CREATE TABLE IF NOT EXISTS x(id int);');
+    fs.mkdirSync(path.join(root,'supabase/migrations'),{recursive:true});
+    fs.writeFileSync(path.join(root,'supabase/migrations/0001.sql'),'ALTER TABLE x ENABLE ROW LEVEL SECURITY;');
+    expect(checkMigrations(root).errors.join('\n')).toContain('same migration');
+  });
+  it('allows ON CONFLICT DO NOTHING/UPDATE without treating them as anonymous blocks', () => {
+    const root = fixture('drizzle',"CREATE TABLE x(id int); ALTER TABLE x ENABLE ROW LEVEL SECURITY; INSERT INTO x VALUES(1) ON CONFLICT DO NOTHING; INSERT INTO x VALUES(1) ON CONFLICT DO UPDATE SET id=1;");
+    expect(checkMigrations(root).errors).toEqual([]);
+  });
+  it('ignores explicit nonpublic schemas and temporary tables', () => {
+    const root = fixture('drizzle','CREATE TABLE private.x(id int); CREATE TEMP TABLE temp_x(id int);');
+    expect(checkMigrations(root).errors).toEqual([]);
+  });
+  it('rejects empty migration paths and ambiguous search_path', () => {
+    const root = fixture('drizzle','SET search_path = private; CREATE TABLE x(id int);');
+    expect(checkMigrations(root).errors.join('\n')).toContain('search_path');
+    expect(checkMigrations(root,['missing']).errors.join('\n')).toContain('No SQL');
+  });
+});

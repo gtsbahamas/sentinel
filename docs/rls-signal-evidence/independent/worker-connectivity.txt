@@ -1,0 +1,2 @@
+Control socket connect(/Users/tywells/.ssh/cm-ty@proxmox-worker-22): Operation not permitted
+ssh: Could not resolve hostname proxmox-worker: nodename nor servname provided, or not known

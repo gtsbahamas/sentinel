@@ -1,0 +1,15 @@
+{
+  "case": "ordinary-harmless-enum",
+  "sql": "DO 'BEGIN CREATE TYPE mood AS ENUM (''CREATE TABLE fake(id int)'', ''DO'', ''EXECUTE''); EXCEPTION WHEN duplicate_object THEN null; END';",
+  "command": [
+    "node",
+    "/Users/tywells/Downloads/projects/security-agent-dev/scripts/rls-migration-check.mjs",
+    "--root",
+    "/tmp/independent-rls-after-fix-k90zgoft/ordinary-harmless-enum"
+  ],
+  "expected_exit": 0,
+  "actual_exit": 0,
+  "stdout": "RLS migration guard: PASS (1 SQL files, 0 public tables, 0 errors)\n",
+  "stderr": "",
+  "status": "passed"
+}

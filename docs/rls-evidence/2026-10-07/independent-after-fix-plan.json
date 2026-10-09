@@ -1,0 +1,138 @@
+{
+  "recorded_at": "2026-10-07T18:00:38.322492+00:00",
+  "metadata": {
+    "identity": {
+      "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+      "CLAUDE_CODE_SESSION_ID": null,
+      "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+    },
+    "root_sha": "7b570b361c9924974394b2afdebd1736cce5d3e6",
+    "expected_guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+    "apps": {
+      "primer": {
+        "root": "/tmp/rls-guard-worktrees/primer",
+        "sha": "37c22aa7760a1c0ee0ff2242a0c284d971d20351",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "status": "",
+        "scripts": {
+          "dev": "next dev",
+          "build": "next build",
+          "start": "next start",
+          "lint": "eslint",
+          "typecheck": "tsc --noEmit",
+          "test": "vitest run --passWithNoTests",
+          "test:watch": "vitest",
+          "check:rls": "node scripts/rls-migration-check.mjs",
+          "prebuild": "npm run check:rls",
+          "pretest": "npm run check:rls"
+        }
+      },
+      "mgo-asue": {
+        "root": "/tmp/rls-guard-worktrees/mgo-asue",
+        "sha": "08f5a42de2bea0ef438bec020a2057efa3d0a3d8",
+        "guard_sha256": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+        "status": "",
+        "scripts": {
+          "dev": "next dev",
+          "build": "next build",
+          "start": "next start",
+          "lint": "eslint",
+          "typecheck": "tsc --noEmit",
+          "simulate": "tsx scripts/simulate-defaults.ts",
+          "db:apply": "tsx scripts/apply-sql.ts",
+          "test:round": "tsx scripts/test-round-orchestrator.ts",
+          "test:guards": "tsx scripts/test-premortem-guards.ts",
+          "test:enrollment": "tsx scripts/test-enrollment-guards.ts",
+          "test:exposure": "tsx scripts/test-cross-pool-exposure.ts",
+          "test:merchant": "tsx scripts/test-merchant-view.ts",
+          "sms:test": "tsx scripts/send-test-sms.ts",
+          "probe:smsenv": "tsx scripts/probe-sms-env.ts",
+          "seed:demo": "tsx scripts/seed-demo-pool.ts",
+          "seed:ops": "tsx scripts/seed-ops-fixtures.ts",
+          "seed:ops:reset": "tsx scripts/seed-ops-fixtures.ts --clean",
+          "backfill:deposits": "tsx scripts/backfill-merchant-deposits.ts",
+          "shortlist": "tsx scripts/pilot-shortlist.ts",
+          "scorecard": "tsx scripts/scorecard.ts",
+          "whatsapp:submit": "tsx scripts/submit-whatsapp-templates.ts",
+          "whatsapp:status": "tsx scripts/whatsapp-template-status.ts",
+          "prove:nudge": "tsx scripts/prove-live-nudge.ts",
+          "prove:seating": "tsx scripts/prove-live-seating.ts",
+          "prove:haircut": "tsx scripts/prove-live-haircut.ts",
+          "prove:frontdoor": "tsx scripts/prove-front-door.ts",
+          "prove:walk": "tsx scripts/prove-participant-walk.ts",
+          "prove:transfer": "tsx scripts/prove-seat-transfer.ts",
+          "prove:crosspool": "tsx scripts/prove-cross-pool.ts",
+          "probe:rail": "tsx scripts/probe-rail-gate.ts",
+          "check:residue": "tsx scripts/check-sim-residue.ts",
+          "test:custody": "tsx scripts/test-custody-derivation.ts",
+          "prove:coverage": "tsx scripts/prove-coverage-gate.ts",
+          "prove:console": "tsx scripts/prove-console-lifecycle.ts",
+          "prove:hold-saga": "tsx scripts/prove-deposit-hold-saga.ts",
+          "test:goal": "tsx scripts/test-goal-domain.ts",
+          "prove:goal": "tsx scripts/prove-goal-waterfalls.ts",
+          "check:rls": "node scripts/rls-migration-check.mjs",
+          "prebuild": "npm run check:rls",
+          "pretest": "npm run check:rls",
+          "test": "npm run check:rls"
+        }
+      }
+    },
+    "source_hashes": {
+      "scripts/rls-migration-check.mjs": "306b99662de289a9d3d39d37900de5c4e902f0c0219a68c18c8a250df03d4830",
+      "scripts/rls-scan.mjs": "00169a241a64234197dd235ac3d73d25bd48019c4582543dec3cfb656888f92f",
+      "tests/rls-migration-check.test.ts": "d6dabb5cbe40f169070f272fadfc6e3d4343f77e3b9ae435097799a961119e48"
+    },
+    "preserved_before_artifacts": {
+      "independent-scan.md": "d5c99224f24eb1e915b7294d8aa8e3aebeaeec570277110646641b8ba39b50b5",
+      "independent-verification.json": "fb69a456857dbf606a8dba34a4a5fbd081a5cfd61c5f2d5ca8715a5bd64653ac",
+      "independent-mgo-asue-guard.txt": "4b0b98bb52f2d9a32a1199d28464f21a0cd755bde4d7c30d40bc16411f5169af",
+      "independent-verification-plan.json": "998a6f30008babd4f08c6d16e821103ea1892441fe02a544d93312a6d668b81c",
+      "independent-comparison.json": "e769a2cd7572089285b7d4d9be24c4deebb43ff4362dd343d929d00e57238a88",
+      "independent-scan.json": "eb6d30929a04be6393aabc1e71612f6e12673f7f3bc50273eceb2e7311faf943",
+      "independent-scanner-source.txt": "00169a241a64234197dd235ac3d73d25bd48019c4582543dec3cfb656888f92f",
+      "independent-before-fix-focused-tests-source.txt": "f74f36c8c40657a8eb90219678a9df644551409b3d14e835420f73395c6e1845",
+      "independent-app-metadata.json": "b830be600adc47a3d0cc6ae31a9839e11f2a1f56423c751200b1c2caba9282b6",
+      "independent-build-metadata.json": "13fa07b1351551b1964e662cbf9830038bf900b76ee2e646e19b78eaa2470a9e",
+      "independent-primer-guard.txt": "005a75c917e6cda729ba6588ae93b667c6ab7c952292ac91f087677fe7f04b51",
+      "independent-guard-tests.txt": "f77a2470533b58e2ca197eaa0b475526f8194629bad7b9d8ca6d37507034e989",
+      "independent-scan-output.txt": "3a9ddf2cb2012f1340c4840043a3e388b1f9af3fbbbfa4a5e8a1a7673db7a0d1",
+      "independent-evidence-sha256.json": "e2da4d3f1c94b7b2754138f8c2f7c2bd14fccecf34f5410a37c5ba5973d48acc",
+      "independent-verification.md": "f1bd57971511b9863fb5f336d6b76c940ca64d5dce907afa661935c08d64a532",
+      "independent-project-inventory.json": "d6acdbff2ad819bde25459b37998839a534ee9f50fa5b0c95d708cd0b16a530a",
+      "independent-before-fix-guard-source.txt": "bf14e6d172afa1d0cf5ce20a656fbd4b19255e1c3a05db0a542d9b26f1bb650b",
+      "independent-primer-original-guard.txt": "4712a67afa83e9d62af98a88255492bd8ad38a4fd108f0acae888e87c118aa55"
+    }
+  },
+  "requirements": [
+    {
+      "requirement": "Corrected identities/revisions/hashes",
+      "expected": "Same real verifier session; exact supplied root/app revisions/hash; scanner unchanged",
+      "method": "Environment/git/hash read-only comparison",
+      "status": "untested"
+    },
+    {
+      "requirement": "Focused worker tests",
+      "expected": "Exact requested command passes19tests on worker",
+      "method": "rbuild no fallback and captured actual exit",
+      "status": "untested"
+    },
+    {
+      "requirement": "Original bypass regressions",
+      "expected": "Dollar/ordinary DO CREATE/DISABLE exit1; harmless enum/constraint bodies exit0",
+      "method": "Ephemeral SQL fixtures via actual CLI; no SQL executed",
+      "status": "untested"
+    },
+    {
+      "requirement": "App roots and prebuild hooks",
+      "expected": "Observe all3 roots plus isolated2 hooks; retain dirty Primer failures",
+      "method": "Read-only static CLI and npm run prebuild only",
+      "status": "untested"
+    },
+    {
+      "requirement": "Residual review and scope",
+      "expected": "Assess fix to original defect; remaining blockers explicit",
+      "method": "Source review and separate MD/JSON; preserve earlier evidence",
+      "status": "untested"
+    }
+  ]
+}

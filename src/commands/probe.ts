@@ -6,6 +6,7 @@ import { inputInjectionRules } from "../layers/rules/domains/input-injection.js"
 import { authAccessControlRules } from "../layers/rules/domains/auth-access-control.js";
 import { fileUploadRules } from "../layers/rules/domains/file-upload.js";
 import { supplyChainRules } from "../layers/rules/domains/supply-chain.js";
+import { repoIntegrityRules, resetRepoIntegrityCache } from "../layers/rules/domains/repo-integrity.js";
 import { cryptographyRules } from "../layers/rules/domains/cryptography.js";
 import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitoring.js";
 import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
@@ -114,6 +115,9 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
   registerRules(authAccessControlRules);
   registerRules(fileUploadRules);
   registerRules(supplyChainRules);
+  registerRules(repoIntegrityRules);
+  // Memoized whole-tree walk must not survive into the next scan in this process.
+  resetRepoIntegrityCache();
   registerRules(cryptographyRules);
   registerRules(loggingMonitoringRules);
   registerRules(apiSecurityRules);

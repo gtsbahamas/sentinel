@@ -1,0 +1,4 @@
+criterion1 artifact smoke check: True
+criterion2 verdict smoke check: True
+criterion2 exact count content: True
+full acceptance: NOT PROVED: inactive project scans and passing Primer current migration guard unresolved; independent verification not performed

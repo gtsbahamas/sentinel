@@ -1,0 +1,12 @@
+{
+  "challenges": [
+    "unknown table open",
+    "anon_write drift open",
+    "auth_write drift open",
+    "anon_truncate drift open",
+    "auth_truncate drift open",
+    "collection error unresolved",
+    "same table other project open"
+  ],
+  "passed": 7
+}

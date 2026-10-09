@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "grant_challenges": [
+    "anon_write: reopened",
+    "auth_write: reopened",
+    "anon_truncate: reopened",
+    "auth_truncate: reopened"
+  ],
+  "unknown_table_open": true,
+  "other_project_open": true,
+  "collection_error_unresolved": true,
+  "report_separation": true,
+  "stale_lane_does_not_override": true
+}

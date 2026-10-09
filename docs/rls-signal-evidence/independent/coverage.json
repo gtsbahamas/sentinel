@@ -1,0 +1,101 @@
+{
+  "environment": {
+    "repo": "/Users/tywells/Downloads/projects/security-agent-dev",
+    "revision": "dff463ccf010a5588ead5184fe6065dc258655c5",
+    "role": "distinct independent audit; no queue adoption/closure/verify"
+  },
+  "requirements": [
+    {
+      "requirement": "C1 closure and 112 baseline across 22 affected/45 active; exact 109 fixed",
+      "expected": "document and independently reconciled identities agree",
+      "method": "git objects, baseline/lane/probe identity reconciliation",
+      "status": "passed",
+      "actual_observation": "Closure document names baseline/fixed totals and all three residue dispositions. Exact baseline partition independently reconciles: 45 active, 22 affected, 112 = 109 fixed + 3 exclusions. This is document/saved-artifact proof; live residue proof is separately blocked.",
+      "evidence": [
+        "docs/rls-signal-evidence/independent/capsule.json",
+        "docs/rls-signal-evidence/independent/static-observations.json"
+      ],
+      "environment_tenant_role_build": {
+        "environment": "Mac local artifacts; remote execution unavailable",
+        "tenant": "45 active Supabase projects in saved baseline/scan; exact refs in artifacts",
+        "role": "independent verifier; no live API role assumed",
+        "build": "dff463ccf010a5588ead5184fe6065dc258655c5"
+      }
+    },
+    {
+      "requirement": "C2 all active live scan and exactly three exclusions",
+      "expected": "45 active, zero errors/open, exact residue identities",
+      "method": "rbuild scanner; HEAD only; wrap SQL BEGIN/ROLLBACK",
+      "status": "blocked",
+      "actual_observation": "Builder scan at 2026-10-07T18:13:49.416Z has 45 projects, exact 3 exclusions, 0 open and 0 errors; raw table inventory matches RLS-off lists. Independent all-active live scan did not run: rbuild exited 255 before execution.",
+      "evidence": [
+        "docs/rls-signal-evidence/independent/static-observations.json",
+        "docs/rls-signal-evidence/independent/rbuild.txt",
+        "docs/rls-signal-evidence/independent/worker-connectivity.txt"
+      ],
+      "environment_tenant_role_build": {
+        "environment": "Mac local artifacts; remote execution unavailable",
+        "tenant": "45 active Supabase projects in saved baseline/scan; exact refs in artifacts",
+        "role": "independent verifier; no live API role assumed",
+        "build": "dff463ccf010a5588ead5184fe6065dc258655c5"
+      }
+    },
+    {
+      "requirement": "C3 regression safeguards and report separation",
+      "expected": "unknown table/grant drift/errors unresolved; latest committed gate; separate report sections",
+      "method": "Mac-dependent committed-object Vitest and independent fixture challenges",
+      "status": "passed",
+      "actual_observation": "Real repository committed-object Vitest: 6/6 passed. Isolated clean Git fixture passed; a committed unknown RLS-off table produced expected nonzero test exit. Independent fixture reopens all four grant fields and another-project identity, preserves collection error, and report separates 2 open/1 excluded/1 error despite stale excluded lane entries.",
+      "evidence": [
+        "docs/rls-signal-evidence/independent/vitest.txt",
+        "docs/rls-signal-evidence/independent/committed-gate-results.json",
+        "docs/rls-signal-evidence/independent/committed-gate-clean.txt",
+        "docs/rls-signal-evidence/independent/committed-gate-unknown.txt",
+        "docs/rls-signal-evidence/independent/independent-fixture-results.json",
+        "docs/rls-signal-evidence/independent/report-fixture/report.md"
+      ],
+      "environment_tenant_role_build": {
+        "environment": "Mac local artifacts; remote execution unavailable",
+        "tenant": "45 active Supabase projects in saved baseline/scan; exact refs in artifacts",
+        "role": "independent verifier; no live API role assumed",
+        "build": "dff463ccf010a5588ead5184fe6065dc258655c5"
+      }
+    },
+    {
+      "requirement": "C4 fresh builder verification actual probes and independent 109 target check",
+      "expected": "109 nonempty probe arrays, count zero or denied; every server path successful",
+      "method": "saved builder JSON strict inspection and independent HEAD probes through rbuild",
+      "status": "blocked",
+      "actual_observation": "Saved fresh builder verify at 2026-10-07T18:12:42.222Z: exact 109 target identities; pass109/fail0; 187 actual probes; every target has nonempty safe probe arrays and successful server metadata path. Independent live HEAD recheck did not run because worker unreachable.",
+      "evidence": [
+        "docs/rls-signal-evidence/independent/static-observations.json",
+        "docs/rls-signal-evidence/independent/rbuild.txt"
+      ],
+      "environment_tenant_role_build": {
+        "environment": "Mac local artifacts; remote execution unavailable",
+        "tenant": "45 active Supabase projects in saved baseline/scan; exact refs in artifacts",
+        "role": "independent verifier; no live API role assumed",
+        "build": "dff463ccf010a5588ead5184fe6065dc258655c5"
+      }
+    },
+    {
+      "requirement": "Residue: demo readable and read-only; PostGIS exact rollback REVOKE fallback",
+      "expected": "demo no writes/truncate; each catalog retains writes after rollback trial and owner role denied; identical readback",
+      "method": "independent metadata + exact REVOKE + owner-role rollback trials; HEAD demo count",
+      "status": "blocked",
+      "actual_observation": "Saved builder residue responses inspected: demo both roles SELECT true and INSERT/UPDATE/DELETE/TRUNCATE false; each PostGIS exact rollback REVOKE status201 left both roles writes/truncate true, owner-role attempt status400 ERROR42501, readback unchanged. No independent live SQL trial/readback performed because worker unreachable.",
+      "evidence": [
+        "docs/rls-signal-evidence/independent/static-observations.json",
+        "docs/rls-signal-evidence/independent/rbuild.txt",
+        "docs/rls-signal-evidence/independent/worker-connectivity.txt"
+      ],
+      "environment_tenant_role_build": {
+        "environment": "Mac local artifacts; remote execution unavailable",
+        "tenant": "45 active Supabase projects in saved baseline/scan; exact refs in artifacts",
+        "role": "independent verifier; no live API role assumed",
+        "build": "dff463ccf010a5588ead5184fe6065dc258655c5"
+      }
+    }
+  ],
+  "verdict": "blocked; no independent live pass and no intent-queue acceptance attempted"
+}

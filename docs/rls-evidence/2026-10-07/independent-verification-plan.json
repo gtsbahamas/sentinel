@@ -1,0 +1,44 @@
+{
+  "created_at": "2026-10-07T17:56:38.555661+00:00",
+  "identity": {
+    "CODEX_THREAD_ID": "01a11782-4018-7ca0-806a-9f5ecdd72ed5",
+    "CLAUDE_CODE_SESSION_ID": null,
+    "T3TY_THREAD_ID": "9f9ccbe6-882d-4be8-b6b4-381d1f4ecd2f"
+  },
+  "builder": {
+    "CODEX_THREAD_ID": "01a11725-a148-7861-957d-459c0136e5c4",
+    "T3TY_THREAD_ID": "57d1e994-09c2-4432-8e2b-60c173743cd1"
+  },
+  "criteria": [
+    {
+      "requirement": "1",
+      "expected_behavior": "Real session differs from builder",
+      "method": "Environment variables, no override",
+      "status": "untested"
+    },
+    {
+      "requirement": "2",
+      "expected_behavior": "Unchanged read-only scan; inventory all visible IDs; compare active IDs/errors/exclusions",
+      "method": "Keychain environment local scan, GET projects, compare JSON; inactive catalogs remain blocked",
+      "status": "untested"
+    },
+    {
+      "requirement": "3",
+      "expected_behavior": "Exact focused tests on worker and safety source review",
+      "method": "rbuild exact npm-ci/vitest command plus guard inspection",
+      "status": "untested"
+    },
+    {
+      "requirement": "4",
+      "expected_behavior": "Three actual root exit statuses; app SHAs/hooks and original dirty migration",
+      "method": "Run unchanged CLI for each root, git read-only metadata and package scripts",
+      "status": "untested"
+    },
+    {
+      "requirement": "5",
+      "expected_behavior": "Evidence-only MD/JSON; parent outcome and scope reconciliation",
+      "method": "Write observations and limitations; blocked unless all original acceptance proved",
+      "status": "untested"
+    }
+  ]
+}

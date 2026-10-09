@@ -1,0 +1,4 @@
+COMMAND: node scripts/rls-migration-check.mjs --root /tmp/rls-guard-worktrees/mgo-asue
+RLS migration guard: PASS (14 SQL files, 16 public tables, 0 errors)
+
+EXIT_STATUS=0
