@@ -6,18 +6,37 @@ export type Layer = "rules" | "ai" | "probe";
 
 export type StackProfile = "nextjs-supabase" | "react-vite-supabase" | "generic-web" | "go" | "python" | "rust" | "unknown";
 
-export type SecurityDomain =
-  | "secrets-exposure"
-  | "input-injection"
-  | "auth-access-control"
-  | "file-upload"
-  | "api-security"
-  | "cryptography"
-  | "supply-chain"
-  | "infrastructure"
-  | "business-logic"
-  | "logging-monitoring"
-  | "llm-features";
+/**
+ * The single source of truth for security domains.
+ *
+ * Was a bare union, with three hand-maintained copies of the same list
+ * (output/terminal.ts, output/html.ts, layers/ai/providers/ollama.ts). Adding a
+ * domain to the union compiled cleanly and then silently vanished from the
+ * terminal summary table and the HTML report, while the Ollama prompt kept
+ * offering the old set. Deriving the type FROM the tuple makes the drift
+ * impossible: there is one list, and it is this one.
+ *
+ * Order is display order.
+ */
+export const SECURITY_DOMAINS = [
+  "secrets-exposure",
+  "input-injection",
+  "auth-access-control",
+  "file-upload",
+  "api-security",
+  "cryptography",
+  "supply-chain",
+  // Stack-agnostic: is this repository what it claims to be? Distinct from
+  // supply-chain, which asks whether the DECLARED dependencies are safe. This
+  // asks about artifacts and claims the manifests never declare at all.
+  "repo-integrity",
+  "infrastructure",
+  "business-logic",
+  "logging-monitoring",
+  "llm-features",
+] as const;
+
+export type SecurityDomain = (typeof SECURITY_DOMAINS)[number];
 
 export interface Evidence {
   file: string;
