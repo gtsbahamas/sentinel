@@ -1,7 +1,7 @@
 {
   "name": "shipsafe-sentinel",
-  "version": "0.3.2",
-  "description": "Security assessment CLI for Next.js + Supabase codebases — the scanner behind ShipSafe coaching",
+  "version": "0.3.3",
+  "description": "Security assessment CLI for Next.js + Supabase codebases \u2014 the scanner behind ShipSafe coaching",
   "license": "Apache-2.0",
   "author": "Ty Wells (Frank Labs)",
   "homepage": "https://shipsafe-web-eight.vercel.app",
@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ai-live": "RUN_AI_LIVE_TESTS=1 vitest run --config vitest.live.config.ts",
+    "test:osv-live": "vitest run --config vitest.osv-live.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests --ext .ts"
   },
