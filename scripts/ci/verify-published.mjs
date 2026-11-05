@@ -18,6 +18,12 @@ const REQUIRED_FILES = [
   "package/dist/monitor/advisory-alerts.js",
 ];
 
+// Rules the release must carry, by the text that only the shipped version has
+// (gtsbahamas/fleet#8881: 0.3.1 was latest while LLM-006 sat unpublished).
+const REQUIRED_CONTENT = [
+  { file: "package/dist/layers/rules/domains/llm-features.js", needles: ['"LLM-006"', "approvalGuards"] },
+];
+
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 const waitArg = process.argv.indexOf("--wait-seconds");
 const waitSeconds = waitArg > 0 ? Number(process.argv[waitArg + 1]) : 0;
@@ -53,6 +59,14 @@ if (missing.length) {
   console.error(`FAIL: ${pkg.name}@${pkg.version} tarball lacks ${missing.join(", ")}`);
   process.exit(1);
 }
+for (const { file: inner, needles } of REQUIRED_CONTENT) {
+  const text = execFileSync("tar", ["-xzOf", file, inner], { encoding: "utf8" });
+  const absent = needles.filter((n) => !text.includes(n));
+  if (absent.length) {
+    console.error(`FAIL: ${pkg.name}@${pkg.version} ${inner} lacks ${absent.join(", ")}`);
+    process.exit(1);
+  }
+}
 console.log(
-  `OK: ${pkg.name}@${pkg.version} is npm latest, published ${doc.time?.[pkg.version]}, gitHead ${meta.gitHead ?? "n/a"}, tarball has ${REQUIRED_FILES.length} required files`,
+  `OK: ${pkg.name}@${pkg.version} is npm latest, published ${doc.time?.[pkg.version]}, gitHead ${meta.gitHead ?? "n/a"}, tarball has ${REQUIRED_FILES.length} required files and ${REQUIRED_CONTENT.length} required rule modules`,
 );
