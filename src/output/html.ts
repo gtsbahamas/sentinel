@@ -1,22 +1,10 @@
 import type { Finding, ProjectModel, Severity, SecurityDomain } from "../model/types.js";
 import { compareSeverity } from "../model/severity.js";
+import { SECURITY_DOMAINS } from "../model/types.js";
 import type { LayerTiming } from "./json.js";
 
 const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low", "info"];
 
-const DOMAINS: SecurityDomain[] = [
-  "secrets-exposure",
-  "input-injection",
-  "auth-access-control",
-  "file-upload",
-  "api-security",
-  "cryptography",
-  "supply-chain",
-  "infrastructure",
-  "business-logic",
-  "logging-monitoring",
-  "llm-features",
-];
 
 const SEVERITY_COLOR: Record<Severity, { bg: string; fg: string; border: string }> = {
   critical: { bg: "#dc2626", fg: "#ffffff", border: "#991b1b" },
@@ -88,7 +76,7 @@ export function formatHtml(
     list.sort((a, b) => compareSeverity(a.severity, b.severity));
   }
 
-  const domainSections = DOMAINS
+  const domainSections = SECURITY_DOMAINS
     .filter((d) => byDomain.has(d))
     .map((domain) => {
       const list = byDomain.get(domain)!;
@@ -121,7 +109,7 @@ export function formatHtml(
     })
     .join("");
 
-  const domainRows = DOMAINS
+  const domainRows = SECURITY_DOMAINS
     .map((domain) => {
       const list = byDomain.get(domain) ?? [];
       if (list.length === 0) return "";

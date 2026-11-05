@@ -3,10 +3,10 @@ import type {
   Finding,
   ProjectModel,
   Severity,
-  SecurityDomain,
   VerifyResult,
 } from "../model/types.js";
 import { compareSeverity } from "../model/severity.js";
+import { SECURITY_DOMAINS } from "../model/types.js";
 
 const SEVERITY_COLOR: Record<Severity, (s: string) => string> = {
   critical: chalk.bgRed.white.bold,
@@ -16,19 +16,6 @@ const SEVERITY_COLOR: Record<Severity, (s: string) => string> = {
   info: chalk.gray,
 };
 
-const DOMAINS: SecurityDomain[] = [
-  "secrets-exposure",
-  "input-injection",
-  "auth-access-control",
-  "file-upload",
-  "api-security",
-  "cryptography",
-  "supply-chain",
-  "infrastructure",
-  "business-logic",
-  "logging-monitoring",
-  "llm-features",
-];
 
 export function formatTerminal(
   model: ProjectModel,
@@ -85,7 +72,7 @@ export function formatTerminal(
   lines.push("  │ Domain               │ Crit │ High │ Medium │ Low │ Info │");
   lines.push(sep);
 
-  for (const domain of DOMAINS) {
+  for (const domain of SECURITY_DOMAINS) {
     const counts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
     for (const f of findings) if (f.domain === domain) counts[f.severity]++;
     const total = counts.critical + counts.high + counts.medium + counts.low + counts.info;

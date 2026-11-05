@@ -1,3 +1,4 @@
+import { SECURITY_DOMAINS } from "../../../model/types.js";
 import type { AIProvider, GenerateRequest, GenerateResponse } from "./base.js";
 import type { ProviderPricing, TokenEstimate } from "../budget.js";
 
@@ -68,11 +69,7 @@ export class OllamaProvider implements AIProvider {
         return "findings";
       })();
 
-      const DOMAINS = [
-        "secrets-exposure", "input-injection", "auth-access-control", "file-upload",
-        "api-security", "cryptography", "supply-chain", "infrastructure",
-        "business-logic", "logging-monitoring", "llm-features",
-      ];
+      const DOMAINS = SECURITY_DOMAINS;
 
       const jsonInstruction = extractionKey === "findings"
         ? [
