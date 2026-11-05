@@ -32,6 +32,7 @@ lives in `.claude/skills/` and rides the repo to every contributor.
 - Prompt injection surface area (user input concatenated into model prompts)
 - Unbounded database reads (missing `.limit()`, `.range()`)
 - Plain-text credential comparison (timing-attack-prone `===` / `!==`)
+- Known-vulnerable dependencies: every exact version in `pnpm-lock.yaml`, `package-lock.json` or `yarn.lock` is checked live against [OSV.dev](https://osv.dev) (no key). Offline, OSV down, no lockfile, or `SENTINEL_OFFLINE=1`: the scan still finishes on a small built-in list and reports `SUPPLY-011 Live vulnerability check skipped`. Each `SUPPLY-001` finding in JSON output carries an `advisory` object (id, package, installed and fixed version, published date, severity).
 
 Full rule catalog: `shipsafe-sentinel scan --list-rules`.
 
