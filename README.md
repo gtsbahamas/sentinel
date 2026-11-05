@@ -34,6 +34,7 @@ lives in `.claude/skills/` and rides the repo to every contributor.
 - Unbounded database reads (missing `.limit()`, `.range()`)
 - Plain-text credential comparison (timing-attack-prone `===` / `!==`)
 - Known-vulnerable dependencies: every exact version in `pnpm-lock.yaml`, `package-lock.json` or `yarn.lock` is checked live against [OSV.dev](https://osv.dev) (no key). Offline, OSV down, no lockfile, or `SENTINEL_OFFLINE=1`: the scan still finishes on a small built-in list and reports `SUPPLY-011 Live vulnerability check skipped`. Each `SUPPLY-001` finding in JSON output carries an `advisory` object (id, package, installed and fixed version, published date, severity).
+- Monitoring hosts: `selectAdvisoryAlerts(advisories, alreadyAlertedKeys)` from `shipsafe-sentinel/dist/monitor/advisory-alerts.js` turns a scan's live advisories into alerts, critical/high only and once per advisory per project (store each alert's `key` and pass the stored keys back). Each alert names the package, installed version, advisory id, published date and fixed version. `advisoriesFromFindings(findings)` pulls the advisories off a JSON report; curated fallback entries never alert.
 
 Full rule catalog: `shipsafe-sentinel scan --list-rules`.
 
