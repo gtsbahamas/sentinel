@@ -30,6 +30,7 @@ lives in `.claude/skills/` and rides the repo to every contributor.
 - Row Level Security misuse (service role leaks, USING without WITH CHECK, unprotected tables)
 - CSP / CORS / HTTPS misconfiguration in `next.config.*`
 - Prompt injection surface area (user input concatenated into model prompts)
+- AI agents with the "lethal trifecta": private data + untrusted input + an outward action, with no human approval in front (fix: [Seatrial Action Gate](https://seatrial.io/docs/action-gate))
 - Unbounded database reads (missing `.limit()`, `.range()`)
 - Plain-text credential comparison (timing-attack-prone `===` / `!==`)
 

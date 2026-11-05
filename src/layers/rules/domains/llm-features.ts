@@ -19,6 +19,9 @@
 //   - LLM-004: model output passed to a code / shell / SQL / redirect sink
 //   - LLM-005: tool / function-calling executes model-chosen arguments
 //              without validating them
+//   - LLM-006: the "lethal trifecta": one agent / tool-set reads private
+//              data, is fed untrusted content, and can act outward, with no
+//              human approval in front of the outward action
 //
 // DESIGN NOTES
 //
@@ -54,6 +57,7 @@
 // (79/89/95/78/601) in references.external. All five carry OWASP LLM01.
 
 import fg from "fast-glob";
+import { dirname, resolve } from "path";
 import { safeReadFile } from "../../../utils/fs.js";
 import type { Finding, ProjectModel } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
@@ -334,6 +338,226 @@ function hasPromptGuard(source: string): boolean {
 /** Output-escaping applied before an HTML sink. */
 function hasHtmlSanitizer(source: string): boolean {
   return /DOMPurify|sanitize-html|sanitizeHtml|isomorphic-dompurify|xss\s*\(/.test(source);
+}
+
+// ---------------------------------------------------------------------------
+// Lethal trifecta (LLM-006)
+// ---------------------------------------------------------------------------
+//
+// Simon Willison's "lethal trifecta": an agent that (1) can read private
+// data, (2) is exposed to untrusted content, and (3) can communicate
+// outward. Any two are survivable; all three let a planted instruction
+// read your data and ship it out. Prompt hardening does not fix it. The
+// structural fixes are to drop a leg or put a human approval in front of
+// the outward action.
+//
+// The unit is the agent's tool-set: an LLM file plus the local modules it
+// imports that are themselves LLM / tool modules (Vercel AI SDK `tool()`
+// files, LangChain tools). Generic helpers such as a shared DB client are
+// not pulled in, which keeps "imports supabase" from counting as a read.
+//
+// "Private data" means an actual read (select, find, file read, mailbox
+// read) or a service-role client, not a bare DB client: a delete-only agent
+// cannot leak anything. "Outward" means model-reachable: the action sits
+// inside a tool body (an `execute` handler or a tool-call dispatch block),
+// or sends model output somewhere directly. Saving chat history after a
+// reply is not an outward action.
+
+export const ACTION_GATE_DOCS_URL = "https://seatrial.io/docs/action-gate";
+
+interface Leg {
+  re: RegExp;
+  what: string;
+}
+
+const PRIVATE_DATA_LEGS: Leg[] = [
+  { re: /\.\s*from\s*\([^)]*\)\s*\.\s*select\s*\(/, what: "reads database rows" },
+  { re: /SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|\bservice_role\b/, what: "uses the service-role key" },
+  {
+    re: /\bprisma\s*\.\s*\w+\s*\.\s*(?:findMany|findFirst|findUnique|findFirstOrThrow|findUniqueOrThrow)\s*\(/,
+    what: "reads database rows",
+  },
+  { re: /\bdb\s*\.\s*select\s*\(|\bdb\s*\.\s*query\s*\.\s*\w+\s*\.\s*find(?:Many|First)\s*\(/, what: "reads database rows" },
+  { re: /\bsql\s*`\s*SELECT\b|\.\s*query\s*\(\s*[`"']\s*SELECT\b/i, what: "reads database rows" },
+  { re: /\bauth\s*\.\s*admin\s*\.\s*(?:listUsers|getUserById)\s*\(/, what: "reads user records" },
+  { re: /\.\s*storage\s*\.\s*from\s*\([^)]*\)\s*\.\s*download\s*\(/, what: "reads stored files" },
+  { re: /\b(?:readFile|readFileSync)\s*\(/, what: "reads files" },
+  { re: /\bgmail\s*\.\s*users\s*\.\s*(?:messages|threads)\s*\.\s*(?:get|list)\s*\(/, what: "reads the user's mailbox" },
+];
+
+const UNTRUSTED_INPUT_LEGS: Leg[] = [
+  {
+    re: /\bawait\s+(?:req|request|_req)\s*\.\s*(?:json|text|formData)\s*\(|\b(?:req|request)\s*\.\s*body\b/,
+    what: "takes end-user chat or form input",
+  },
+  { re: /\bsearchParams\s*\.\s*get\s*\(|\bformData\s*\.\s*get\s*\(/, what: "takes end-user input" },
+  {
+    re: /\.\s*arrayBuffer\s*\(|\bpdfParse\s*\(|\bpdf-parse\b|\bmammoth\b|\bmulter\b|\bextractRawText\s*\(/,
+    what: "reads uploaded files",
+  },
+  {
+    re: /\bgmail\s*\.\s*users\s*\.\s*(?:messages|threads)\s*\.\s*(?:get|list)\s*\(|\bImapFlow\b|\bsimpleParser\s*\(|\bmailparser\b|\bemails\s*\.\s*receiving\b/,
+    what: "reads incoming email",
+  },
+  {
+    re: /\bfetch\s*\(\s*(?:[A-Za-z_$][\w$.]*|`\$\{[^`]*`)\s*\)|\bcheerio\b|\bpuppeteer\b|\bplaywright\b|\bpage\s*\.\s*goto\s*\(|\bfirecrawl\b|\btavily\b|\bscrape\w*\s*\(/i,
+    what: "fetches web pages",
+  },
+];
+
+interface OutwardLeg extends Leg {
+  /** Extra condition on the whole file (e.g. a Twilio import). */
+  fileMust?: RegExp;
+  /** Look across the next few lines (multi-line call options). */
+  windowed?: boolean;
+  /**
+   * A local write/delete. Only counts inside a tool body: persisting the
+   * model's reply to your own database is not sending it anywhere.
+   */
+  localWrite?: boolean;
+}
+
+const OUTWARD_ACTION_LEGS: OutwardLeg[] = [
+  {
+    re: /\.\s*emails\s*\.\s*send\s*\(|\bsendMail\s*\(|\bsendEmail\s*\(|\bsgMail\s*\.\s*send\s*\(|\bnew\s+SendEmailCommand\s*\(|\bgmail\s*\.\s*users\s*\.\s*(?:messages|drafts)\s*\.\s*send\s*\(/,
+    what: "sends email",
+  },
+  {
+    re: /\bchat\s*\.\s*postMessage\s*\(|\bsendMessage\s*\(/,
+    what: "sends a message",
+  },
+  { re: /\.\s*messages\s*\.\s*create\s*\(/, what: "sends a text message", fileMust: /["']twilio["']/ },
+  {
+    re: /\bfetch\s*\(\s*(?:[A-Za-z_$][\w$.]*|`\$\{[^`]*`)\s*,\s*\{[^}]*?\bmethod\s*:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i,
+    what: "sends an HTTP request to a URL the code does not fix",
+    windowed: true,
+  },
+  {
+    re: /\baxios\s*\.\s*(?:post|put|patch|delete)\s*\(\s*(?:[A-Za-z_$][\w$.]*|`\$\{)/,
+    what: "sends an HTTP request to a URL the code does not fix",
+  },
+  { re: /\.\s*from\s*\([^)]*\)\s*\.\s*(?:insert|update|upsert|delete)\s*\(/, what: "writes or deletes data", localWrite: true },
+  {
+    re: /\bprisma\s*\.\s*\w+\s*\.\s*(?:create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\bdb\s*\.\s*(?:insert|update|delete)\s*\(/,
+    what: "writes or deletes data",
+    localWrite: true,
+  },
+  { re: /\.\s*storage\s*\.\s*from\s*\([^)]*\)\s*\.\s*(?:upload|remove)\s*\(/, what: "writes or deletes files", localWrite: true },
+  { re: /\b(?:writeFile|writeFileSync|unlink|unlinkSync|rmSync)\s*\(/, what: "writes or deletes files", localWrite: true },
+];
+
+/** The file defines or dispatches tools the model can call. */
+const TOOL_CONTEXT =
+  /\btools\s*:\s*[[{]|\bfunctions\s*:\s*\[|\btool_calls\b|\btoolCalls\b|\bfunction_call\b|\btool_use\b|\btool\s*\(\s*\{|\bDynamicTool\b|\bStructuredTool\b|\bDynamicStructuredTool\b/;
+
+/**
+ * Where a tool's body starts: an AI SDK / LangChain `execute` / `func` /
+ * `_call`, or a block dispatching the model's tool calls.
+ */
+const TOOL_BODY_START =
+  /\bexecute\s*[:(]|\bfunc\s*:|\b_call\s*\(|\btool_calls\b|\btoolCalls?\b|\bfunction\s*\.\s*name\b|\bcall\s*\.\s*function\b|\btool_use\b/;
+
+/**
+ * Line indexes inside a tool body. The block opened on (or right after) a
+ * TOOL_BODY_START line runs to its matching brace. String contents are not
+ * parsed, so a brace inside a string can end a block early; that only ever
+ * shrinks the region, which errs toward no finding.
+ */
+function toolBodyLines(code: string[]): Set<number> {
+  const inside = new Set<number>();
+  for (let i = 0; i < code.length; i++) {
+    if (!TOOL_BODY_START.test(code[i])) continue;
+    let start = code[i].search(/\{/);
+    let line = i;
+    if (start === -1 && i + 1 < code.length && /^\s*[^;]*\{/.test(code[i + 1])) {
+      line = i + 1;
+      start = code[line].indexOf("{");
+    }
+    if (start === -1) continue;
+    let depth = 0;
+    for (let j = line; j < code.length; j++) {
+      const text = j === line ? code[j].slice(start) : code[j];
+      for (const ch of text) {
+        if (ch === "{") depth++;
+        else if (ch === "}") depth--;
+      }
+      inside.add(j);
+      if (depth <= 0) break;
+    }
+  }
+  return inside;
+}
+
+/**
+ * A human approval step. Declarative gates (Seatrial Action Gate, the AI
+ * SDK's `needsApproval`, a `withApproval` wrapper) cover the whole tool-set
+ * wherever they appear. A procedural confirm/approve call covers the
+ * outward actions after it in the same file, or the whole set when it sits
+ * in another module of the set (the route asks before dispatching tools).
+ */
+const DECLARATIVE_GATE =
+  /\b(?:actionGate|ActionGate|action_gate|withApproval)\b|@seatrial\/|\bneedsApproval\s*:\s*(?!false\b)/;
+const APPROVAL_CALL =
+  /\b(?:requestApproval|requireApproval|awaitApproval|waitForApproval|getApproval|askForApproval|humanApproval|requireHumanApproval|approvalGate|requestConfirmation|requireConfirmation|awaitConfirmation|confirmAction)\s*\(|\binterrupt\s*\(/;
+
+/** Source with comment lines and trailing `//` comments blanked, line count preserved. */
+function codeLines(source: string): string[] {
+  let inBlock = false;
+  return source.split("\n").map((line) => {
+    const t = line.trim();
+    if (inBlock) {
+      if (t.includes("*/")) inBlock = false;
+      return "";
+    }
+    if (t.startsWith("/*")) {
+      if (!t.includes("*/")) inBlock = true;
+      return "";
+    }
+    if (isCommentLine(line)) return "";
+    return codeOnly(line);
+  });
+}
+
+interface LegHit {
+  file: string;
+  line: number;
+  snippet: string;
+  what: string;
+}
+
+function findLeg(file: string, raw: string[], code: string[], legs: Leg[]): LegHit | null {
+  for (let i = 0; i < code.length; i++) {
+    const leg = legs.find((l) => l.re.test(code[i]));
+    if (leg) return { file, line: i + 1, snippet: raw[i].trim().slice(0, 160), what: leg.what };
+  }
+  return null;
+}
+
+/** Local modules a file imports: relative paths and the `@/` / `~/` aliases. */
+function localImports(file: string, source: string, root: string, known: Map<string, string>): string[] {
+  const out: string[] = [];
+  const re = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)["']([^"']+)["']/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(source)) !== null) {
+    const spec = m[1];
+    let bases: string[];
+    if (spec.startsWith(".")) bases = [resolve(dirname(file), spec)];
+    else if (/^[@~]\//.test(spec)) bases = [resolve(root, "src", spec.slice(2)), resolve(root, spec.slice(2))];
+    else continue;
+    const stem = (b: string) => b.replace(/\.(?:js|mjs|jsx)$/, "");
+    for (const base of bases) {
+      const candidates = [base, ...["ts", "tsx", "js", "jsx", "mjs"].flatMap((ext) => [
+        `${stem(base)}.${ext}`,
+        `${base}/index.${ext}`,
+      ])];
+      const hit = candidates.find((c) => known.has(c));
+      if (hit) {
+        out.push(hit);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -633,6 +857,96 @@ export const llmFeatureRules: SecurityRule[] = [
             "Your app lets the model decide which tool to run and what to pass it, then runs that tool with your app's permissions. An attacker can steer the model and pick the arguments too, which is how a \"summarize this\" feature ends up deleting a record or emailing data out.",
             "Validate every tool argument with a schema (Zod works well) before the handler runs, and re-check permissions inside the handler against the signed-in user rather than trusting that the model picked a sensible target.",
             [{ file, line: consumptionLine + 1, snippet: lines[consumptionLine].trim().slice(0, 160) }],
+            { cwe: CWE_PROMPT, owasp: OWASP_LLM01 },
+          ),
+        );
+      }
+      return findings;
+    },
+  },
+  {
+    id: "LLM-006",
+    domain: "llm-features",
+    title: "AI agent combines private data, untrusted input, and an outward action (lethal trifecta)",
+    description:
+      "One AI agent or tool-set can read private data, is fed content an outsider controls, and can send, post, write, or delete, with no human approval in front of the outward action.",
+    impact:
+      "Your app gives one AI feature all three things an attack needs: your private data, content from strangers, and a way to send things out. An attacker can hide instructions in a chat message, an email, an uploaded file, or a web page, and the model will read your customers' records and send them wherever the attacker asked. Any two of these are manageable; all three together are how AI agents leak data.",
+    severity: "high",
+    appliesTo: ALL_WEB,
+    references: { cwe: CWE_PROMPT, owasp: OWASP_LLM01, external: ["OWASP-LLM06:2025", "OWASP-LLM02:2025", ACTION_GATE_DOCS_URL] },
+    async check(model) {
+      const findings: Finding[] = [];
+      const root = model.meta.path;
+      const files = await walkSourceFiles(model);
+      const sources = new Map(files.map(({ file, source }) => [file, source]));
+      const isToolModule = (src: string) => isLlmFile(src) || TOOL_CONTEXT.test(src);
+      const reported = new Set<string>();
+
+      for (const { file, source } of files) {
+        if (!isLlmFile(source)) continue;
+
+        // The agent's tool-set: this file plus the tool / LLM modules it imports.
+        const unit = [file];
+        for (const dep of localImports(file, source, root, sources)) {
+          if (!unit.includes(dep) && isToolModule(sources.get(dep) ?? "")) unit.push(dep);
+        }
+
+        const unitCode = new Map(unit.map((f) => [f, codeLines(sources.get(f) ?? "")]));
+        if ([...unitCode.values()].some((code) => code.some((l) => DECLARATIVE_GATE.test(l)))) continue;
+
+        let privateHit: LegHit | null = null;
+        let untrustedHit: LegHit | null = null;
+        let outwardHit: LegHit | null = null;
+        let gated = false;
+
+        for (const f of unit) {
+          const src = sources.get(f) ?? "";
+          const raw = src.split("\n");
+          const code = unitCode.get(f) ?? [];
+          privateHit ??= findLeg(f, raw, code, PRIVATE_DATA_LEGS);
+          untrustedHit ??= findLeg(f, raw, code, UNTRUSTED_INPUT_LEGS);
+
+          const gateLine = code.findIndex((l) => APPROVAL_CALL.test(l));
+          const toolBody = TOOL_CONTEXT.test(src) ? toolBodyLines(code) : new Set<number>();
+          const { traced } = llmOutputNames(src);
+
+          for (let i = 0; i < code.length && !outwardHit; i++) {
+            const leg = OUTWARD_ACTION_LEGS.find((l) => {
+              if (l.fileMust && !l.fileMust.test(src)) return false;
+              const text = l.windowed ? code.slice(i, i + 5).join(" ") : code[i];
+              return l.re.test(text) && (!l.windowed || /\bfetch\s*\(/.test(code[i]));
+            });
+            if (!leg) continue;
+            if (!toolBody.has(i) && (leg.localWrite || !referencesAny(code[i], traced))) continue;
+            // An approval earlier in the same file sits in front of this action.
+            if (gateLine !== -1 && gateLine < i) continue;
+            outwardHit = { file: f, line: i + 1, snippet: raw[i].trim().slice(0, 160), what: leg.what };
+          }
+        }
+        // A procedural gate in a different module of the set than the
+        // action it would guard: treat the set as gated.
+        if (outwardHit) {
+          const hitFile = outwardHit.file;
+          if (unit.some((f) => f !== hitFile && (unitCode.get(f) ?? []).some((l) => APPROVAL_CALL.test(l)))) gated = true;
+        }
+
+        if (!privateHit || !untrustedHit || !outwardHit || gated) continue;
+        const key = `${outwardHit.file}:${outwardHit.line}`;
+        if (reported.has(key)) continue;
+        reported.add(key);
+
+        const sameFile = privateHit.file === outwardHit.file && untrustedHit.file === outwardHit.file;
+        findings.push(
+          mkFinding(
+            "LLM-006",
+            "high",
+            sameFile ? "high" : "medium",
+            "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
+            `This AI feature ${privateHit.what} (private data), ${untrustedHit.what} (untrusted content), and ${outwardHit.what} (outward action), with no human approval in front of the outward action.`,
+            "Your app gives one AI feature all three things an attack needs: your private data, content from strangers, and a way to send things out. An attacker can hide instructions in a chat message, an email, an uploaded file, or a web page, and the model will read your customers' records and send them wherever the attacker asked. Any two of these are manageable; all three together are how AI agents leak data.",
+            `Remove one of the three legs (scope the agent to the signed-in user's own data, stop feeding it outside content, or take away the send/write tool), or put a human approval in front of the outward action so nothing leaves until a person says yes. Seatrial Action Gate does exactly that: route the tool call through the gate and it waits for an approver before it runs. Setup: ${ACTION_GATE_DOCS_URL}`,
+            [outwardHit, privateHit, untrustedHit].map((h) => ({ file: h.file, line: h.line, snippet: h.snippet })),
             { cwe: CWE_PROMPT, owasp: OWASP_LLM01 },
           ),
         );
