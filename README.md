@@ -30,6 +30,7 @@ lives in `.claude/skills/` and rides the repo to every contributor.
 - Row Level Security misuse (service role leaks, USING without WITH CHECK, unprotected tables)
 - CSP / CORS / HTTPS misconfiguration in `next.config.*`
 - Prompt injection surface area (user input concatenated into model prompts)
+- AI agents with the "lethal trifecta": private data + untrusted input + an outward action, with no human approval in front (fix: [Seatrial Action Gate](https://seatrial.io/docs/action-gate))
 - Unbounded database reads (missing `.limit()`, `.range()`)
 - Plain-text credential comparison (timing-attack-prone `===` / `!==`)
 - Known-vulnerable dependencies: every exact version in `pnpm-lock.yaml`, `package-lock.json` or `yarn.lock` is checked live against [OSV.dev](https://osv.dev) (no key). Offline, OSV down, no lockfile, or `SENTINEL_OFFLINE=1`: the scan still finishes on a small built-in list and reports `SUPPLY-011 Live vulnerability check skipped`. Each `SUPPLY-001` finding in JSON output carries an `advisory` object (id, package, installed and fixed version, published date, severity).
