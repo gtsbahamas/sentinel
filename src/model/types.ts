@@ -42,6 +42,22 @@ export interface Finding {
   cwe?: string;
   owasp?: string;
   ruleId?: string;
+  // Set by SUPPLY-001 for known-vulnerable dependencies so consumers (Monitor)
+  // can alert on the advisory itself rather than parsing the title.
+  advisory?: FindingAdvisory;
+}
+
+export interface FindingAdvisory {
+  id: string;
+  aliases: string[];
+  package: string;
+  installedVersion: string;
+  fixedVersion: string | null;
+  published: string | null;
+  severity: Severity;
+  summary: string;
+  // "osv" = live OSV.dev lookup; "fallback" = curated list (live check skipped).
+  source: "osv" | "fallback";
 }
 
 export interface Route {

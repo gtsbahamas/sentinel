@@ -3,6 +3,7 @@ import { join } from "path";
 import { safeReadFile } from "../../../utils/fs.js";
 import type { Finding } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
+import { checkLiveVulnerabilities, type Advisory } from "../osv.js";
 
 function mkFinding(
   ruleId: string,
@@ -33,17 +34,17 @@ function mkFinding(
   };
 }
 
-// Minimal curated list of packages with CVEs that still show up in real
-// package.jsons. Not a replacement for npm audit — it's a first-pass canary
-// for packages that are known-abandoned or known-vulnerable in every published
-// version. Entries: [package, version-prefix-or-null, CVE, severity, note].
-// null version means "any version currently published is affected".
-const KNOWN_VULNERABLE: Array<{
+// Fallback only. SUPPLY-001 asks OSV.dev live about every exact version in the
+// lockfile; this hand-kept list is used when that lookup cannot run (offline,
+// OSV down, no lockfile), and SUPPLY-011 then reports that the live check was
+// skipped so a short list never reads as a clean bill of health.
+const FALLBACK_VULNERABLE: Array<{
   name: string;
   affected: (v: string) => boolean;
   cve: string;
   severity: Finding["severity"];
   note: string;
+  fixed?: string;
 }> = [
   {
     name: "event-stream",
@@ -112,6 +113,7 @@ const KNOWN_VULNERABLE: Array<{
     cve: "CVE-2022-3517",
     severity: "high",
     note: "ReDoS in braceExpand prior to 3.0.5.",
+    fixed: "3.0.5",
   },
   {
     name: "lodash",
@@ -124,6 +126,7 @@ const KNOWN_VULNERABLE: Array<{
     cve: "CVE-2021-23337",
     severity: "high",
     note: "Command injection via template() before 4.17.21.",
+    fixed: "4.17.21",
   },
 ];
 
@@ -143,6 +146,27 @@ const TYPOSQUATS: Record<string, string[]> = {
 // Packages that should rarely appear in production dependencies.
 const DEV_ONLY_IN_PROD = new Set(["jest", "vitest", "mocha", "chai", "@types/node", "eslint", "prettier"]);
 
+function advisoryFinding(a: Advisory, file: string): Finding {
+  const label = a.aliases.length ? `${a.id} (${a.aliases.join(", ")})` : a.id;
+  const published = a.published ? ` Published ${a.published.slice(0, 10)}.` : "";
+  const finding = mkFinding(
+    "SUPPLY-001",
+    a.severity,
+    `${a.package}@${a.installedVersion} matches ${label}`,
+    `${a.summary} Known advisory: ${label}.${published}${a.source === "fallback" ? " (Sentinel fallback list — live check skipped.)" : ""}`,
+    "Your app uses a package version with a known security vulnerability. An attacker can exploit the published weakness to compromise your application without needing to find a new bug.",
+    a.fixedVersion
+      ? `Upgrade ${a.package} from ${a.installedVersion} to ${a.fixedVersion} or later, including transitive copies in the lockfile.`
+      : `No fixed version of ${a.package} is published for ${a.id}. Remove or replace the package.`,
+    [{ file, snippet: `${a.package}@${a.installedVersion} ${a.id}` }],
+    { cwe: "CWE-1035" },
+    "confirmed",
+  );
+  finding.references.push(`https://osv.dev/vulnerability/${a.id}`);
+  finding.advisory = a;
+  return finding;
+}
+
 const GIT_URL_PREFIX = /^(git\+|https:\/\/github\.com|git@github\.com|git:\/\/)/;
 const FILE_URL_PREFIX = /^(file:|link:)/;
 
@@ -156,28 +180,69 @@ export const supplyChainRules: SecurityRule[] = [
     severity: "critical",
     appliesTo: ["nextjs-supabase", "react-vite-supabase", "generic-web"],
     references: { cwe: "CWE-1035" },
-    check(model) {
+    async check(model) {
+      const live = await checkLiveVulnerabilities(model.meta.path);
+      if (live.status === "ok") {
+        return live.advisories.map((a) => advisoryFinding(a, live.lockfile.file));
+      }
+      // Live check skipped (SUPPLY-011 says why): curated list, against exact
+      // lockfile versions when there is a lockfile, else package.json.
+      const deps = live.lockfile?.packages ?? model.dependencies;
+      const file = live.lockfile?.file ?? "package.json";
       const findings: Finding[] = [];
-      for (const dep of model.dependencies) {
-        for (const entry of KNOWN_VULNERABLE) {
+      for (const dep of deps) {
+        for (const entry of FALLBACK_VULNERABLE) {
           if (dep.name !== entry.name) continue;
           if (!entry.affected(dep.version)) continue;
           findings.push(
-            mkFinding(
-              "SUPPLY-001",
-              entry.severity,
-              `${dep.name}@${dep.version} matches ${entry.cve}`,
-              `${entry.note} Known advisory: ${entry.cve}.`,
-              "Your app uses a package version with a known security vulnerability. An attacker can exploit the published weakness to compromise your application without needing to find a new bug.",
-              `Bump ${dep.name} to a patched version. Audit lockfiles for the same version in transitive deps.`,
-              [{ file: "package.json", snippet: `${dep.name}@${dep.version}` }],
-              { cwe: "CWE-1035" },
-              "confirmed",
+            advisoryFinding(
+              {
+                id: entry.cve,
+                aliases: [],
+                package: dep.name,
+                installedVersion: dep.version,
+                fixedVersion: entry.fixed ?? null,
+                published: null,
+                severity: entry.severity,
+                summary: entry.note,
+                source: "fallback",
+              },
+              file,
             ),
           );
         }
       }
       return findings;
+    },
+  },
+
+  {
+    id: "SUPPLY-011",
+    domain: "supply-chain",
+    title: "Live vulnerability check skipped",
+    description: "The live OSV.dev lookup for known-vulnerable dependency versions did not run",
+    impact: "Sentinel could not ask the public vulnerability database about your installed package versions, so newly published advisories were not checked. A clean SUPPLY-001 result in this scan only means none of a short built-in list matched.",
+    severity: "info",
+    appliesTo: ["nextjs-supabase", "react-vite-supabase", "generic-web"],
+    references: { cwe: "CWE-1035" },
+    async check(model) {
+      const live = await checkLiveVulnerabilities(model.meta.path);
+      if (live.status === "ok") return [];
+      return [
+        mkFinding(
+          "SUPPLY-011",
+          "info",
+          "Live vulnerability check skipped",
+          `The live OSV.dev lookup did not run: ${live.reason}. Known-vulnerable results come from Sentinel's built-in fallback list only, which is not exhaustive.`,
+          "Sentinel could not ask the public vulnerability database about your installed package versions, so newly published advisories were not checked. A clean SUPPLY-001 result in this scan only means none of a short built-in list matched.",
+          live.lockfile
+            ? "Re-run the scan with network access to https://api.osv.dev (and without SENTINEL_OFFLINE=1)."
+            : "Commit a lockfile so exact installed versions can be checked, then re-run the scan with network access.",
+          [{ file: live.lockfile?.file ?? join(model.meta.path, "package.json"), snippet: live.reason.slice(0, 120) }],
+          { cwe: "CWE-1035" },
+          "confirmed",
+        ),
+      ];
     },
   },
 
