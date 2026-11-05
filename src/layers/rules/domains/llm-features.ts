@@ -489,16 +489,139 @@ function toolBodyLines(code: string[]): Set<number> {
 }
 
 /**
- * A human approval step. Declarative gates (Seatrial Action Gate, the AI
- * SDK's `needsApproval`, a `withApproval` wrapper) cover the whole tool-set
- * wherever they appear. A procedural confirm/approve call covers the
- * outward actions after it in the same file, or the whole set when it sits
- * in another module of the set (the route asks before dispatching tools).
+ * A human approval step, and only where it stands in front of the outward
+ * action. Importing a gate, or calling one somewhere else, guards nothing.
+ * A gate guards an action when:
+ *   - the action sits inside the gate call (`withApproval(tool({ ... }))`,
+ *     `actionGate.wrap(tool({ ... }))`);
+ *   - the gate call wraps the tool the action lives in, by name, anywhere in
+ *     the tool-set (`postWebhook: actionGate.wrap(postWebhook)`);
+ *   - the gate is called earlier in a block that also holds the action
+ *     (`await requestApproval(...)` then the send, in the same tool body);
+ *   - the tool object holding the action declares `needsApproval` (AI SDK).
+ * Approving the whole run (before `streamText`) is not in front of the send:
+ * the planted instruction arrives inside the approved run.
  */
-const DECLARATIVE_GATE =
-  /\b(?:actionGate|ActionGate|action_gate|withApproval)\b|@seatrial\/|\bneedsApproval\s*:\s*(?!false\b)/;
-const APPROVAL_CALL =
-  /\b(?:requestApproval|requireApproval|awaitApproval|waitForApproval|getApproval|askForApproval|humanApproval|requireHumanApproval|approvalGate|requestConfirmation|requireConfirmation|awaitConfirmation|confirmAction)\s*\(|\binterrupt\s*\(/;
+const GATE_CALL =
+  /(?<![\w$])(?:[\w$]*(?:actionGate|ActionGate|action_gate)[\w$]*(?:\s*\.\s*[\w$]+)*|withApproval|requestApproval|requireApproval|awaitApproval|waitForApproval|getApproval|askForApproval|humanApproval|requireHumanApproval|approvalGate|requestConfirmation|requireConfirmation|awaitConfirmation|confirmAction|interrupt)\s*\(/g;
+const NEEDS_APPROVAL = /\bneedsApproval\s*:\s*(?!false\b)/g;
+const DECLARATION = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=|\bfunction\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/g;
+
+interface Span {
+  open: number;
+  close: number;
+}
+
+/**
+ * A file's code as one string with string literals blanked (same length),
+ * plus where each line starts and every `{}` / `()` pair.
+ */
+interface Scoped {
+  text: string;
+  lineStart: number[];
+  braces: Span[];
+  parens: Span[];
+}
+
+function scoped(code: string[]): Scoped {
+  const raw = code.join("\n");
+  const chars = raw.split("");
+  const lineStart: number[] = [];
+  let at = 0;
+  for (const l of code) {
+    lineStart.push(at);
+    at += l.length + 1;
+  }
+  const braces: Span[] = [];
+  const parens: Span[] = [];
+  const stack: Array<{ ch: string; open: number }> = [];
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
+    if (ch === '"' || ch === "'" || ch === "`") {
+      let j = i + 1;
+      while (j < chars.length && chars[j] !== ch && (ch === "`" || chars[j] !== "\n")) {
+        if (chars[j] === "\\") j++;
+        j++;
+      }
+      for (let k = i + 1; k < j && k < chars.length; k++) if (chars[k] !== "\n") chars[k] = " ";
+      i = j;
+      continue;
+    }
+    if (ch === "{" || ch === "(") stack.push({ ch, open: i });
+    else if (ch === "}" || ch === ")") {
+      const want = ch === "}" ? "{" : "(";
+      const idx = stack.map((e) => e.ch).lastIndexOf(want);
+      if (idx === -1) continue;
+      const [top] = stack.splice(idx);
+      (want === "{" ? braces : parens).push({ open: top.open, close: i });
+    }
+  }
+  for (const e of stack) (e.ch === "{" ? braces : parens).push({ open: e.open, close: chars.length });
+  return { text: chars.join(""), lineStart, braces, parens };
+}
+
+const within = (s: Span, at: number) => s.open < at && at < s.close;
+
+function innermostBrace(sc: Scoped, at: number): Span | null {
+  let best: Span | null = null;
+  for (const b of sc.braces) if (within(b, at) && (!best || b.open > best.open)) best = b;
+  return best;
+}
+
+/** Gate calls in a file: where each starts, its argument list, and the first argument's name. */
+function gateCalls(sc: Scoped): Array<{ at: number; args: Span | null; firstArg: string | null }> {
+  const out: Array<{ at: number; args: Span | null; firstArg: string | null }> = [];
+  for (const m of sc.text.matchAll(GATE_CALL)) {
+    const at = m.index ?? 0;
+    const before = sc.text.slice(Math.max(0, at - 12), at);
+    // Declaring or constructing a gate is not calling it.
+    if (/\b(?:function|new)\s*$/.test(before)) continue;
+    const parenAt = at + m[0].length - 1;
+    const args = sc.parens.find((p) => p.open === parenAt) ?? null;
+    const first = /^\(\s*([A-Za-z_$][\w$]*)\s*[,)]/.exec(sc.text.slice(parenAt));
+    out.push({ at, args, firstArg: first ? first[1] : null });
+  }
+  return out;
+}
+
+/** Names of the declarations (`const x = ...`, `function x`) whose body holds `at`. */
+function enclosingNames(sc: Scoped, at: number): Set<string> {
+  const names = new Set<string>();
+  for (const m of sc.text.matchAll(DECLARATION)) {
+    const start = (m.index ?? 0) + m[0].length;
+    if (start > at) break;
+    // `function x(...) { body }` vs `const x = tool({ ... })`.
+    const pool = m[2] ? sc.braces : [...sc.braces, ...sc.parens];
+    const body = pool
+      .filter((s) => s.open >= start - 1)
+      .sort((a, b) => a.open - b.open)[0];
+    if (body && within(body, at)) names.add(m[1] ?? m[2]);
+  }
+  return names;
+}
+
+/** True when a human approval stands in front of the action at `at` in `file`. */
+function approvalGuards(file: string, at: number, unit: Map<string, Scoped>): boolean {
+  const sc = unit.get(file);
+  if (!sc) return false;
+  for (const g of gateCalls(sc)) {
+    if (g.args && within(g.args, at)) return true;
+    const block = innermostBrace(sc, g.at);
+    // `const ask = () => requestApproval(...)` defines a check; it does not run one.
+    const stmt = sc.text.slice(block ? block.open + 1 : 0, g.at).split(/[;{}\n]/).pop() ?? "";
+    if (block && g.at < at && within(block, at) && !/=>/.test(stmt)) return true;
+  }
+  for (const m of sc.text.matchAll(NEEDS_APPROVAL)) {
+    const obj = innermostBrace(sc, m.index ?? 0);
+    if (obj && within(obj, at)) return true;
+  }
+  const names = enclosingNames(sc, at);
+  if (names.size === 0) return false;
+  for (const other of unit.values()) {
+    if (gateCalls(other).some((g) => g.firstArg !== null && names.has(g.firstArg))) return true;
+  }
+  return false;
+}
 
 /** Source with comment lines and trailing `//` comments blanked, line count preserved. */
 function codeLines(source: string): string[] {
@@ -893,21 +1016,20 @@ export const llmFeatureRules: SecurityRule[] = [
         }
 
         const unitCode = new Map(unit.map((f) => [f, codeLines(sources.get(f) ?? "")]));
-        if ([...unitCode.values()].some((code) => code.some((l) => DECLARATIVE_GATE.test(l)))) continue;
+        const unitScoped = new Map([...unitCode].map(([f, code]) => [f, scoped(code)]));
 
         let privateHit: LegHit | null = null;
         let untrustedHit: LegHit | null = null;
         let outwardHit: LegHit | null = null;
-        let gated = false;
 
         for (const f of unit) {
           const src = sources.get(f) ?? "";
           const raw = src.split("\n");
           const code = unitCode.get(f) ?? [];
+          const sc = unitScoped.get(f)!;
           privateHit ??= findLeg(f, raw, code, PRIVATE_DATA_LEGS);
           untrustedHit ??= findLeg(f, raw, code, UNTRUSTED_INPUT_LEGS);
 
-          const gateLine = code.findIndex((l) => APPROVAL_CALL.test(l));
           const toolBody = TOOL_CONTEXT.test(src) ? toolBodyLines(code) : new Set<number>();
           const { traced } = llmOutputNames(src);
 
@@ -919,19 +1041,13 @@ export const llmFeatureRules: SecurityRule[] = [
             });
             if (!leg) continue;
             if (!toolBody.has(i) && (leg.localWrite || !referencesAny(code[i], traced))) continue;
-            // An approval earlier in the same file sits in front of this action.
-            if (gateLine !== -1 && gateLine < i) continue;
+            const col = code[i].search(leg.windowed ? /\bfetch\s*\(/ : leg.re);
+            if (approvalGuards(f, sc.lineStart[i] + Math.max(0, col), unitScoped)) continue;
             outwardHit = { file: f, line: i + 1, snippet: raw[i].trim().slice(0, 160), what: leg.what };
           }
         }
-        // A procedural gate in a different module of the set than the
-        // action it would guard: treat the set as gated.
-        if (outwardHit) {
-          const hitFile = outwardHit.file;
-          if (unit.some((f) => f !== hitFile && (unitCode.get(f) ?? []).some((l) => APPROVAL_CALL.test(l)))) gated = true;
-        }
 
-        if (!privateHit || !untrustedHit || !outwardHit || gated) continue;
+        if (!privateHit || !untrustedHit || !outwardHit) continue;
         const key = `${outwardHit.file}:${outwardHit.line}`;
         if (reported.has(key)) continue;
         reported.add(key);
