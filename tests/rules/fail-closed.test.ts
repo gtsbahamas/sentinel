@@ -42,6 +42,7 @@ const rr = (p: string) => `src/app/api/rr/${p}/route.ts`;
 const fc = (p: string) => `src/app/api/fc/${p}/route.ts`;
 const zz = (p: string) => `src/app/api/zz/${p}/route.ts`;
 const yy = (p: string) => `src/app/api/yy/${p}/route.ts`;
+const ww = (p: string) => `src/app/api/ww/${p}/route.ts`;
 const gr = (p: string) => `src/app/api/gr/${p}/route.ts`;
 const api = (p: string) => `src/app/api/${p}/route.ts`;
 
@@ -184,6 +185,59 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
   ];
   open.push(["a session read from a server the caller names", gr("h01-auth-server-sent")]);
   open.push(["a session read through the project's own fetch", gr("h02-own-fetch")]);
+  // A fourth attack, on the short grammar itself. The first twenty were silent; the rest were already
+  // reported and are kept so they stay so. That a caller can use each has been read off the code, not run;
+  // k01, k02, k04, k05 and s01 also rest on how the Supabase library is remembered to behave, so they are
+  // "not proven safe" rather than shown exploitable.
+  const fourth: Array<[string, string]> = [
+    ["a session read told to accept an expired pass", "k01-expired-pass"],
+    ["a session read verified with a key the caller sent", "k02-caller-key"],
+    ["a session read of a pass written in the code", "k03-pass-in-code"],
+    ["a cookie accessor that writes for every caller", "k04-accessor-writes"],
+    ["a cookie accessor that answers a session kept on the server", "k05-accessor-stored-session"],
+    ["an export that gives another function the checked one's name", "l01-export-alias"],
+    ["the same export reached through a namespace import", "l03-namespace-alias"],
+    ["an ok that comes from __proto__", "o01-proto-ok"],
+    ["a project class whose getter writes", "q01-getter"],
+    ["a project class whose toString writes, in a template", "q02-to-string"],
+    ["a project class whose toJSON answers the environment", "q03-to-json"],
+    ["a project class with a then, awaited", "q04-thenable"],
+    ["a project object whose json() writes, handed to a quiet helper", "q05-own-parameter-method"],
+    ["await using of a project class that writes when disposed", "q06-await-using"],
+    ["a project class whose valueOf writes, under a minus", "q07-value-of"],
+    ["a project error whose message getter writes", "q08-error-getter"],
+    ["a class in the file named console", "q09-class-named-console"],
+    ["a class in the file named Response", "q10-class-named-response"],
+    ["a project class whose valueOf writes, under ==", "q11-loose-equals"],
+    ["a refusal that answers the client's own key", "s01-key-in-refusal"],
+    ["an open control", "c1-open"],
+    ["a second open control", "c2-open"],
+    ["a default import beside an export of the same name", "l02-default-import"],
+    ["a helper swapped by a destructuring assignment in a JS module", "l04-shorthand-swap"],
+    ["=== undefined asked of a value that is null", "p01-undefined-test"],
+    ["the data of getUser, always an object", "p02-data-only"],
+    ["user ?? guest", "p03-or-guest"],
+    ["a helper not awaited", "p04-not-awaited"],
+    ["a catch that swallows the refusal", "p05-catch-swallows"],
+    ["!who && body.strict", "p06-and-strict"],
+    ["who || body.as", "p07-or-body"],
+    ["a typeof test", "p08-typeof"],
+    ["an asserting helper not awaited", "p09-must-not-awaited"],
+    ["a block that shadows the checked value", "p10-block-shadow"],
+    ["an error field that is always null", "p11-error-always-null"],
+    ["an answer nobody reads", "p12-answer-ignored"],
+    ["the error of getClaims", "p13-claims-error"],
+    ["who || body.force", "p14-or-force"],
+    ["claims or an empty object", "p15-claims-or-empty"],
+    ["ok worked out from a field that is never there", "p16-ok-by-missing"],
+    ["== false asked of a value that is null", "p17-loose-false"],
+    ["a guest in one arm of a ternary", "p19-ternary-guest"],
+    ["an open helper re-exported under another name", "p20-hub-reexport"],
+  ];
+  for (const [what, name] of fourth) open.push([`(fourth attack) ${what}`, ww(name)]);
+  // Correct, and reported: the cookies handed to Supabase are built by hand from a header. Only an accessor
+  // that passes the request's own cookie jar straight through is taken as reading the request.
+  open.push(["(guarded, not provable) a cookie accessor that builds the cookie list itself", ww("c4-closed-jar")]);
   for (const [what, file] of unprovable) open.push([`(guarded, not provable) ${what}`, file]);
   for (const [what, file] of open) {
     it(`still reports ${what}`, () => {
@@ -202,6 +256,8 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
     ["who === null || who === undefined", rr("s16-typeof")],
     ["an error field that holds a refusal for everyone not signed in", fc("q01-error-field")],
     ["a client made for this request and response by a project function (the real app's shape)", gr("g01-route-client")],
+    ["the caller's own pass, read from a header and handed to the session read", ww("c3-closed")],
+    ["a helper that throws unless that pass is good", ww("c5-closed-must")],
   ];
   for (const [what, file] of guarded) {
     it(`does not report ${what}`, () => {
@@ -243,6 +299,10 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
         rr("s14-in-try"),
         rr("s15-or-role"),
         rr("s16-typeof"),
+        ww("c3-closed"),
+        ww("c5-closed-must"),
+        // Open, and nothing but an echo of the request runs for anyone: the grammar's own claim.
+        ww("p18-catch-returns-ok"),
       ].sort(),
     );
   });
