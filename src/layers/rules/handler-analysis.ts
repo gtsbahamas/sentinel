@@ -55,7 +55,7 @@ const AUTH_CALLS = new Set(["validateRequest", "validateRequestWithBody", "jwtVe
 
 const CLIENT_ADDRESS = /x-forwarded-for|x-real-ip|x-vercel-forwarded-for|cf-connecting-ip|true-client-ip|fly-client-ip/i;
 const SERVICE_ROLE = /SERVICE_ROLE|service_role|auth\s*\.\s*admin\b/;
-const DATA_WRITE = /\.from\s*\([^)]*\)[\s\S]{0,300}?\.(?:insert|update|upsert|delete)\s*\(|\.rpc\s*\(|\bauth\s*\.\s*admin\b/;
+const DATA_WRITE = /\.from\s*\(\s*["'`][\w.-]+["'`]\s*\)[\s\S]{0,300}?\.(?:insert|update|upsert|delete)\s*\(|\.rpc\s*\(|\bauth\s*\.\s*admin\b/;
 
 // ---------------------------------------------------------------------------
 // Project: parsed files, import resolution, declarations
@@ -665,21 +665,30 @@ function carryingFields(t: Taint, object: ts.Identifier): string[] {
   return d ? [...(t.members.get(d) ?? [])] : [];
 }
 
+/** How far "carries the value" reaches: not through calls, through any call, or only through calls that are not awaited. */
+type Through = boolean | "sync";
+
 /**
  * Does the expression carry the value? With `throughCalls` off, the result of an ordinary call is a new
- * value (`f(token)` is not the token); with it on, anything computed from the value counts.
+ * value (`f(token)` is not the token); with it on, anything computed from the value counts. "sync" stops at
+ * awaited calls: `isEmail(x)` says something about x, while `await db.insert(x)` says whether the database
+ * took it, which is the store's outcome and not a check of what was sent.
  */
-function carries(e: ts.Node, t: Taint, throughCalls: boolean): boolean {
+function carries(e: ts.Node, t: Taint, throughCalls: Through): boolean {
   if (t.nodes.has(e)) return true;
   if (ts.isIdentifier(e)) return !isPropertyName(e) && isCarrier(e, t);
   if (ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression) && carryingFields(t, e.expression).includes(e.name.text)) return true;
   if (ts.isCallExpression(e) && !throughCalls && !isCoercion(e)) return false;
+  if (throughCalls === "sync" && ts.isAwaitExpression(e)) {
+    const awaited = unwrap(e.expression);
+    if (ts.isCallExpression(awaited) && !isCoercion(awaited)) return false;
+  }
   if (isFn(e)) return false;
   return ts.forEachChild(e, (c) => carries(c, t, throughCalls) || undefined) ?? false;
 }
 
 /** Variables set from the value carry it too, whether declared with it or assigned it later. */
-function spread(fn: Fn, t: Taint, throughCalls: boolean): void {
+function spread(fn: Fn, t: Taint, throughCalls: Through): void {
   if (!fn.body) return;
   each(fn.body, (n) => {
     if (ts.isVariableDeclaration(n) && n.initializer && carries(n.initializer, t, throughCalls)) {
@@ -741,7 +750,7 @@ function callCarries(call: ts.CallExpression, t: Taint): boolean {
 }
 
 interface Sink {
-  throughCalls: boolean;
+  throughCalls: Through;
   hit(fn: Fn, t: Taint): boolean;
 }
 
@@ -823,13 +832,13 @@ const visitorLimit: Sink = {
 
 /** The function turns the request away depending on the value, or runs the value through a schema. */
 const rejection: Sink = {
-  throughCalls: true,
+  throughCalls: "sync",
   hit(fn, t) {
     if (!fn.body) return false;
     let found = false;
     each(fn.body, (n) => {
       if (found) return;
-      if (ts.isIfStatement(n) && ifRefuses(n) && carries(n.expression, t, true)) found = true;
+      if (ts.isIfStatement(n) && ifRefuses(n) && carries(n.expression, t, "sync")) found = true;
       if (ts.isCallExpression(n) && /^(?:parse|safeParse|parseAsync|safeParseAsync|validate|validateSync)$/.test(calleeName(n)) && n.arguments.some((a) => carries(a, t, true))) {
         found = true;
       }
@@ -883,13 +892,13 @@ function visitorAddress(handler: Fn, project: Project, entry: string): Taint {
   return t;
 }
 
-/** Does the function, or anything it calls within `hops`, work with the service role (which skips row security)? */
-function reachesServiceRole(fn: Fn, project: Project, entry: string, hops: number, seen: Set<Fn>): boolean {
+/** Does the function, or anything it calls within `hops`, contain `what`? */
+function withinReach(what: RegExp, fn: Fn, project: Project, entry: string, hops: number, seen = new Set<Fn>()): boolean {
   if (seen.has(fn)) return false;
   seen.add(fn);
-  if (SERVICE_ROLE.test(fn.getText())) return true;
+  if (what.test(fn.getText())) return true;
   if (hops <= 0 || !fn.body) return false;
-  return callsIn([fn.body]).some((call) => project.resolveCall(call, entry).some((t) => reachesServiceRole(t, project, entry, hops - 1, seen)));
+  return callsIn([fn.body]).some((call) => project.resolveCall(call, entry).some((t) => withinReach(what, t, project, entry, hops - 1, seen)));
 }
 
 export type HandlerGuard = "verified-request" | "link-token" | "visitor-limit";
@@ -922,12 +931,11 @@ export function handlerGuard(model: ProjectModel, endpoint: ApiEndpoint): Handle
     if (visitor.nodes.size) {
       const walked = new Set<Fn>();
       if (reaches(handler, visitor, visitorLimit, project, entry, MAX_HOPS, walked)) {
-        // A limit is not permission to write past row security. When the handler (or what it walked
-        // through) writes to tables or calls auth.admin, and a service-role client is within reach, the
-        // route stays reported.
-        const texts = [handler.getText(), ...[...walked].map((f) => f.getText())];
-        const writes = texts.some((x) => DATA_WRITE.test(x));
-        const privileged = writes && (SERVICE_ROLE.test(sf.text) || reachesServiceRole(handler, project, entry, 2, new Set()));
+        // A limit is not permission to write past row security. When the handler, or a helper within
+        // two calls of it, writes to tables or calls auth.admin, and a service-role client is within the
+        // same reach, the route stays reported.
+        const writes = [...walked].some((f) => DATA_WRITE.test(f.getText())) || withinReach(DATA_WRITE, handler, project, entry, 2);
+        const privileged = writes && (SERVICE_ROLE.test(sf.text) || withinReach(SERVICE_ROLE, handler, project, entry, 2));
         if (!privileged) return "visitor-limit";
       }
     }
@@ -1051,4 +1059,47 @@ export function enclosingFunctionText(project: Project, file: string, line: numb
   // `const name = () => ...` and `name: () => ...` carry the name outside the function node.
   const holder = ts.isVariableDeclaration(fn.parent) || ts.isPropertyAssignment(fn.parent) || ts.isPropertyDeclaration(fn.parent) ? fn.parent : fn;
   return holder.getText();
+}
+
+/** The name a function is known by, when the line sits in a small named helper: `const md5 = (s) => ...`. */
+export function enclosingFunctionName(project: Project, file: string, line: number): string | null {
+  const sf = project.source(file);
+  if (!sf) return null;
+  const pos = sf.getPositionOfLineAndCharacter(line - 1, 0);
+  const lineEnd = line < sf.getLineStarts().length ? sf.getLineStarts()[line] : sf.text.length;
+  const around: Fn[] = [];
+  each(sf, (n) => {
+    if (isFn(n) && n.getStart() < lineEnd && n.getEnd() >= pos) around.push(n);
+  });
+  if (around.length === 0) return null;
+  const fn = around.reduce((a, b) => (b.getEnd() - b.getStart() < a.getEnd() - a.getStart() ? b : a));
+  if ((ts.isFunctionDeclaration(fn) || ts.isMethodDeclaration(fn)) && fn.name && ts.isIdentifier(fn.name)) return fn.name.text;
+  const holder = fn.parent;
+  if ((ts.isVariableDeclaration(holder) || ts.isPropertyAssignment(holder) || ts.isPropertyDeclaration(holder)) && ts.isIdentifier(holder.name)) return holder.name.text;
+  return null;
+}
+
+/**
+ * The text around every call of the function `name` declared in `declaredIn`: each calling function (or
+ * top-level line), in that file and in files that import it. A general helper means what its callers use
+ * it for.
+ */
+export function callerTexts(project: Project, declaredIn: string, name: string, files: Array<{ file: string; source: string }>): string[] {
+  const out: string[] = [];
+  const home = resolve(declaredIn);
+  const calls = new RegExp(`\\b${name}\\s*\\(`);
+  for (const { file, source } of files) {
+    if (!calls.test(source)) continue;
+    const abs = resolve(file);
+    if (abs !== home) {
+      const imported = project.importOf(abs, name);
+      if (!imported || project.resolveModule(abs, imported.spec) !== home) continue;
+    }
+    source.split("\n").forEach((text, idx) => {
+      if (!calls.test(text)) return;
+      if (abs === home && enclosingFunctionName(project, abs, idx + 1) === name) return; // the helper itself
+      out.push(enclosingFunctionText(project, abs, idx + 1) ?? text);
+    });
+  }
+  return out;
 }

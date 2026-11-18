@@ -63,6 +63,7 @@ describe("AUTH-001 follows the guard out of the route file", () => {
     ["a public form that reads the address and limits nothing", api("twins/forms/unlimited")],
     ["a rate-limited route that writes with the service role", api("twins/forms/limited-admin")],
     ["a rate-limited route whose privileged client comes from a helper", api("twins/forms/limited-admin-helper")],
+    ["a rate-limited route whose privileged write is inside a helper", api("twins/forms/limited-write-helper")],
     ["a write with nothing in front of it", api("twins/open-write")],
     ["a guard in a package the scanner cannot read", api("twins/outside-helper")],
   ];
@@ -90,6 +91,9 @@ describe("INPUT-005 follows the body into the function that checks it", () => {
   it("still reports a body the helper only branches on", () => {
     expect(reported("INPUT-005")).toContain(api("twins/forms/branching"));
     expect(reported("AUTH-001")).toContain(api("twins/forms/branching"));
+  });
+  it("still reports a helper that only notices when the store itself fails", () => {
+    expect(reported("INPUT-005")).toContain(api("twins/store-error"));
   });
   it("still reports a body written straight to storage", () => {
     expect(reported("INPUT-005")).toContain(api("twins/open-write"));
@@ -136,5 +140,8 @@ describe("CRYPTO-002 needs something being protected", () => {
   });
   it("still reports MD5 over a password", () => {
     expect(reported("CRYPTO-002")).toContain("src/lib/legacy-login.ts");
+  });
+  it("still reports a general MD5 helper that a password is passed to", () => {
+    expect(reported("CRYPTO-002")).toContain("src/lib/digests.ts");
   });
 });

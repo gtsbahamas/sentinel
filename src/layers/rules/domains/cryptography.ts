@@ -2,7 +2,7 @@ import fg from "fast-glob";
 import { safeReadFile } from "../../../utils/fs.js";
 import type { Finding, ProjectModel } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
-import { enclosingFunctionText, isRecordLookup, projectFor } from "../handler-analysis.js";
+import { callerTexts, enclosingFunctionName, enclosingFunctionText, isRecordLookup, projectFor } from "../handler-analysis.js";
 
 function mkFinding(
   ruleId: string,
@@ -155,7 +155,11 @@ export const cryptographyRules: SecurityRule[] = [
           const m = line.match(/createHash\s*\(\s*["'](md5|sha1)["']/i);
           if (!m) return;
           const around = enclosingFunctionText(project, file, idx + 1) ?? source;
-          if (!protectsSomething.test(around)) return;
+          if (!protectsSomething.test(around)) {
+            // A general helper (`const md5 = (s) => ...`) protects whatever its callers pass it.
+            const helper = enclosingFunctionName(project, file, idx + 1);
+            if (!helper || !callerTexts(project, file, helper, files).some((text) => protectsSomething.test(text))) return;
+          }
           findings.push(
             mkFinding(
               "CRYPTO-002",
