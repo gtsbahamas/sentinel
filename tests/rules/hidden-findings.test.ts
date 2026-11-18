@@ -50,6 +50,10 @@ describe("AUTH-001: a guard counts only when its answer gates the write", () => 
     ["a helper whose verification only picks a log label", atk("a8-soft-check")],
     ["a helper that throws for the signed-out, with the throw swallowed", atk("x1-swallowed-assert")],
     ["a helper that throws for the signed-out, called only behind a switch", atk("x2-branch-assert")],
+    ["a guard tested the wrong way round, so the verified leave and the rest write", atk("p1-wrong-polarity")],
+    ["a failed guard that only turns away when a second condition agrees", atk("p2-and-condition")],
+    ["a failed guard whose leave sits behind a switch", atk("p3-nested-leave")],
+    ["a guard that turns away only the signed-in and banned, never the signed-out", atk("p4-banned-only")],
   ];
   for (const [what, file] of open) {
     it(`still reports ${what}`, () => {
@@ -115,6 +119,12 @@ describe("CRYPTO-008: asking whether any candidate matches is a decision", () =>
     expect(lines("CRYPTO-008", file)).toContain(4);
   });
   it("still reports the plain comparison", () => expect(lines("CRYPTO-008", file)).toContain(11));
+  it("still reports a stored secret, not its hash, matched with the one sent inside .find()", () => {
+    expect(lines("CRYPTO-008", "src/lib/atk/keys.ts")).toContain(4);
+  });
+  it("still reports a stored secret matched with the one sent inside a loop", () => {
+    expect(lines("CRYPTO-008", "src/lib/atk/keys.ts")).toContain(7);
+  });
 });
 
 describe("INPUT-001: only a value proven fixed is left out", () => {
