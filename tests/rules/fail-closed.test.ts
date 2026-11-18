@@ -42,6 +42,7 @@ const rr = (p: string) => `src/app/api/rr/${p}/route.ts`;
 const fc = (p: string) => `src/app/api/fc/${p}/route.ts`;
 const zz = (p: string) => `src/app/api/zz/${p}/route.ts`;
 const yy = (p: string) => `src/app/api/yy/${p}/route.ts`;
+const gr = (p: string) => `src/app/api/gr/${p}/route.ts`;
 const api = (p: string) => `src/app/api/${p}/route.ts`;
 
 describe("AUTH-001: a handler the analysis cannot prove guarded stays reported", () => {
@@ -181,6 +182,8 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
     ["a MAC compared in a helper, at the top of the only branch that works", fc("q04-guard-in-branch")],
     ["a session read beside a body read with .catch()", zz("s4-safe-early-return-value")],
   ];
+  open.push(["a session read from a server the caller names", gr("h01-auth-server-sent")]);
+  open.push(["a session read through the project's own fetch", gr("h02-own-fetch")]);
   for (const [what, file] of unprovable) open.push([`(guarded, not provable) ${what}`, file]);
   for (const [what, file] of open) {
     it(`still reports ${what}`, () => {
@@ -198,6 +201,7 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
     ["!who || who.role !== admin", rr("s15-or-role")],
     ["who === null || who === undefined", rr("s16-typeof")],
     ["an error field that holds a refusal for everyone not signed in", fc("q01-error-field")],
+    ["a client made for this request and response by a project function (the real app's shape)", gr("g01-route-client")],
   ];
   for (const [what, file] of guarded) {
     it(`does not report ${what}`, () => {
@@ -224,6 +228,7 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
       [
         fc("q01-error-field"),
         fc("q02-inline-chain"),
+        gr("g01-route-client"),
         api("member/desk"),
         api("member/either"),
         api("member/inside"),
