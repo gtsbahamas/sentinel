@@ -25,6 +25,12 @@ import type { ApiEndpoint, ProjectModel } from "../../model/types.js";
 
 type Fn = ts.FunctionDeclaration | ts.MethodDeclaration | ts.ArrowFunction | ts.FunctionExpression;
 
+interface Frame {
+  call: ts.CallExpression;
+  target: Fn;
+  parent: Frame | null;
+}
+
 const MAX_HOPS = 4;
 const MAX_CLOSURE_FILES = 150;
 const MAX_METHOD_CANDIDATES = 3;
@@ -69,8 +75,14 @@ export class Project {
   private texts = new Map<string, string | null>();
   private parsed = new Map<string, ts.SourceFile | null>();
   private closures = new Map<string, string[]>();
-  private methods = new Map<string, Fn[]>();
+  private methods = new Map<string, { fns: Fn[]; unknown: boolean }>();
   private aliases: Array<{ prefix: string; suffix: string; targets: string[] }> | null = null;
+  private deps: Set<string> | null = null;
+  private getters = new Map<string, Set<string>>();
+  /** The call being followed into a helper, innermost first: where a helper's parameters get their values. */
+  frame: Frame | null = null;
+  /** Counts answers that depended on a call site's arguments: those are not kept per function. */
+  siteDependent = 0;
   // Proofs and "is inert" answers, kept per scan. `cuts` counts the times a walk was stopped short (depth,
   // a cycle): a "no" reached with one of those inside it is not final and is not kept.
   readonly proofMemo = new Map<Fn, Map<string, { fails: Set<"false" | "null" | "undefined" | "other"> } | null>>();
@@ -193,14 +205,11 @@ export class Project {
     for (const s of sf.statements) {
       if (ts.isFunctionDeclaration(s) && s.body) {
         const isDefault = s.modifiers?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword) ?? false;
-        if (s.name?.text === name || (name === "default" && isDefault)) return s;
+        if (s.name?.text === name || (name === "default" && isDefault)) return s.name ? declaredFn(s.name) : s;
       }
       if (ts.isVariableStatement(s)) {
         for (const d of s.declarationList.declarations) {
-          if (ts.isIdentifier(d.name) && d.name.text === name && d.initializer) {
-            const init = unwrap(d.initializer);
-            if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) return init;
-          }
+          if (ts.isIdentifier(d.name) && d.name.text === name) return declaredFn(d.name);
         }
       }
       if (name === "default" && ts.isExportAssignment(s)) {
@@ -300,25 +309,95 @@ export class Project {
     return null;
   }
 
-  /** Methods and function-valued properties called `name` in the files `entry` reaches. */
-  methodsNamed(entry: string, name: string): Fn[] {
+  /**
+   * Methods and function-valued properties called `name` in the files `entry` reaches. `unknown` is set
+   * when something of that name cannot be read as a function written in place (`{ admit: anyone }`, a
+   * getter, `x.admit = ...`, a shorthand property) or the files reached could not all be looked at: the
+   * call may then run something that is not in `fns`.
+   */
+  methodsOf(entry: string, name: string): { fns: Fn[]; unknown: boolean } {
     const key = `${entry}\u0000${name}`;
     const cached = this.methods.get(key);
     if (cached) return cached;
-    const out: Fn[] = [];
-    for (const file of this.closure(entry)) {
+    const fns: Fn[] = [];
+    const files = this.closure(entry);
+    let unknown = files.length >= MAX_CLOSURE_FILES;
+    for (const file of files) {
       if (!this.text(file)?.includes(name)) continue;
       const sf = this.source(file);
-      if (!sf) continue;
+      if (!sf) {
+        unknown = true;
+        continue;
+      }
       each(sf, (n) => {
-        if (ts.isMethodDeclaration(n) && n.body && ts.isIdentifier(n.name) && n.name.text === name) out.push(n);
-        if ((ts.isPropertyAssignment(n) || ts.isPropertyDeclaration(n)) && ts.isIdentifier(n.name) && n.name.text === name && n.initializer) {
-          const init = unwrap(n.initializer);
-          if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) out.push(init);
+        if (ts.isMethodDeclaration(n) && propertyKey(n.name) === name) {
+          if (n.body && !n.asteriskToken) fns.push(n);
+          else if (n.body) unknown = true;
+        } else if ((ts.isPropertyAssignment(n) || ts.isPropertyDeclaration(n)) && propertyKey(n.name) === name) {
+          const init = n.initializer ? unwrap(n.initializer) : undefined;
+          if (init && (ts.isArrowFunction(init) || (ts.isFunctionExpression(init) && !init.asteriskToken))) fns.push(init);
+          else if (ts.isPropertyAssignment(n) || init) unknown = true;
+        } else if (ts.isShorthandPropertyAssignment(n) && n.name.text === name) unknown = true;
+        else if ((ts.isGetAccessorDeclaration(n) || ts.isSetAccessorDeclaration(n)) && propertyKey(n.name) === name) unknown = true;
+        else if (ts.isBinaryExpression(n) && n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && n.operatorToken.kind <= ts.SyntaxKind.LastAssignment) {
+          const left = unwrap(n.left);
+          if (ts.isPropertyAccessExpression(left) && left.name.text === name) unknown = true;
+          if (ts.isElementAccessExpression(left) && (!ts.isStringLiteralLike(left.argumentExpression) || left.argumentExpression.text === name)) unknown = true;
         }
       });
     }
+    const out = { fns, unknown };
     this.methods.set(key, out);
+    return out;
+  }
+
+  methodsNamed(entry: string, name: string): Fn[] {
+    const { fns, unknown } = this.methodsOf(entry, name);
+    return unknown ? [] : fns;
+  }
+
+  /**
+   * The import behind a local name when it is shown to come from a package: a Node built-in, or a package
+   * the project's package.json lists. An import that merely fails to resolve (`#internal/log`, a path
+   * mapping this does not know) is not a package; it is code that could not be read.
+   */
+  packageImport(file: string, local: string): { spec: string; name: string } | null {
+    const imported = this.importOf(file, local);
+    if (!imported || this.resolveModule(file, imported.spec) !== null) return null;
+    if (/^(?:node:)?(?:crypto|buffer|util|url)$/.test(imported.spec)) return imported;
+    const m = /^(@[\w.-]+\/[\w.-]+|[\w.-]+)(?:\/|$)/.exec(imported.spec);
+    return m && this.dependencies().has(m[1]) ? imported : null;
+  }
+
+  private dependencies(): Set<string> {
+    if (this.deps) return this.deps;
+    this.deps = new Set();
+    try {
+      const pkg = JSON.parse(readFileSync(join(this.root, "package.json"), "utf-8"));
+      for (const key of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
+        for (const name of Object.keys(pkg?.[key] ?? {})) this.deps.add(name);
+      }
+    } catch {
+      // No readable package.json: no import is taken for a package.
+    }
+    return this.deps;
+  }
+
+  /** Names of getters declared in the files `entry` reaches: reading such a property runs code. */
+  gettersIn(entry: string): Set<string> {
+    const cached = this.getters.get(entry);
+    if (cached) return cached;
+    const out = new Set<string>();
+    for (const file of this.closure(entry)) {
+      if (!/\bget\s|defineProperty|Proxy/.test(this.text(file) ?? "")) continue;
+      const sf = this.source(file);
+      if (!sf) continue;
+      each(sf, (n) => {
+        if (ts.isGetAccessorDeclaration(n)) out.add(propertyKey(n.name) ?? "*");
+        if (ts.isIdentifier(n) && (n.text === "defineProperty" || n.text === "defineProperties" || n.text === "Proxy")) out.add("*");
+      });
+    }
+    this.getters.set(entry, out);
     return out;
   }
 
@@ -330,9 +409,13 @@ export class Project {
     const file = call.getSourceFile().fileName;
     const callee = unwrap(call.expression);
     if (ts.isIdentifier(callee)) {
-      if (isParameterInScope(call, callee.text)) return [];
-      const nested = nestedFunction(call, callee.text);
-      if (nested) return [nested];
+      // Scope decides what the name means at the call. A parameter, a `let` that is pointed elsewhere, a
+      // local that merely shares the name of an import: none of those is the function found by its name.
+      const declared = declarationOf(callee);
+      if (declared) {
+        const fn = declaredFn(declared);
+        return fn ? [fn] : [];
+      }
       const found = this.lookup(file, callee.text);
       return found ? [found] : [];
     }
@@ -341,8 +424,9 @@ export class Project {
     const object = unwrap(callee.expression);
     if (object.kind === ts.SyntaxKind.ThisKeyword) {
       const cls = enclosing(call, ts.isClassLike);
-      const m = cls?.members.find((x): x is ts.MethodDeclaration => ts.isMethodDeclaration(x) && !!x.body && ts.isIdentifier(x.name) && x.name.text === name);
-      return m ? [m] : [];
+      const named = cls?.members.filter((x) => propertyKey(x.name) === name) ?? [];
+      const m = named.length === 1 ? named[0] : undefined;
+      return m && ts.isMethodDeclaration(m) && m.body && !m.asteriskToken ? [m] : [];
     }
     if (ts.isIdentifier(object)) {
       const imported = this.importOf(file, object.text);
@@ -351,7 +435,7 @@ export class Project {
         const found = target ? this.lookup(target, name) : null;
         return found ? [found] : [];
       }
-      if (imported && !this.resolveModule(file, imported.spec)) return []; // a package's object
+      if (imported && !this.resolveModule(file, imported.spec)) return []; // a package's object, or code that could not be read
     }
     if (PLATFORM_METHODS.has(name)) return [];
     const candidates = this.methodsNamed(entry, name);
@@ -439,6 +523,7 @@ function declarationOf(id: ts.Identifier): ts.Identifier | null {
     let found: ts.Identifier | undefined;
     if (isFn(scope)) {
       for (const p of scope.parameters) found ??= find(p.name);
+      if (!found && scope.body) found = hoistedVar(scope.body, id.text);
     } else if (ts.isBlock(scope) || ts.isSourceFile(scope) || ts.isCaseClause(scope) || ts.isDefaultClause(scope) || ts.isModuleBlock(scope)) {
       for (const st of scope.statements) {
         if (ts.isVariableStatement(st)) found ??= inList(st.declarationList);
@@ -454,35 +539,45 @@ function declarationOf(id: ts.Identifier): ts.Identifier | null {
   return null;
 }
 
+/** A `var` of that name anywhere in a function's body (not in functions inside it): it is the function's. */
+function hoistedVar(body: ts.Node, name: string): ts.Identifier | undefined {
+  let found: ts.Identifier | undefined;
+  const walk = (n: ts.Node): void => {
+    if (found || isFn(n)) return;
+    if (ts.isVariableDeclarationList(n) && (n.flags & (ts.NodeFlags.Let | ts.NodeFlags.Const)) === 0) {
+      for (const d of n.declarations) found ??= bindingIdentifiers(d.name).find((b) => b.text === name);
+    }
+    ts.forEachChild(n, walk);
+  };
+  ts.forEachChild(body, walk);
+  return found;
+}
+
+/**
+ * The function a declared name stands for, when it can stand for nothing else: a function declaration that
+ * is the only one of its name and is never assigned to, or a `const` set to a function written in place.
+ * A generator is left out: calling one runs none of its body.
+ */
+function declaredFn(decl: ts.Identifier): Fn | null {
+  const p = decl.parent;
+  if (ts.isFunctionDeclaration(p) && p.name === decl && p.body && !p.asteriskToken) {
+    const scope = p.parent;
+    const siblings = ts.isSourceFile(scope) || ts.isBlock(scope) || ts.isModuleBlock(scope) ? scope.statements : [];
+    const same = siblings.filter((st) => ts.isFunctionDeclaration(st) && st.name?.text === decl.text);
+    return same.length === 1 && !isReassigned(decl) ? p : null;
+  }
+  if (ts.isVariableDeclaration(p) && p.name === decl && p.initializer && ts.isVariableDeclarationList(p.parent) && (p.parent.flags & ts.NodeFlags.Const) !== 0) {
+    const init = unwrap(p.initializer);
+    if (ts.isArrowFunction(init) || (ts.isFunctionExpression(init) && !init.asteriskToken)) return init;
+  }
+  return null;
+}
+
 /** What a variable was initialised from, when the identifier refers to a variable. */
 function initializerOf(id: ts.Identifier): ts.Expression | null {
   let cur: ts.Node | undefined = declarationOf(id) ?? undefined;
   while (cur && (ts.isIdentifier(cur) || ts.isBindingElement(cur) || ts.isObjectBindingPattern(cur) || ts.isArrayBindingPattern(cur))) cur = cur.parent;
   return cur && ts.isVariableDeclaration(cur) ? (cur.initializer ?? null) : null;
-}
-
-function isParameterInScope(node: ts.Node, name: string): boolean {
-  for (let cur = node.parent; cur; cur = cur.parent) {
-    if (isFn(cur) && cur.parameters.some((p) => bindingNames(p.name).includes(name))) return true;
-  }
-  return false;
-}
-
-/** A function declared inside one of the functions around `node`. */
-function nestedFunction(node: ts.Node, name: string): Fn | null {
-  for (let cur = node.parent; cur; cur = cur.parent) {
-    if (!isFn(cur) || !cur.body) continue;
-    const found: Fn[] = [];
-    each(cur.body, (n) => {
-      if (ts.isFunctionDeclaration(n) && n.body && n.name?.text === name) found.push(n);
-      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name && n.initializer) {
-        const init = unwrap(n.initializer);
-        if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) found.push(init);
-      }
-    });
-    if (found.length) return found[0];
-  }
-  return null;
 }
 
 /**
@@ -577,18 +672,21 @@ function settledText(e: ts.Expression, depth = 3): string {
   return x.getText().replace(/\s+/g, "");
 }
 
+/** A name nothing in the file declares or imports: the language's or the platform's own. */
+function isGlobal(id: ts.Identifier, project: Project): boolean {
+  return declarationOf(id) === null && project.importOf(id.getSourceFile().fileName, id.text) === null;
+}
+
 function isLogging(call: ts.CallExpression, project: Project): boolean {
   let root: ts.Expression = unwrap(call.expression);
   while (ts.isPropertyAccessExpression(root) || ts.isCallExpression(root)) root = unwrap(root.expression);
   if (!ts.isIdentifier(root)) return false;
   // `console` is the platform's; a `logger` counts only when it is imported, not when it is a local name
   // for something else (`const log = ledger`).
-  if (root.text === "console") return declarationOf(root) === null;
-  if (!/^(?:logger|log)$/i.test(root.text)) return false;
+  if (root.text === "console") return isGlobal(root, project);
+  if (!/^(?:logger|log)$/i.test(root.text) || declarationOf(root) !== null) return false;
   // A logger from a package. The project's own `log` is read like any other of its functions.
-  const file = call.getSourceFile().fileName;
-  const imported = project.importOf(file, root.text);
-  return imported !== null && project.resolveModule(file, imported.spec) === null;
+  return project.packageImport(call.getSourceFile().fileName, root.text) !== null;
 }
 
 /** The statement a node belongs to. */
@@ -649,15 +747,15 @@ function emptyLiteral(x: ts.Expression): Empty | null {
 function nodeCrypto(call: ts.CallExpression, name: string, project: Project): boolean {
   const callee = unwrap(call.expression);
   const file = call.getSourceFile().fileName;
-  if (ts.isIdentifier(callee)) {
-    const imported = declarationOf(callee) === null ? project.importOf(file, callee.text) : null;
-    return !!imported && /^(?:node:)?crypto$/.test(imported.spec) && imported.name === name;
-  }
+  const builtin = (local: ts.Identifier) => {
+    const imported = declarationOf(local) === null ? project.packageImport(file, local.text) : null;
+    return imported && /^(?:node:)?crypto$/.test(imported.spec) ? imported : null;
+  };
+  if (ts.isIdentifier(callee)) return builtin(callee)?.name === name;
   if (!ts.isPropertyAccessExpression(callee) || callee.name.text !== name) return false;
   const object = unwrap(callee.expression);
-  if (!ts.isIdentifier(object) || declarationOf(object) !== null) return false;
-  const imported = project.importOf(file, object.text);
-  return imported ? /^(?:node:)?crypto$/.test(imported.spec) : object.text === "crypto";
+  if (!ts.isIdentifier(object)) return false;
+  return builtin(object) !== null || (object.text === "crypto" && isGlobal(object, project));
 }
 
 /** True when every return of the function hands back something `is` accepts. */
@@ -695,15 +793,78 @@ function madeBy(e: ts.Expression, pkg: RegExp, exportName: RegExp | null, cx: Ct
   if (b) return b.prefix.length === 0 && madeBy(b.init, pkg, exportName, cx, depth + 1);
   if (declarationOf(x) !== null) return false; // a parameter: whatever the caller passed
   const file = x.getSourceFile().fileName;
-  const imported = cx.project.importOf(file, x.text);
-  if (!imported) return false;
-  if (cx.project.resolveModule(file, imported.spec) === null) return pkg.test(imported.spec) && (!exportName || exportName.test(imported.name));
+  const fromPackage = cx.project.packageImport(file, x.text);
+  if (fromPackage) return pkg.test(fromPackage.spec) && (!exportName || exportName.test(fromPackage.name));
   const top = cx.project.topVariable(file, x.text);
   if (!top || !top.initializer || !ts.isIdentifier(top.name) || (top.parent.flags & ts.NodeFlags.Const) === 0) return false;
   return madeBy(top.initializer, pkg, exportName, cx, depth + 1);
 }
 
 const SUPABASE_CLIENT = /^create\w*Client$/;
+
+/**
+ * Is the value worked out from a secret the server holds (`process.env.X`)? A comparison proves something
+ * about the caller only when one side is: two values that both came with the request, or an unkeyed
+ * checksum of the body, match for anyone. Constants are followed to what they were set from, the project's
+ * own functions to what they return, and a helper's parameter to the argument at the call being followed.
+ */
+function secretDerived(e: ts.Node, cx: Ctx, frame: Frame | null = cx.project.frame, depth = 0): boolean {
+  if (depth > 10) return false;
+  let found = false;
+  const visit = (n: ts.Node): void => {
+    if (found || isFn(n) || ts.isTypeNode(n)) return;
+    if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "process" && n.name.text === "env" && isGlobal(n.expression, cx.project)) {
+      found = true;
+      return;
+    }
+    if (ts.isIdentifier(n)) {
+      if (isPropertyName(n)) return;
+      const d = declarationOf(n);
+      if (!d) {
+        const c = cx.project.constant(n.getSourceFile().fileName, n.text);
+        if (c && secretDerived(c.value, cx, null, depth + 1)) found = true;
+        return;
+      }
+      const param = d.parent;
+      if (ts.isParameter(param) && param.name === d && isFn(param.parent)) {
+        cx.project.siteDependent++;
+        if (isReassigned(d)) return;
+        const index = param.parent.parameters.indexOf(param);
+        for (let f = frame; f; f = f.parent) {
+          if (f.target !== param.parent) continue;
+          const arg = f.call.arguments[index];
+          if (arg && !ts.isSpreadElement(arg) && !f.call.arguments.slice(0, index).some(ts.isSpreadElement) && secretDerived(arg, cx, f.parent, depth + 1)) found = true;
+          break;
+        }
+        return;
+      }
+      const b = boundTo(n);
+      if (b && secretDerived(b.init, cx, frame, depth + 1)) found = true;
+      return;
+    }
+    if (ts.isCallExpression(n)) {
+      const targets = cx.project.resolveCall(n, cx.entry);
+      if (targets.length > 0) {
+        if (targets.every((t) => returnsOnly(t, (r) => secretDerived(r, cx, { call: n, target: t, parent: frame }, depth + 1)))) found = true;
+        return;
+      }
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(e);
+  return found;
+}
+
+/** Runs `go` while the call into `target` is the innermost one being followed. */
+function inFrame<T>(cx: Ctx, call: ts.CallExpression, target: Fn, go: () => T): T {
+  const parent = cx.project.frame;
+  cx.project.frame = { call, target, parent };
+  try {
+    return go();
+  } finally {
+    cx.project.frame = parent;
+  }
+}
 
 type PlatformCheck = { kind: "value"; path: string[]; fails: Empty[]; awaited: boolean } | { kind: "asserts"; awaited: boolean };
 
@@ -721,15 +882,20 @@ function platformCheck(call: ts.CallExpression, cx: Ctx): PlatformCheck | null {
   if (name === "timingSafeEqual") {
     // Comparing a value with itself answers yes for everyone.
     if (!nodeCrypto(call, name, cx.project) || call.arguments.length !== 2 || settledText(call.arguments[0]) === settledText(call.arguments[1])) return null;
+    // One side has to rest on a secret the server holds.
+    if (!call.arguments.some((a) => secretDerived(a, cx))) return null;
     return value([], ["false"], false);
   }
   if (name === "constructEvent" || name === "constructEventAsync") {
     if (!ts.isPropertyAccessExpression(callee) || !madeBy(callee.expression, /^stripe$/, null, cx)) return null;
+    if (!call.arguments[2] || !secretDerived(call.arguments[2], cx)) return null;
     return { kind: "asserts", awaited: name === "constructEventAsync" };
   }
   if (ts.isPropertyAccessExpression(callee)) {
     const object = unwrap(callee.expression);
-    if (name === "verify" && /^(?:globalThis\.)?(?:crypto|webcrypto)\.subtle$/.test(object.getText().replace(/\s+/g, "")) && outerRoot(object)) return value([], ["false"], true);
+    if (name === "verify" && /^(?:globalThis\.)?(?:crypto|webcrypto)\.subtle$/.test(object.getText().replace(/\s+/g, "")) && outerRoot(object, cx.project)) {
+      return call.arguments[1] && secretDerived(call.arguments[1], cx) ? value([], ["false"], true) : null;
+    }
     if (/^(?:getUser|getSession|getClaims)$/.test(name) && ts.isPropertyAccessExpression(object) && object.name.text === "auth") {
       if (!madeBy(object.expression, /^@supabase\//, SUPABASE_CLIENT, cx)) return null;
       if (name === "getUser") return value(["data", "user"], ["null"], true);
@@ -739,19 +905,24 @@ function platformCheck(call: ts.CallExpression, cx: Ctx): PlatformCheck | null {
   }
   let rootId: ts.Expression = callee;
   while (ts.isPropertyAccessExpression(rootId) || ts.isCallExpression(rootId)) rootId = unwrap(rootId.expression);
-  if (!ts.isIdentifier(rootId) || !AUTH_CALLS.has(name)) return null;
-  const spec = cx.project.importOf(call.getSourceFile().fileName, rootId.text)?.spec;
+  if (!ts.isIdentifier(rootId) || !AUTH_CALLS.has(name) || declarationOf(rootId) !== null) return null;
+  const spec = cx.project.packageImport(call.getSourceFile().fileName, rootId.text)?.spec;
   if (!spec || !AUTH_PACKAGES.test(spec)) return null;
-  const callback = call.arguments.some((a) => ts.isArrowFunction(a) || ts.isFunctionExpression(a));
+  const args = call.arguments;
+  const keyed = (i: number): boolean => !!args[i] && secretDerived(args[i], cx);
+  const receiverKeyed = ts.isPropertyAccessExpression(callee) && secretDerived(callee.expression, cx);
   switch (name) {
     case "validateRequest":
     case "validateRequestWithBody":
-      return /^twilio/.test(spec) ? value([], ["false"], false) : null;
+      return /^twilio/.test(spec) && keyed(0) ? value([], ["false"], false) : null;
     case "jwtVerify":
-      return /^jose/.test(spec) ? { kind: "asserts", awaited: true } : null;
+      return /^jose/.test(spec) && args.length <= 3 && keyed(1) ? { kind: "asserts", awaited: true } : null;
     case "verify":
-      if (/^(?:jsonwebtoken|svix)/.test(spec)) return callback ? null : { kind: "asserts", awaited: false };
-      return /^@octokit\/webhooks/.test(spec) ? value([], ["false"], true) : null;
+      // jsonwebtoken hands a failure to a callback, when given one, instead of throwing: the callback is the
+      // third or fourth argument, written out or passed by name.
+      if (/^jsonwebtoken/.test(spec)) return keyed(1) && (args.length === 2 || (args.length === 3 && ts.isObjectLiteralExpression(unwrap(args[2])))) ? { kind: "asserts", awaited: false } : null;
+      if (/^svix/.test(spec)) return receiverKeyed && args.length === 2 ? { kind: "asserts", awaited: false } : null;
+      return /^@octokit\/webhooks/.test(spec) && receiverKeyed ? value([], ["false"], true) : null;
     case "getServerSession":
     case "getToken":
       return /^next-auth/.test(spec) ? value([], ["null"], true) : null;
@@ -801,9 +972,13 @@ function boundTo(id: ts.Identifier): { init: ts.Expression; prefix: string[] } |
   }
   const d = node.parent;
   if (!ts.isVariableDeclaration(d) || !d.initializer || !ts.isVariableDeclarationList(d.parent)) return null;
-  if ((d.parent.flags & ts.NodeFlags.Const) === 0 && isReassigned(decl)) return null;
+  // A `var` can be declared twice and is the whole function's; only `let` and `const` are followed. Even a
+  // `const` stops holding what it was set from once a field of it is written (`t.ok = true`).
+  if ((d.parent.flags & (ts.NodeFlags.Let | ts.NodeFlags.Const)) === 0 || isReassigned(decl)) return null;
   return { init: d.initializer, prefix };
 }
+
+const reassigned = new WeakMap<ts.Identifier, boolean>();
 
 function isAssignment(kind: ts.SyntaxKind): boolean {
   return kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
@@ -811,8 +986,12 @@ function isAssignment(kind: ts.SyntaxKind): boolean {
 
 /** A `let` that is written to anywhere after its declaration no longer holds what it was set from. */
 function isReassigned(decl: ts.Identifier): boolean {
+  const known = reassigned.get(decl);
+  if (known !== undefined) return known;
   let scope: ts.Node = decl;
   while (scope.parent && !isFn(scope) && !ts.isSourceFile(scope)) scope = scope.parent;
+  // A function's own name, and a parameter, are looked for in the function; anything else in what holds it.
+  if (isFn(scope) && ts.isFunctionDeclaration(scope) && scope.name === decl && scope.parent) scope = scope.parent;
   let found = false;
   const refers = (n: ts.Node): boolean => {
     let hit = false;
@@ -826,7 +1005,9 @@ function isReassigned(decl: ts.Identifier): boolean {
     if (ts.isBinaryExpression(n) && isAssignment(n.operatorToken.kind) && refers(n.left)) found = true;
     if ((ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)) && (n.operator === ts.SyntaxKind.PlusPlusToken || n.operator === ts.SyntaxKind.MinusMinusToken) && refers(n.operand)) found = true;
     if ((ts.isForOfStatement(n) || ts.isForInStatement(n)) && !ts.isVariableDeclarationList(n.initializer) && refers(n.initializer)) found = true;
+    if (ts.isDeleteExpression(n) && refers(n.expression)) found = true;
   });
+  reassigned.set(decl, found);
   return found;
 }
 
@@ -871,9 +1052,10 @@ function proveValue(e: ts.Expression, path: string[], cx: Ctx, depth: number, aw
   if (ts.isElementAccessExpression(x) && ts.isStringLiteralLike(x.argumentExpression)) return proveValue(x.expression, [x.argumentExpression.text, ...path], cx, depth);
   if (ts.isObjectLiteralExpression(x)) {
     // `{ ok: false, res }` asked for `ok`. As a whole an object is always truthy, so it proves nothing.
-    if (path.length === 0 || x.properties.some((p) => !ts.isPropertyAssignment(p) && !ts.isShorthandPropertyAssignment(p))) return null;
+    // A spread, a method, a getter or a computed key can put anything in any field.
+    if (path.length === 0 || x.properties.some((p) => (!ts.isPropertyAssignment(p) && !ts.isShorthandPropertyAssignment(p)) || propertyKey(p.name) === null)) return null;
     const p = [...x.properties].reverse().find((q) => propertyKey(q.name) === path[0]);
-    if (!p) return x.properties.every((q) => propertyKey(q.name) !== null) ? { fails: new Set<Empty>([path.length > 1 ? "other" : "undefined"]) } : null;
+    if (!p) return { fails: new Set<Empty>([path.length > 1 ? "other" : "undefined"]) };
     return proveValue(ts.isPropertyAssignment(p) ? p.initializer : (p as ts.ShorthandPropertyAssignment).name, path.slice(1), cx, depth);
   }
   if (ts.isCallExpression(x)) return proveCall(x, awaited, path, cx, depth);
@@ -907,7 +1089,7 @@ function proveValue(e: ts.Expression, path: string[], cx: Ctx, depth: number, aw
 
 function proveCall(call: ts.CallExpression, awaited: boolean, path: string[], cx: Ctx, depth: number): Proof | null {
   const callee = unwrap(call.expression);
-  if (ts.isIdentifier(callee) && callee.text === "Boolean" && declarationOf(callee) === null && call.arguments.length === 1 && path.length === 0) {
+  if (ts.isIdentifier(callee) && callee.text === "Boolean" && isGlobal(callee, cx.project) && call.arguments.length === 1 && path.length === 0) {
     return proveValue(call.arguments[0], [], cx, depth) ? { fails: new Set<Empty>(["false"]) } : null;
   }
   const targets = cx.project.resolveCall(call, cx.entry);
@@ -923,7 +1105,7 @@ function proveCall(call: ts.CallExpression, awaited: boolean, path: string[], cx
   for (const t of targets) {
     // The promise of an answer is always truthy; only the awaited answer says anything.
     if (isAsync(t) && !awaited) return null;
-    const p = proveFn(t, "truthy", path, cx, depth + 1);
+    const p = inFrame(cx, call, t, () => proveFn(t, "truthy", path, cx, depth + 1));
     if (!p) return null;
     out = union(out, p);
   }
@@ -963,7 +1145,7 @@ function proveEmptyMeansVerified(e: ts.Expression, path: string[], cx: Ctx, dept
   if (ts.isPropertyAccessExpression(x) && ts.isIdentifier(x.name)) return proveEmptyMeansVerified(x.expression, [x.name.text, ...path], cx, depth);
   if (!ts.isCallExpression(x)) return false;
   const targets = cx.project.resolveCall(x, cx.entry);
-  return targets.length > 0 && targets.every((t) => (!isAsync(t) || awaited) && proveFn(t, "empty", path, cx, depth + 1) !== null);
+  return targets.length > 0 && targets.every((t) => (!isAsync(t) || awaited) && inFrame(cx, x, t, () => proveFn(t, "empty", path, cx, depth + 1)) !== null);
 }
 
 const subset = (fails: Set<Empty>, of: Empty[]): boolean => [...fails].every((f) => of.includes(f));
@@ -1105,15 +1287,71 @@ const STATIC_READS: Record<string, Set<string> | "any"> = {
   String: "any",
 };
 const GLOBAL_READS = new Set(["structuredClone", "atob", "btoa", "isNaN", "isFinite", "encodeURI", "decodeURI"]);
-const INERT_CLASSES = /^(?:Response|NextResponse|URL|URLSearchParams|Headers|FormData|TextEncoder|TextDecoder|Date|Map|Set|RegExp|Uint8Array|\w*Error)$/;
+const INERT_CLASSES = /^(?:Response|URL|URLSearchParams|Headers|FormData|TextEncoder|TextDecoder|Date|Map|Set|RegExp|Uint8Array|(?:Type|Range|Syntax|Reference|Eval|URI|Aggregate)?Error)$/;
+
+/**
+ * May `new X(...)` run for anyone? Only for the platform's own value classes, `NextResponse`, and a project
+ * class that adds nothing to run: no constructor, no field initialisers, extending nothing or one of these.
+ */
+function isInertNew(n: ts.NewExpression, cx: Ctx, depth = 0): boolean {
+  const c = unwrap(n.expression);
+  return ts.isIdentifier(c) && isInertClass(c, cx, depth);
+}
+
+function isInertClass(name: ts.Identifier, cx: Ctx, depth: number): boolean {
+  if (depth > 3) return false;
+  const file = name.getSourceFile().fileName;
+  if (declarationOf(name) !== null) return false; // a local or a parameter: whatever it was set to
+  const cls = classNamed(cx.project, file, name.text, 3);
+  if (!cls) {
+    if (isGlobal(name, cx.project)) return INERT_CLASSES.test(name.text);
+    const pkg = cx.project.packageImport(file, name.text);
+    return !!pkg && pkg.spec === "next/server" && pkg.name === "NextResponse";
+  }
+  if (!cls || cls.members.some((m) => ts.isConstructorDeclaration(m) || ts.isClassStaticBlockDeclaration(m) || (ts.isPropertyDeclaration(m) && !!m.initializer))) return false;
+  const base = cls.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression;
+  if (!base) return true;
+  return ts.isIdentifier(base) && isInertClass(base, cx, depth + 1);
+}
+
+/** The one class of that name at the top of a file, here or where it is imported from. */
+function classNamed(project: Project, file: string, name: string, hops: number): ts.ClassDeclaration | null {
+  const sf = project.source(file);
+  if (!sf || hops < 0) return null;
+  const here = sf.statements.filter((st): st is ts.ClassDeclaration => ts.isClassDeclaration(st) && st.name?.text === name);
+  if (here.length > 0) return here.length === 1 && !isReassigned(here[0].name!) ? here[0] : null;
+  const imported = project.importOf(file, name);
+  const target = imported && !imported.namespace ? project.resolveModule(file, imported.spec) : null;
+  return target && imported ? classNamed(project, target, imported.name, hops - 1) : null;
+}
+
+/** A value that is only data, by where it comes from: something written out, a local, `process.env`. */
+function isDataReceiver(e: ts.Expression, cx: Ctx): boolean {
+  let root = unwrap(e);
+  while (ts.isPropertyAccessExpression(root) || ts.isElementAccessExpression(root)) root = unwrap(root.expression);
+  const written = (v: ts.Expression): boolean =>
+    ts.isStringLiteralLike(v) || ts.isTemplateExpression(v) || ts.isRegularExpressionLiteral(v) || ts.isNumericLiteral(v) || (ts.isArrayLiteralExpression(v) && v.elements.every((el) => written(unwrap(el))));
+  // What a call or a `new` hands back is judged where the call itself is read.
+  if (written(root) || ts.isCallExpression(root) || ts.isNewExpression(root) || ts.isBinaryExpression(root) || ts.isConditionalExpression(root)) return true;
+  if (!ts.isIdentifier(root)) return false;
+  if (isLocal(root)) return true;
+  if (isGlobal(root, cx.project)) return root.text === "process";
+  // A module's own constant, here or imported, when it is written-out data.
+  const c = cx.project.constant(root.getSourceFile().fileName, root.text);
+  return !!c && written(unwrap(c.value));
+}
+
+/** The project has a method of that name: a call of it is the project's code unless shown otherwise. */
+function ownMethodsInert(name: string, cx: Ctx, depth: number): boolean {
+  const { fns, unknown } = cx.project.methodsOf(cx.entry, name);
+  return !unknown && fns.every((f) => isInertFn(f, cx, depth + 1));
+}
 
 /** The root name of `a.b.c` when nothing in the file's functions declares it: a global or an import. */
-function outerRoot(e: ts.Expression): boolean {
+function outerRoot(e: ts.Expression, project: Project): boolean {
   let root = unwrap(e);
   while (ts.isPropertyAccessExpression(root)) root = unwrap(root.expression);
-  if (!ts.isIdentifier(root)) return false;
-  const d = declarationOf(root);
-  return d === null;
+  return ts.isIdentifier(root) && isGlobal(root, project);
 }
 
 /** A hash, MAC or cipher object: `createHash(...)`, a chain of `.update()` on one, or a variable set from one. */
@@ -1150,7 +1388,14 @@ function isLocalWrite(target: ts.Expression): boolean {
   const b = boundTo(root);
   if (!b || b.prefix.length > 0) return false;
   const made = unwrap(b.init);
-  return ts.isObjectLiteralExpression(made) || ts.isArrayLiteralExpression(made) || (ts.isNewExpression(made) && INERT_CLASSES.test(made.expression.getText()));
+  const fresh = ts.isNewExpression(made) && ts.isIdentifier(made.expression) && declarationOf(made.expression) === null && INERT_CLASSES.test(made.expression.text);
+  return ts.isObjectLiteralExpression(made) || ts.isArrayLiteralExpression(made) || fresh;
+}
+
+/** `parts[i]` on a local array or string: no getter of the project's is behind it. */
+function isLocalIndex(n: ts.ElementAccessExpression): boolean {
+  const object = unwrap(n.expression);
+  return ts.isIdentifier(object) && isLocal(object);
 }
 
 /**
@@ -1161,6 +1406,7 @@ function isLocalWrite(target: ts.Expression): boolean {
  */
 function isInert(node: ts.Node, cx: Ctx, depth: number, accept?: (call: ts.CallExpression) => boolean): boolean {
   let ok = true;
+  const getters = cx.project.gettersIn(cx.entry);
   const visit = (n: ts.Node): void => {
     if (!ok) return;
     if (ts.isTypeNode(n)) return;
@@ -1177,8 +1423,15 @@ function isInert(node: ts.Node, cx: Ctx, depth: number, accept?: (call: ts.CallE
       }
       if (!isInertCall(n, cx, depth)) ok = false;
     } else if (ts.isNewExpression(n)) {
-      if (!INERT_CLASSES.test(n.expression.getText()) && !ts.isThrowStatement(n.parent)) ok = false;
-    } else if (ts.isTaggedTemplateExpression(n) || ts.isDeleteExpression(n)) {
+      if (!isInertNew(n, cx)) ok = false;
+    } else if (ts.isTaggedTemplateExpression(n) || ts.isDeleteExpression(n) || ts.isYieldExpression(n)) {
+      ok = false;
+    } else if ((ts.isForOfStatement(n) || ts.isForInStatement(n)) && !ts.isVariableDeclarationList(n.initializer)) {
+      if (!isLocalWrite(n.initializer)) ok = false;
+    } else if (ts.isPropertyAccessExpression(n) && getters.size > 0 && (getters.has("*") || getters.has(n.name.text))) {
+      // Reading the property may run one of the project's getters.
+      ok = false;
+    } else if (ts.isElementAccessExpression(n) && getters.size > 0 && !ts.isStringLiteralLike(n.argumentExpression) && !ts.isNumericLiteral(n.argumentExpression) && !isLocalIndex(n)) {
       ok = false;
     } else if (ts.isBinaryExpression(n) && isAssignment(n.operatorToken.kind)) {
       if (!isLocalWrite(n.left)) ok = false;
@@ -1197,53 +1450,70 @@ function isInertCall(call: ts.CallExpression, cx: Ctx, depth: number): boolean {
   const targets = cx.project.resolveCall(call, cx.entry);
   if (targets.length > 0) return targets.every((t) => isInertFn(t, cx, depth + 1));
   if (isLogging(call, cx.project) || isVerification(call, cx)) return true;
+  const file = call.getSourceFile().fileName;
   if (ts.isIdentifier(callee)) {
     if (declarationOf(callee) !== null) return false; // a parameter or a local that could not be resolved
-    if (COERCION_FUNCTIONS.has(callee.text) || GLOBAL_READS.has(callee.text)) return true;
-    const imported = cx.project.importOf(call.getSourceFile().fileName, callee.text);
+    if (isGlobal(callee, cx.project)) return COERCION_FUNCTIONS.has(callee.text) || GLOBAL_READS.has(callee.text);
+    const imported = cx.project.packageImport(file, callee.text);
     if (!imported) return false;
     if (/^(?:node:)?crypto$/.test(imported.spec)) return CRYPTO_FUNCTIONS.has(imported.name);
     if (imported.spec === "next/headers") return imported.name === "cookies" || imported.name === "headers";
     // A Supabase client being made. What is done with it is a separate call.
-    return /^@supabase\//.test(imported.spec) && /^create\w*Client$/.test(imported.name);
+    return /^@supabase\//.test(imported.spec) && SUPABASE_CLIENT.test(imported.name);
   }
   if (!ts.isPropertyAccessExpression(callee) || !ts.isIdentifier(callee.name)) return false;
   const name = callee.name.text;
   const object = unwrap(callee.expression);
   const objectText = object.getText().replace(/\s+/g, "");
   const statics = STATIC_READS[objectText];
-  if (statics && outerRoot(object)) return statics === "any" || statics.has(name);
-  if (CIPHER_METHODS.has(name) && isCipherObject(object, cx.project)) return true;
-  if (CIPHER_METHODS.has(name)) return false;
-  if (LOOKUP_METHODS.has(name)) {
-    if (REQUEST_DATA.test(objectText)) return true;
-    const b = ts.isIdentifier(object) ? boundTo(object) : null;
-    return !!b && REQUEST_DATA_SOURCE.test(b.init.getText());
+  if (statics) return outerRoot(object, cx.project) && (statics === "any" || statics.has(name));
+  if (ts.isIdentifier(object) && declarationOf(object) === null) {
+    const pkg = cx.project.packageImport(file, object.text);
+    if (pkg) {
+      if (/^(?:node:)?crypto$/.test(pkg.spec)) return CRYPTO_FUNCTIONS.has(name);
+      return pkg.spec === "next/server" && pkg.name === "NextResponse" && (STATIC_READS.NextResponse as Set<string>).has(name);
+    }
   }
+  if (CIPHER_METHODS.has(name)) return isCipherObject(object, cx.project);
+  if (LOOKUP_METHODS.has(name)) {
+    // What came with the request: `req.headers.get(...)`, `cookies().get(...)`, `url.searchParams.get(...)`.
+    let root = object;
+    while (ts.isPropertyAccessExpression(root) || ts.isCallExpression(root)) root = unwrap(root.expression);
+    if (!ts.isIdentifier(root)) return false;
+    const fromNext = declarationOf(root) === null && cx.project.packageImport(file, root.text)?.spec === "next/headers";
+    if (REQUEST_DATA.test(objectText)) return fromNext || isLocal(root);
+    const b = ts.isIdentifier(object) ? boundTo(object) : null;
+    return !!b && isLocal(root) && REQUEST_DATA_SOURCE.test(b.init.getText());
+  }
+  const listed = READ_METHODS.has(name) || NO_ARGUMENT_READS.has(name) || CALLBACK_METHODS.has(name) || PROMISE_METHODS.has(name) || name === "replace" || name === "replaceAll";
+  // These are methods of strings, arrays, promises and request bodies. They mean that only on a value that is
+  // data, and only when the project has no method of its own by that name that does something else.
+  if (!listed || !isDataReceiver(object, cx) || !ownMethodsInert(name, cx, depth)) return false;
   const written = (a: ts.Expression | undefined): boolean => !!a && (ts.isArrowFunction(a) || ts.isFunctionExpression(a));
   // A function written in place is read with the rest; one passed by name (`.then(save)`) is not followed.
   if (CALLBACK_METHODS.has(name)) return written(call.arguments[0]);
   if (PROMISE_METHODS.has(name)) return call.arguments.length > 0 && call.arguments.every(written);
-  // `req.json()` reads the request; `res.json(data)` and `store.replace(key, value)` are something else.
+  // `req.json()` reads the request; `res.json(data)` is something else.
   if (NO_ARGUMENT_READS.has(name)) return call.arguments.length === 0;
   if (name === "replace" || name === "replaceAll") {
     const first = call.arguments[0];
-    return !!first && (ts.isRegularExpressionLiteral(first) || ts.isStringLiteralLike(first));
+    return call.arguments.length === 2 && (ts.isRegularExpressionLiteral(first) || ts.isStringLiteralLike(first));
   }
-  return READ_METHODS.has(name);
+  return true;
 }
 
 function isInertFn(fn: Fn, cx: Ctx, depth: number): boolean {
   const memo = cx.project.inertMemo.get(fn);
   if (memo !== undefined) return memo;
-  if (!fn.body) return false;
+  if (!fn.body || fn.asteriskToken) return false;
   if (depth > MAX_HOPS || cx.project.inertActive.has(fn)) {
     cx.project.cuts++;
     return false;
   }
   const cuts = cx.project.cuts;
   cx.project.inertActive.add(fn);
-  const result = isInert(fn.body, cx, depth);
+  // A parameter's default value runs with the call.
+  const result = fn.parameters.every((p) => isInert(p, cx, depth)) && isInert(fn.body, cx, depth);
   cx.project.inertActive.delete(fn);
   if (result || cuts === cx.project.cuts) cx.project.inertMemo.set(fn, result);
   return result;
@@ -1329,6 +1599,8 @@ class Walk {
       return false;
     }
     if (ts.isForOfStatement(s) || ts.isForInStatement(s) || ts.isWhileStatement(s) || ts.isDoStatement(s)) {
+      // `for (settings.owner of [sent]) {}` is an assignment.
+      if ((ts.isForOfStatement(s) || ts.isForInStatement(s)) && !ts.isVariableDeclarationList(s.initializer) && !isLocalWrite(s.initializer)) throw new Unproven();
       this.inert(s.expression);
       this.stmt(s.statement, false);
       return false;
@@ -1351,7 +1623,19 @@ class Walk {
 
   /** What an unverified request may be handed back, by what is being proven. */
   private ungatedReturn(e: ts.Expression | undefined): void {
-    if (this.sense === "handler") return;
+    if (this.sense === "handler") {
+      // What everyone is answered is built from the request, literals and what a helper handed back. A value
+      // kept by a module (a cache, a list of keys) does not go out to a caller nobody checked.
+      if (e) {
+        each(e, (n) => {
+          if (!ts.isIdentifier(n) || isPropertyName(n) || isLocal(n) || isGlobal(n, this.cx.project)) return;
+          if (declarationOf(n) === null && this.cx.project.packageImport(n.getSourceFile().fileName, n.text)) return;
+          if (ts.isCallExpression(n.parent) && unwrap(n.parent.expression) === n) return; // a call: read by the inert check
+          throw new Unproven();
+        });
+      }
+      return;
+    }
     if (this.sense === "asserts") throw new Unproven();
     if (this.sense === "empty") {
       if (!e || !proveEmptyMeansVerified(e, this.path, this.cx, this.depth, isAsync(this.fn))) throw new Unproven();
@@ -1373,23 +1657,27 @@ class Walk {
    */
   private asserts(node: ts.Node): boolean {
     let found = false;
-    const visit = (n: ts.Node): void => {
-      if (found || isFn(n)) return;
-      if (ts.isConditionalExpression(n)) return visit(n.condition);
-      if (ts.isBinaryExpression(n)) {
-        const op = n.operatorToken.kind;
-        if (op === ts.SyntaxKind.AmpersandAmpersandToken || op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) return visit(n.left);
+    // Only positions that are evaluated every time the statement runs are looked at: the statement's own
+    // expression, what a variable is set from, a call's callee and arguments, the object of a property read.
+    // Not a default value, the right of `&&` `||` `??` `??=`, a `?:` arm, anything behind `?.`, or a
+    // function written there.
+    const visit = (n: ts.Node | undefined): void => {
+      if (!n || found) return;
+      if (ts.isExpressionStatement(n) || ts.isReturnStatement(n) || ts.isAwaitExpression(n) || ts.isParenthesizedExpression(n) || ts.isNonNullExpression(n) || ts.isAsExpression(n) || ts.isVoidExpression(n)) return visit(n.expression);
+      if (ts.isVariableStatement(n)) return n.declarationList.declarations.forEach((d) => visit(d.initializer));
+      if (ts.isArrayLiteralExpression(n)) return n.elements.forEach(visit);
+      if ((n.flags & ts.NodeFlags.OptionalChain) !== 0) return;
+      if (ts.isPropertyAccessExpression(n)) return visit(n.expression);
+      if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken) return visit(n.right);
+      if (!ts.isCallExpression(n)) return;
+      const callee = unwrap(n.expression);
+      if (ts.isPropertyAccessExpression(callee) && /^(?:catch|then|finally)$/.test(callee.name.text)) return;
+      if (this.isAssertCall(n)) {
+        found = true;
+        return;
       }
-      if (ts.isCallExpression(n)) {
-        if (n.questionDotToken) return;
-        const callee = unwrap(n.expression);
-        if (ts.isPropertyAccessExpression(callee) && /^(?:catch|then|finally)$/.test(callee.name.text)) return;
-        if (this.isAssertCall(n)) {
-          found = true;
-          return;
-        }
-      }
-      ts.forEachChild(n, visit);
+      visit(n.expression);
+      n.arguments.forEach(visit);
     };
     visit(node);
     if (found) this.used = true;
@@ -1407,6 +1695,7 @@ class Walk {
       const b = boundTo(decipher);
       const made = b && b.prefix.length === 0 ? unwrap(b.init) : null;
       if (!made || !ts.isCallExpression(made) || !nodeCrypto(made, "createDecipheriv", this.cx.project)) return false;
+      if (!made.arguments[1] || !secretDerived(made.arguments[1], this.cx)) return false;
       const decl = declarationOf(decipher);
       let tagged = false;
       if (this.fn.body) {
@@ -1423,7 +1712,7 @@ class Walk {
       const p = platformCheck(call, this.cx);
       return !!p && p.kind === "asserts" && (!p.awaited || awaited);
     }
-    return targets.every((t) => (!isAsync(t) || awaited) && proveFn(t, "asserts", [], this.cx, this.depth + 1) !== null);
+    return targets.every((t) => (!isAsync(t) || awaited) && inFrame(this.cx, call, t, () => proveFn(t, "asserts", [], this.cx, this.depth + 1)) !== null);
   }
 }
 
@@ -1437,12 +1726,14 @@ function proveFn(fn: Fn, sense: Sense, path: string[], cx: Ctx, depth: number): 
   const key = `${sense}\u0000${path.join("\u0000")}`;
   const memo = cx.project.proofMemo.get(fn)?.get(key);
   if (memo !== undefined) return memo;
-  if (!fn.body) return null;
+  // Calling a generator runs none of its body. A parameter's default value runs with the call.
+  if (!fn.body || fn.asteriskToken || !fn.parameters.every((p) => isInert(p, cx, 0))) return null;
   if (depth > MAX_PROOF_DEPTH || cx.project.proofActive.has(fn)) {
     cx.project.cuts++;
     return null;
   }
   const cuts = cx.project.cuts;
+  const sites = cx.project.siteDependent;
   cx.project.proofActive.add(fn);
   let result: Proof | null = null;
   try {
@@ -1466,7 +1757,8 @@ function proveFn(fn: Fn, sense: Sense, path: string[], cx: Ctx, depth: number): 
     result = null;
   }
   cx.project.proofActive.delete(fn);
-  if (result || cuts === cx.project.cuts) {
+  // An answer that looked at the arguments of the call being followed holds for that call only.
+  if (sites === cx.project.siteDependent && (result || cuts === cx.project.cuts)) {
     const byKey = cx.project.proofMemo.get(fn) ?? new Map<string, Proof | null>();
     byKey.set(key, result);
     cx.project.proofMemo.set(fn, byKey);
@@ -1480,7 +1772,7 @@ function proveFn(fn: Fn, sense: Sense, path: string[], cx: Ctx, depth: number): 
  */
 function verifiedRequest(handler: Fn, cx: Ctx): boolean {
   if (!handler.body || !ts.isBlock(handler.body)) return false;
-  if (handler.parameters.some((p) => p.initializer && !isInert(p.initializer, cx, 0))) return false;
+  if (handler.asteriskToken || !handler.parameters.every((p) => isInert(p, cx, 0))) return false;
   const walk = new Walk(cx, handler, "handler", [], 0);
   try {
     walk.seq(handler.body.statements, false);
@@ -1659,6 +1951,12 @@ function tokenUse(fn: Fn, t: Taint, project: Project, entry: string, hops: numbe
       hashed = true;
       continue;
     }
+    // A call handed the token (or its hash) whose answer is thrown away finds nothing: it stores.
+    if (call.arguments.some((a) => carries(a, t, true))) {
+      let top: ts.Node = call;
+      while (ts.isAwaitExpression(top.parent) || ts.isParenthesizedExpression(top.parent) || ts.isVoidExpression(top.parent)) top = top.parent;
+      if (ts.isExpressionStatement(top.parent)) return "raw";
+    }
     if (!callCarries(call, t)) continue;
     const targets = project.resolveCall(call, entry);
     if (targets.length === 0) {
@@ -1740,6 +2038,9 @@ function limitingIf(fn: Fn, t: Taint, project: Project, entry: string): ts.IfSta
     // so a test of what it returns is a format check, not a limit.
     const targets = project.resolveCall(call, entry);
     if (targets.length > 0 && targets.every(isPure)) continue;
+    // Nor does a call that only reads (`BLOCKED.indexOf(ip)`, `Buffer.byteLength(ip)`): a blocklist or a
+    // length check is not a limit.
+    if (isInertCall(call, { project, entry }, 0)) continue;
     counts.add(call);
   }
   const holdsCount = (n: ts.Node): boolean => {
@@ -1859,12 +2160,10 @@ function findHandler(sf: ts.SourceFile, method: string): Fn | null {
   for (const s of sf.statements) {
     const exported = ts.canHaveModifiers(s) && (ts.getModifiers(s)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false);
     if (!exported) continue;
-    if (ts.isFunctionDeclaration(s) && s.body && s.name?.text === method) return s;
+    if (ts.isFunctionDeclaration(s) && s.body && s.name?.text === method) return declaredFn(s.name);
     if (ts.isVariableStatement(s)) {
       for (const d of s.declarationList.declarations) {
-        if (!ts.isIdentifier(d.name) || d.name.text !== method || !d.initializer) continue;
-        const init = unwrap(d.initializer);
-        if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) return init;
+        if (ts.isIdentifier(d.name) && d.name.text === method) return declaredFn(d.name);
       }
     }
   }
@@ -2092,14 +2391,25 @@ export function isFixedText(e: ts.Expression, project: Project, hops = 4): boole
   return false;
 }
 
-/** A value read as it stands, or only reshaped: `sent`, `input.token`, `String(sent)`, `sent.trim()`. */
-function plainValue(e: ts.Expression): boolean {
+/**
+ * A value handed to the function, read as it stands or only reshaped: `sent`, `input.token`, `String(sent)`,
+ * `sent.trim()`, or a `const` set to one. Not something worked out (`secret + body`) or read from elsewhere.
+ */
+function plainValue(e: ts.Expression, depth = 0): boolean {
   const v = unwrap(e);
-  if (ts.isIdentifier(v)) return true;
-  if (ts.isPropertyAccessExpression(v)) return plainValue(v.expression);
+  if (ts.isIdentifier(v)) {
+    const d = declarationOf(v);
+    if (!d || isReassigned(d)) return false;
+    let holder: ts.Node = d.parent;
+    while (ts.isBindingElement(holder) || ts.isObjectBindingPattern(holder)) holder = holder.parent;
+    if (ts.isParameter(holder)) return true;
+    const b = boundTo(v);
+    return !!b && depth < 3 && plainValue(b.init, depth + 1);
+  }
+  if (ts.isPropertyAccessExpression(v)) return plainValue(v.expression, depth);
   if (!ts.isCallExpression(v) || !isCoercion(v)) return false;
   const callee = unwrap(v.expression);
-  return ts.isPropertyAccessExpression(callee) ? v.arguments.length === 0 && plainValue(callee.expression) : v.arguments.length === 1 && plainValue(v.arguments[0]);
+  return ts.isPropertyAccessExpression(callee) ? v.arguments.length === 0 && plainValue(callee.expression, depth) : v.arguments.length === 1 && plainValue(v.arguments[0], depth);
 }
 
 /**
@@ -2155,40 +2465,59 @@ function provenHash(e: ts.Expression, project: Project, files: string[], depth =
   if (hashedValue(x, project)) return true;
   if (ts.isCallExpression(x)) {
     const callee = unwrap(x.expression);
-    if (!ts.isIdentifier(callee) || x.arguments.length !== 1 || !plainValue(x.arguments[0]) || isParameterInScope(x, callee.text)) return false;
-    const fn = nestedFunction(x, callee.text) ?? project.lookup(x.getSourceFile().fileName, callee.text);
-    return !!fn && returnsHashOfArgument(fn, project);
+    if (!ts.isIdentifier(callee) || x.arguments.length !== 1 || !plainValue(x.arguments[0])) return false;
+    const fns = project.resolveCall(x, x.getSourceFile().fileName);
+    return fns.length === 1 && returnsHashOfArgument(fns[0], project);
   }
   if (!ts.isIdentifier(x)) return false;
   const b = boundTo(x);
   if (b) return b.prefix.length === 0 && provenHash(b.init, project, files, depth + 1);
   const d = declarationOf(x);
   const param = d?.parent;
-  if (!d || !param || !ts.isParameter(param) || param.name !== d || param.dotDotDotToken || !isFn(param.parent)) return false;
+  if (!d || !param || !ts.isParameter(param) || param.name !== d || param.dotDotDotToken || param.initializer || !isFn(param.parent) || isReassigned(d)) return false;
   const fn = param.parent;
   const named = nameOfFn(fn);
   if (!named) return false;
   const index = fn.parameters.indexOf(param);
-  const called = new RegExp(`\\b${named.name}\\s*\\(`);
+  // Every place the name appears is looked at. A direct call has to hand over a proven hash; anything else
+  // (the function passed along, renamed on import, pulled out of its object, reached through `.call`) is a
+  // way to call it that cannot be followed, and one unknown caller is enough.
   let sites = 0;
   for (const file of files) {
-    if (!called.test(project.text(resolve(file)) ?? "")) continue;
+    if (!(project.text(resolve(file)) ?? "").includes(named.name)) continue;
     const sf = project.source(file);
-    if (!sf) continue;
-    let allHashed = true;
+    if (!sf) return false;
+    let ok = true;
     each(sf, (n) => {
-      if (!allHashed || !ts.isCallExpression(n) || calleeName(n) !== named.name) return;
-      if (n.getSourceFile() === fn.getSourceFile() && n.getStart() >= fn.getStart() && n.getEnd() <= fn.getEnd()) return; // the function calling itself
-      const callee = unwrap(n.expression);
-      if (ts.isIdentifier(callee)) {
-        // A bare call reaches this function only when the name resolves to it.
-        if ((nestedFunction(n, named.name) ?? project.lookup(sf.fileName, named.name)) !== fn) return;
-      } else if (!named.method && !project.resolveCall(n, sf.fileName).includes(fn)) return;
+      if (!ok) return;
+      if (ts.isStringLiteralLike(n) && n.text === named.name && !ts.isImportDeclaration(n.parent)) ok = false;
+      if (!ts.isIdentifier(n) || n.text !== named.name) return;
+      if (n.getSourceFile() === fn.getSourceFile() && n.getStart() >= fn.getStart() && n.getEnd() <= fn.getEnd()) return; // inside the function itself
+      const parent = n.parent;
+      if (isFn(parent) || ((ts.isVariableDeclaration(parent) || ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent)) && parent.name === n && parent.initializer && unwrap(parent.initializer) === fn)) return; // its declaration
+      for (let up: ts.Node | undefined = parent; up && !ts.isStatement(up); up = up.parent) if (ts.isTypeNode(up)) return;
+      if ((ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent)) && !parent.propertyName) return;
+      const callee = ts.isPropertyAccessExpression(parent) && parent.name === n ? parent : n;
+      let outer: ts.Node = callee;
+      while (ts.isParenthesizedExpression(outer.parent) || ts.isNonNullExpression(outer.parent)) outer = outer.parent;
+      const call = outer.parent;
+      if (!ts.isCallExpression(call) || call.expression !== outer) {
+        ok = false;
+        return;
+      }
+      // A call of something else that shares the name is not a call of this function.
+      // A call of something else that shares the name is not a call of this function. A method is taken
+      // to be reached by any `x.name(...)`; a function only by a call that resolves to it.
+      const reaches = named.method ? callee !== n : project.resolveCall(call, sf.fileName).includes(fn);
+      if (!reaches) {
+        if (callee === n && project.resolveCall(call, sf.fileName).length === 0) ok = false;
+        return;
+      }
       sites++;
-      const arg = n.arguments[index];
-      if (!arg || ts.isSpreadElement(arg) || !provenHash(arg, project, files, depth + 1)) allHashed = false;
+      const arg = call.arguments[index];
+      if (!arg || call.arguments.slice(0, index + 1).some(ts.isSpreadElement) || !provenHash(arg, project, files, depth + 1)) ok = false;
     });
-    if (!allHashed) return false;
+    if (!ok) return false;
   }
   return sites > 0;
 }
@@ -2216,9 +2545,9 @@ export function isRecordLookup(project: Project, file: string, line: number, men
     const op = n.operatorToken.kind;
     const equality =
       op === ts.SyntaxKind.EqualsEqualsEqualsToken || op === ts.SyntaxKind.ExclamationEqualsEqualsToken || op === ts.SyntaxKind.EqualsEqualsToken || op === ts.SyntaxKind.ExclamationEqualsToken;
-    if (equality && mentions.test(n.getText())) equalities.push(n);
+    if (equality) equalities.push(n);
   });
-  if (equalities.length === 0) return false;
+  if (!equalities.some((b) => mentions.test(b.getText()))) return false;
 
   // Stored rows: a field of the object, a parameter, a module's own collection, or what an awaited read
   // handed back. A local list worked out from the request (`header.split(",").map(...)`) holds what the
@@ -2238,7 +2567,8 @@ export function isRecordLookup(project: Project, file: string, line: number, men
     if (!d) return false;
     if (ts.isParameter(d.parent) || !isLocal(root)) return true;
     const b = boundTo(root);
-    return !!b && ts.isAwaitExpression(stripParens(b.init));
+    // What an awaited read of the store handed back; not what was read from the request.
+    return !!b && ts.isAwaitExpression(stripParens(b.init)) && !/\b(?:req|request)\b|\.(?:json|text|formData)\s*\(/.test(b.init.getText());
   };
   const iterated = (side: ts.Expression): boolean => {
     const s = unwrap(side);
@@ -2261,7 +2591,13 @@ export function isRecordLookup(project: Project, file: string, line: number, men
     return false;
   };
   const byKey = (row: ts.Expression, other: ts.Expression): boolean => iterated(row) && provenHash(other, project, files);
-  return equalities.every((b) => byKey(b.left, b.right) || byKey(b.right, b.left));
+  // Every comparison on the line has to be such a lookup, or a test against something written in the code
+  // (`r.kind === "log"`): a second comparison of two values (`given === adminPass`) keeps the line reported.
+  const fixed = (x: ts.Expression): boolean => {
+    const v = unwrap(x);
+    return ts.isStringLiteralLike(v) || ts.isNumericLiteral(v) || v.kind === ts.SyntaxKind.TrueKeyword || v.kind === ts.SyntaxKind.FalseKeyword || v.kind === ts.SyntaxKind.NullKeyword || (ts.isIdentifier(v) && v.text === "undefined");
+  };
+  return equalities.every((b) => byKey(b.left, b.right) || byKey(b.right, b.left) || fixed(b.left) || fixed(b.right));
 }
 
 /** The source text of the function around a line (or the line itself at the top level), with its name. */
