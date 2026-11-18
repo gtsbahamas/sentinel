@@ -135,8 +135,14 @@ describe("INPUT-003 is about code a visitor can reach", () => {
 });
 
 describe("CRYPTO-008 tells a lookup from a verification", () => {
-  it("does not report finding a stored row by its key", () => {
-    expect(reported("CRYPTO-008")).not.toContain("src/lib/store/memory.ts");
+  it("does not report finding a stored row by a key every caller fills with a hash", () => {
+    const lines = findings.filter((f) => f.ruleId === "CRYPTO-008" && f.evidence[0].file.endsWith("lib/fc/store.ts")).map((f) => f.evidence[0].line);
+    expect(lines).not.toContain(6);
+  });
+  // The store below was the shape this exemption was written for. Its key is a hash by its parameter's name
+  // only, and nothing in the fixture calls it, so there is no proof: it is reported again (fail closed).
+  it("reports a stored row found by a key that is a hash in name only", () => {
+    expect(reported("CRYPTO-008")).toContain("src/lib/store/memory.ts");
   });
   it("still reports a MAC decided with ===, alone or inside a loop", () => {
     const lines = findings
