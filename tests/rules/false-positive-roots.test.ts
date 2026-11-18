@@ -44,6 +44,7 @@ describe("AUTH-001 follows the guard out of the route file", () => {
     ["a helper that throws when nobody is signed in", api("member/policy")],
     ["a link token found by its hash", api("links/[token]/remove")],
     ["a link token hashed inside a method on an object", api("links/[token]/keys")],
+    ["a link token found by its hash and sent back as the address to return to", api("links/[token]/back")],
     ["a public form limited per visitor", api("forms/enlist")],
     ["a public start limited per visitor inside a method", api("forms/begin")],
   ];

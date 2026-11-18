@@ -61,6 +61,13 @@ describe("AUTH-001: a guard counts only when its answer gates the write", () => 
     expect(files("AUTH-001")).toContain(atk("records/[id]/purge"));
   });
 
+  it("still reports a URL id hashed for a log line and then matched raw in a query builder", () => {
+    expect(files("AUTH-001")).toContain(atk("records/[id]/match"));
+  });
+  it("still reports a URL id hashed for a log line and then written raw into a statement", () => {
+    expect(files("AUTH-001")).toContain(atk("records/[id]/exec"));
+  });
+
   it("still reports a limited route whose service-role client is built at the top of a helper's file", () => {
     expect(files("AUTH-001")).toContain(atk("a10-limited-module-admin"));
   });
@@ -81,6 +88,15 @@ describe("INPUT-005: reading the body is not checking it", () => {
   });
   it("still reports a body whose only branch is a dry-run switch", () => {
     expect(files("INPUT-005")).toContain(atk("b3-dry-run"));
+  });
+  it("still reports a body with one picked value and another field in a tagged statement", () => {
+    expect(files("INPUT-005")).toContain(atk("b4-pick-and-template"));
+  });
+  it("still reports a body with one picked value that is also handed whole to a constructor", () => {
+    expect(files("INPUT-005")).toContain(atk("b5-pick-and-new"));
+  });
+  it("still reports a body whose only branch is a preview switch that returns nothing", () => {
+    expect(files("INPUT-005")).toContain(atk("b6-preview-switch"));
   });
 });
 

@@ -12,3 +12,12 @@ export async function saveDry(input: { dryRun?: boolean; role?: string }): Promi
   await ledger.record("user", input);
   return { ok: true };
 }
+export async function savePreview(input: { preview?: boolean; role?: string }): Promise<void> {
+  if (input.preview) return;
+  await ledger.record("user", input);
+}
+export class Row {
+  constructor(input: unknown) {
+    void ledger.record("row", input);
+  }
+}

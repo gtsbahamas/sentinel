@@ -54,14 +54,6 @@ const AUTH_PACKAGES = /^(?:twilio|stripe|svix|jose|jsonwebtoken|next-auth|@auth\
 const AUTH_CALLS = new Set(["validateRequest", "validateRequestWithBody", "jwtVerify", "verify", "getServerSession", "getToken", "auth", "currentUser"]);
 
 const SUCCESS_FIELD = /^(?:ok|success|succeeded|successful|valid|saved|done|accepted|created|updated)$/;
-// Calls that look at a value and keep nothing: after them the value has gone nowhere.
-const INERT_METHODS = new Set(
-  (
-    "test exec match matchAll startsWith endsWith split trim trimStart trimEnd toLowerCase toUpperCase toString normalize " +
-    "padStart padEnd substring charAt charCodeAt slice replace replaceAll repeat localeCompare log warn error info debug " +
-    "from stringify isArray parse"
-  ).split(" "),
-);
 // Names every module can use without importing them; a function that touches nothing else keeps no state.
 const PURE_GLOBALS = new Set("String Number Boolean Math JSON Array Object RegExp Buffer parseInt parseFloat isNaN isFinite undefined NaN Infinity encodeURIComponent decodeURIComponent".split(" "));
 const CLIENT_ADDRESS = /x-forwarded-for|x-real-ip|x-vercel-forwarded-for|cf-connecting-ip|true-client-ip|fly-client-ip/i;
@@ -1059,7 +1051,7 @@ function tokenUse(fn: Fn, t: Taint, project: Project, entry: string, hops: numbe
     if (!callCarries(call, t)) continue;
     const targets = project.resolveCall(call, entry);
     if (targets.length === 0) {
-      if (INERT_METHODS.has(calleeName(call))) continue;
+      if (onlyLooks(call, project)) continue;
       return "raw";
     }
     if (hops <= 0) return "raw";
@@ -1072,7 +1064,36 @@ function tokenUse(fn: Fn, t: Taint, project: Project, entry: string, hops: numbe
       if (use === "hashed") hashed = true;
     }
   }
+  // A statement the value is written into (sql`... ${id}`) or an object built from it has it too.
+  let elsewhere = false;
+  each(fn.body, (n) => {
+    if (ts.isTaggedTemplateExpression(n) && carries(n.template, t, false)) elsewhere = true;
+    if (ts.isNewExpression(n) && !ANSWERS.test(n.expression.getText()) && (n.arguments ?? []).some((a) => carries(a, t, false))) elsewhere = true;
+  });
+  if (elsewhere) return "raw";
   return hashed ? "hashed" : "unused";
+}
+
+// What goes back to the caller: a response, the address of a redirect, an error. A token written into one of
+// these returns to whoever sent it; nothing is found or changed by it.
+const ANSWERS = /^(?:Response|NextResponse|URL|URLSearchParams|Headers|\w*Error)$/;
+
+/**
+ * A call that looks at the value and keeps nothing of it: a pattern test, a byte copy, a serialisation.
+ * Decided by what is called, not by the method's name: `/^\w+$/.test(id)` looks, `query.match({ id })`
+ * and `db.exec(sql)` use.
+ */
+function onlyLooks(call: ts.CallExpression, project: Project): boolean {
+  const callee = unwrap(call.expression);
+  if (!ts.isPropertyAccessExpression(callee)) return false;
+  const name = callee.name.text;
+  const object = unwrap(callee.expression);
+  if (name === "test" || name === "exec") {
+    const value = ts.isIdentifier(object) ? (initializerOf(object) ?? project.constant(call.getSourceFile().fileName, object.text)?.value) : object;
+    return !!value && ts.isRegularExpressionLiteral(unwrap(value));
+  }
+  if (ANSWERS.test(object.getText())) return true;
+  return (name === "from" && object.getText() === "Buffer") || (name === "stringify" && object.getText() === "JSON");
 }
 
 /** No state is read or kept: no await, no `this`, and no name from outside the function except the language's own. */
@@ -1167,6 +1188,20 @@ function onlyPresence(condition: ts.Expression, t: Taint): boolean {
   });
 }
 
+/**
+ * `if (input.dryRun) return` leaves when a flag that was sent is set. A caller who leaves the flag out is
+ * not turned away, so it is a switch, unlike `if (!input.email) return` (a required field), a comparison,
+ * or a test of something worked out from the input (`if (problem) return`).
+ */
+function isSwitch(s: ts.IfStatement): boolean {
+  const c = unwrap(s.expression);
+  const root = ts.isIdentifier(c) ? c : ts.isPropertyAccessExpression(c) && ts.isIdentifier(c.expression) ? c.expression : null;
+  if (!root || (s.elseStatement && refuses(s.elseStatement))) return false;
+  let d: ts.Node | null = declarationOf(root);
+  while (d && (ts.isIdentifier(d) || ts.isBindingElement(d) || ts.isObjectBindingPattern(d) || ts.isArrayBindingPattern(d))) d = d.parent;
+  return !!d && ts.isParameter(d);
+}
+
 // Objects whose `parse` reads a format. It answers "is this JSON", never "is this what we accept".
 const FORMAT_READERS = /^(?:JSON|JSON5|Date|Number|Math|qs|querystring|url|URL|path|cookie|cookies|YAML|yaml|superjson|Papa|csv|xml|ini|toml|dotenv)$/;
 
@@ -1178,7 +1213,7 @@ const rejection: Sink = {
     let found = false;
     each(fn.body, (n) => {
       if (found) return;
-      if (ts.isIfStatement(n) && ifRefuses(n) && carries(n.expression, t, "sync") && !onlyPresence(n.expression, t)) found = true;
+      if (ts.isIfStatement(n) && ifRefuses(n) && carries(n.expression, t, "sync") && !onlyPresence(n.expression, t) && !isSwitch(n)) found = true;
       if (ts.isCallExpression(n) && /^(?:parse|safeParse|parseAsync|safeParseAsync|validate|validateSync)$/.test(calleeName(n)) && n.arguments.some((a) => carries(a, t, true))) {
         const callee = unwrap(n.expression);
         // `JSON.parse(raw)` reads a format and accepts anything in it.
@@ -1365,11 +1400,14 @@ export function bodyCheckedDownstream(model: ProjectModel, endpoint: ApiEndpoint
     if (handedTo.length === 0) {
       // Nothing that was sent reaches any call. That is a checked body only when the handler picked its
       // values from the code's own list and turns away a request that matched none of them; a body copied
-      // field by field into an object (`row.email = b.email`) has gone somewhere this does not follow.
+      // field by field into an object (`row.email = b.email`), written into a tagged statement or handed to
+      // a constructor has gone somewhere this does not follow.
       let copied = false;
       let refused = false;
       each(handler.body, (n) => {
         if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && !ts.isIdentifier(n.left) && carries(n.right, body, false)) copied = true;
+        if (ts.isTaggedTemplateExpression(n) && carries(n.template, body, false)) copied = true;
+        if (ts.isNewExpression(n) && (n.arguments ?? []).some((a) => carries(a, body, false))) copied = true;
         if (!ts.isIfStatement(n) || !ifRefuses(n)) return;
         each(n.expression, (c) => {
           if (!ts.isIdentifier(c) || isPropertyName(c)) return;
