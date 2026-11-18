@@ -2,7 +2,7 @@ import fg from "fast-glob";
 import { safeReadFile } from "../../../utils/fs.js";
 import type { Finding, ProjectModel } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
-import { callerTexts, enclosingFunctionName, enclosingFunctionText, isRecordLookup, projectFor } from "../handler-analysis.js";
+import { callerTexts, enclosingFunctionName, enclosingFunctionText, projectFor } from "../handler-analysis.js";
 
 function mkFinding(
   ruleId: string,
@@ -441,8 +441,6 @@ export const cryptographyRules: SecurityRule[] = [
       // !== signature.length)` early-exits and `if (index === tokens.length)`
       // iterators.
       const hasLengthCompare = /\.(?:length|size|index|byteLength|count)\b/;
-      const project = projectFor(model);
-      const filePaths = files.map((f) => f.file);
 
       for (const { file, source } of files) {
         if (!/hmac|signature|token|digest|\bmac\b/i.test(source)) continue;
@@ -495,11 +493,6 @@ export const cryptographyRules: SecurityRule[] = [
           if (/\.(?:current|value|id|name|count|provider|type|kind|scheme)\s*$/.test(otherSide)) {
             return;
           }
-
-          // Finding a stored row by the hash of what was sent (`rows.find((r) => r.tokenHash === sha(sent))`)
-          // is an index lookup, not a decision about a caller's secret. Only when the other side is proven
-          // to be a hash: a name that says so proves nothing, and the finding stays.
-          if (isRecordLookup(project, file, idx + 1, /hmac|signature|token|mac|digest|sig/i, filePaths)) return;
 
           findings.push(
             mkFinding(
