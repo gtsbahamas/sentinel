@@ -1080,9 +1080,9 @@ export function enclosingFunctionName(project: Project, file: string, line: numb
 }
 
 /**
- * The text around every call of the function `name` declared in `declaredIn`: each calling function (or
- * top-level line), in that file and in files that import it. A general helper means what its callers use
- * it for.
+ * What each call of the function `name` (declared in `declaredIn`) says about its use: the calling line and
+ * the name of the function it sits in, for that file and files that import it. A general helper means what
+ * its callers use it for.
  */
 export function callerTexts(project: Project, declaredIn: string, name: string, files: Array<{ file: string; source: string }>): string[] {
   const out: string[] = [];
@@ -1098,7 +1098,9 @@ export function callerTexts(project: Project, declaredIn: string, name: string, 
     source.split("\n").forEach((text, idx) => {
       if (!calls.test(text)) return;
       if (abs === home && enclosingFunctionName(project, abs, idx + 1) === name) return; // the helper itself
-      out.push(enclosingFunctionText(project, abs, idx + 1) ?? text);
+      // The call's own line and the name of the function it is in: `hashPassword` / `md5(password)`.
+      // The whole calling function would be too much; a long one mentions everything.
+      out.push(`${enclosingFunctionName(project, abs, idx + 1) ?? ""} ${text}`);
     });
   }
   return out;
