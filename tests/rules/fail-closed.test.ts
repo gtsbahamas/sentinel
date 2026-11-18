@@ -40,6 +40,7 @@ function lines(ruleId: string, file: string): number[] {
 
 const rr = (p: string) => `src/app/api/rr/${p}/route.ts`;
 const fc = (p: string) => `src/app/api/fc/${p}/route.ts`;
+const zz = (p: string) => `src/app/api/zz/${p}/route.ts`;
 const api = (p: string) => `src/app/api/${p}/route.ts`;
 
 describe("AUTH-001: a handler the analysis cannot prove guarded stays reported", () => {
@@ -92,6 +93,41 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
     ["a write before the guard through an import renamed to log", fc("x03-ledger-named-log")],
     ["a write before the guard handed to .then() by name", fc("x04-then-by-name")],
     ["a guard's answer overwritten with Object.assign before the test", fc("x05-answer-rewritten")],
+    // found by attacking the proof itself (second attack, same day)
+    ["a thrower that is only the default of a destructured field", zz("a01-destructure-default")],
+    ["a thrower behind ??=", zz("a02-nullish-assign")],
+    ["a thrower in the argument of an optional call", zz("a03-optional-chain-arg")],
+    ["a generator that would throw, called and never run", zz("a04-generator-throws")],
+    ["a generator's answer, which is always an object", zz("a05-generator-answer")],
+    ["a var declared a second time with what was sent", zz("a06-var-redeclared")],
+    ["a var declared again inside a branch", zz("a07-var-hoisted-from-block")],
+    ["a local function that is pointed at a write before the guard", zz("a08-let-fn-reassigned")],
+    ["an exported let that is pointed at a function that admits everyone", zz("a09-module-let-reassigned")],
+    ["a method picked from two objects, one of which admits everyone", zz("a10-method-by-reference")],
+    ["an object whose method is a function passed by name", zz("a10b-loose-direct")],
+    ["a local that shares the name of an inert import and writes", zz("a12-shadowed-import")],
+    ["jsonwebtoken verify with a callback passed by name", zz("a13-jwt-callback-by-name")],
+    ["a constant-time compare of two values that both came with the request", zz("a14-both-sides-sent")],
+    ["a constant-time compare with an unkeyed checksum of the body", zz("a15-unkeyed-checksum")],
+    ["a compare helper handed the same value twice", zz("a16-self-compare-in-helper")],
+    ["the project's own parse() that writes, before the guard", zz("a17-own-parse-writes")],
+    ["the project's own join() that writes, before the guard", zz("a18-own-join-writes")],
+    ["a package store's replace(), before the guard", zz("a19-package-replace")],
+    ["a getter that writes, read before the guard", zz("a21-getter-writes")],
+    ["an error class whose constructor writes, built in the refusal", zz("a22-error-constructor-writes")],
+    ["a thrown class whose constructor writes", zz("a23-thrown-constructor-writes")],
+    ["a helper whose default argument writes", zz("a24-helper-default-argument")],
+    ["a module's keys answered to everyone after a decorative check", zz("a25-leak-for-everyone")],
+    ["a module value assigned through a for-of target", zz("a26-for-of-module-write")],
+    ["a computed key that overrides the proven field", zz("a29-computed-key-override")],
+    ["an address blocklist taken for a visitor limit", zz("a32-visitor-blocklist")],
+    ["an address length check taken for a visitor limit", zz("a33-visitor-length-check")],
+    ["a write before the guard through an unresolved import named log", zz("a44-subpath-import-log")],
+    ["a write before the guard through an imported console", zz("a45-own-console")],
+    ["a local write function that shares its name with an inert one in another scope", zz("a50-same-name-other-scope")],
+    ["a signature checked with a key that came with the request", zz("a78-key-sent-with-request")],
+    ["a proven field overwritten through a for-of target", zz("a79-truthy-then-override")],
+    ["a link token that is hashed and stored, with nothing looked up", zz("l/[token]/a30-link-hash-no-lookup")],
   ];
   for (const [what, file] of open) {
     it(`still reports ${what}`, () => {
@@ -170,6 +206,7 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
         rr("s15-or-role"),
         rr("s16-typeof"),
         api("worker/beat"),
+        zz("s4-safe-early-return-value"),
       ].sort(),
     );
   });
@@ -197,6 +234,18 @@ describe("CRYPTO-008: a comparison is a lookup only when the other side is prove
     ["a key parameter nothing in the project is seen to fill (session)", "src/lib/store/memory.ts", 10],
     ["a key parameter nothing in the project is seen to fill (log)", "src/lib/store/memory.ts", 15],
     ["a key parameter nothing in the project is seen to fill (delete)", "src/lib/store/memory.ts", 20],
+    ["a server secret hashed and matched with rows the caller sent", "src/lib/zz/c01.ts", 7],
+    ["a hash over a secret joined to the body, through a const", "src/lib/zz/c02.ts", 9],
+    ["a key parameter overwritten with the raw value", "src/lib/zz/c03.ts", 8],
+    ["a raw caller that imports the lookup under another name", "src/lib/zz/c04.ts", 7],
+    ["the lookup handed to map() over raw values", "src/lib/zz/c05.ts", 7],
+    ["a var declared again with the raw value", "src/lib/zz/c06.ts", 9],
+    ["a hash helper that is pointed at the identity", "src/lib/zz/c07.ts", 7],
+    ["a raw caller that pulls the method out of its object", "src/lib/zz/c08.ts", 8],
+    ["a server secret hashed and matched with rows read from the request", "src/lib/zz/c09.ts", 8],
+    ["a second comparison of two secrets on the same line", "src/lib/zz/c10.ts", 7],
+    ["a local that shadows the hash helper", "src/lib/zz/c11.ts", 8],
+    ["a raw caller through .call()", "src/lib/zz/c12.ts", 7],
   ];
   for (const [what, file, line] of flagged) {
     it(`still reports ${what}`, () => {
