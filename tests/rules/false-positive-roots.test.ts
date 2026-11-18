@@ -82,6 +82,12 @@ describe("INPUT-005 follows the body into the function that checks it", () => {
     expect(reported("INPUT-005")).not.toContain(api("links/[token]/keys"));
     expect(reported("INPUT-005")).not.toContain(api("forms/begin"));
   });
+  it("does not report a body the handler only picks its own listed values from, refusing the rest", () => {
+    expect(reported("INPUT-005")).not.toContain(api("forms/pick"));
+  });
+  it("still reports a body with one picked value and another field copied on unchecked", () => {
+    expect(reported("INPUT-005")).toContain(api("twins/forms/pick-unrefused"));
+  });
   it("still reports a body handed to a helper that stores it unchecked", () => {
     expect(reported("INPUT-005")).toContain(api("twins/forms/unlimited"));
   });
@@ -103,6 +109,9 @@ describe("INPUT-005 follows the body into the function that checks it", () => {
 describe("INPUT-001 looks at what is injected", () => {
   it("does not report fixed strings, local or imported", () => {
     expect(reported("INPUT-001")).not.toContain("src/app/layout.tsx");
+  });
+  it("does not report the word inside a comment", () => {
+    expect(reported("INPUT-001")).not.toContain("src/components/Preview.tsx");
   });
   it("still reports a prop injected as HTML", () => {
     expect(reported("INPUT-001")).toContain("src/components/RawNote.tsx");

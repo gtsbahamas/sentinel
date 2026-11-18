@@ -7,6 +7,11 @@ const TEST_FRAMEWORK =
 const TEST_BLOCK = /^\s*(?:describe|it|test)(?:\.\w+)?\s*\(\s*["'`]/m;
 const EXPECTATION = /\b(?:expect|assert)\s*[.(]/;
 
+// Vitest's in-source testing puts a test block inside a file that ships (`if (import.meta.vitest) { ... }`).
+// Such a file is production code with tests attached, so it is never treated as test code.
+const IN_SOURCE_TESTS = /\bimport\s*\.\s*meta\s*\.\s*vitest\b/;
+
 export function isTestCode(source: string): boolean {
+  if (IN_SOURCE_TESTS.test(source)) return false;
   return TEST_FRAMEWORK.test(source) || (TEST_BLOCK.test(source) && EXPECTATION.test(source));
 }

@@ -105,37 +105,50 @@ export const inputInjectionRules: SecurityRule[] = [
             ),
           );
 
-        // The rule used to fire on the word alone. What matters is the value: a string fixed in the
-        // source (an inline boot script, a constant) cannot carry anyone's input, so only a value that
-        // is not provably fixed is reported.
-        const sf = project.source(file);
-        if (!sf) {
-          source.split("\n").forEach((line, idx) => {
-            if (/dangerouslySetInnerHTML/.test(line)) report(idx + 1, line.trim());
-          });
-          continue;
-        }
-        const visit = (node: ts.Node): void => {
-          let value: ts.Expression | undefined;
-          if (ts.isJsxAttribute(node) && node.name.getText() === "dangerouslySetInnerHTML") {
-            value = node.initializer && ts.isJsxExpression(node.initializer) ? node.initializer.expression : undefined;
-          } else if (ts.isPropertyAssignment(node) && node.name.getText() === "dangerouslySetInnerHTML") {
-            value = node.initializer;
-          } else {
-            ts.forEachChild(node, visit);
-            return;
-          }
+        // Every line that carries the word is reported unless the value injected there is proven to be
+        // text fixed in the source (an inline boot script, a constant). The proof has to be made: a file
+        // that cannot be read as syntax, a prop passed along by shorthand or spread, a name that only
+        // looks like a constant all stay reported.
+        const parsed = project.source(file);
+        // A file the parser could not read cleanly proves nothing: every mention in it is reported.
+        const sf = parsed && ((parsed as unknown as { parseDiagnostics?: unknown[] }).parseDiagnostics?.length ?? 0) === 0 ? parsed : null;
+        const fixed = new Set<number>();
+        const open = new Set<number>();
+        const judge = (node: ts.Node, value: ts.Expression | undefined): void => {
           let html: ts.Expression | undefined;
-          if (value && ts.isObjectLiteralExpression(value)) {
-            for (const p of value.properties) {
+          const v = value && ts.isParenthesizedExpression(value) ? value.expression : value;
+          if (v && ts.isObjectLiteralExpression(v)) {
+            for (const p of v.properties) {
               if (ts.isPropertyAssignment(p) && p.name.getText() === "__html") html = p.initializer;
             }
           }
-          if (html && isFixedText(html, project)) return;
-          const line = sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;
-          report(line, sf.text.split("\n")[line - 1].trim());
+          const line = sf!.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+          if (html && isFixedText(html, project)) fixed.add(line);
+          else open.add(line);
         };
-        visit(sf);
+        // Lines where the word is code: a name or a quoted key. Elsewhere it is prose in a comment.
+        const code = new Set<number>();
+        const visit = (node: ts.Node): void => {
+          if ((ts.isIdentifier(node) || ts.isStringLiteralLike(node)) && node.text === "dangerouslySetInnerHTML") {
+            code.add(sf!.getLineAndCharacterOfPosition(node.getStart()).line + 1);
+          }
+          if (ts.isJsxAttribute(node) && node.name.getText() === "dangerouslySetInnerHTML") {
+            judge(node, node.initializer && ts.isJsxExpression(node.initializer) ? node.initializer.expression : undefined);
+          } else if (ts.isPropertyAssignment(node) && node.name.getText() === "dangerouslySetInnerHTML") {
+            judge(node, node.initializer);
+          } else if (ts.isVariableDeclaration(node) && node.name.getText() === "dangerouslySetInnerHTML") {
+            judge(node, node.initializer);
+          }
+          ts.forEachChild(node, visit);
+        };
+        if (sf) visit(sf);
+        source.split("\n").forEach((text, idx) => {
+          if (!/dangerouslySetInnerHTML/.test(text)) return;
+          const trimmed = text.trim();
+          if (sf ? !code.has(idx + 1) : trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
+          if (fixed.has(idx + 1) && !open.has(idx + 1)) return;
+          report(idx + 1, trimmed);
+        });
       }
       return findings;
     },

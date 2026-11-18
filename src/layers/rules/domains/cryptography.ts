@@ -145,8 +145,13 @@ export const cryptographyRules: SecurityRule[] = [
       // ignore the answer (`!context && !hashCall` is false for every file with a hash call), so a
       // checksum, cache key or ETag was reported as a broken password hash. The context is now required,
       // and read from the function the hash is in: its name, its arguments, what it hashes.
-      const protectsSomething =
-        /pass(?:word|wd|phrase|code)?\b|\bpwd\b|signature|\bsign(?:ed|ing|s)?\b|\bsig\b|hmac|secret|token|credential|\bauth|session|\botp\b|api[_-]?key|\bverif/i;
+      const protectsWords =
+        /pass(?:word|wd|phrase|code)?\b|\bpwd\b|\bpin\b|signature|\bsign(?:ed|ing|s)?\b|\bsig\b|hmac|secret|token|credential|\bauth|session|\botp\b|api[ _-]?key|\bverif/i;
+      // Names are read word by word: `makePasswordHash`, `password_hash`, `hashPin` and `signPayload` say
+      // what is protected as plainly as `password` does, and `\b` alone sees none of them.
+      const protectsSomething = {
+        test: (text: string) => protectsWords.test(text.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/_/g, " ")),
+      };
       const project = projectFor(model);
       for (const { file, source } of files) {
         if (!hashCallRe.test(source)) continue;

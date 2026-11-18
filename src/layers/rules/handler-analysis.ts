@@ -53,6 +53,17 @@ const COERCION_METHODS = new Set(["trim", "trimStart", "trimEnd", "toLowerCase",
 const AUTH_PACKAGES = /^(?:twilio|stripe|svix|jose|jsonwebtoken|next-auth|@auth\/|@clerk\/|better-auth|@octokit\/webhooks|@supabase\/ssr)/;
 const AUTH_CALLS = new Set(["validateRequest", "validateRequestWithBody", "jwtVerify", "verify", "getServerSession", "getToken", "auth", "currentUser"]);
 
+const SUCCESS_FIELD = /^(?:ok|success|succeeded|successful|valid|saved|done|accepted|created|updated)$/;
+// Calls that look at a value and keep nothing: after them the value has gone nowhere.
+const INERT_METHODS = new Set(
+  (
+    "test exec match matchAll startsWith endsWith split trim trimStart trimEnd toLowerCase toUpperCase toString normalize " +
+    "padStart padEnd substring charAt charCodeAt slice replace replaceAll repeat localeCompare log warn error info debug " +
+    "from stringify isArray parse"
+  ).split(" "),
+);
+// Names every module can use without importing them; a function that touches nothing else keeps no state.
+const PURE_GLOBALS = new Set("String Number Boolean Math JSON Array Object RegExp Buffer parseInt parseFloat isNaN isFinite undefined NaN Infinity encodeURIComponent decodeURIComponent".split(" "));
 const CLIENT_ADDRESS = /x-forwarded-for|x-real-ip|x-vercel-forwarded-for|cf-connecting-ip|true-client-ip|fly-client-ip/i;
 const SERVICE_ROLE = /SERVICE_ROLE|service_role|auth\s*\.\s*admin\b/;
 const DATA_WRITE = /\.from\s*\(\s*["'`][\w.-]+["'`]\s*\)[\s\S]{0,300}?\.(?:insert|update|upsert|delete)\s*\(|\.rpc\s*\(|\bauth\s*\.\s*admin\b/;
@@ -68,7 +79,7 @@ export class Project {
   private closures = new Map<string, string[]>();
   private methods = new Map<string, Fn[]>();
   private aliases: Array<{ prefix: string; suffix: string; targets: string[] }> | null = null;
-  readonly guardMemo = new Map<Fn, boolean>();
+  readonly guardMemo = new Map<Fn, Map<string, boolean>>();
 
   constructor(root: string) {
     this.root = resolve(root);
@@ -93,7 +104,7 @@ export class Project {
     const sf =
       text === null
         ? null
-        : ts.createSourceFile(abs, text, ts.ScriptTarget.Latest, true, /\.[jt]sx$/.test(abs) ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+        : ts.createSourceFile(abs, text, ts.ScriptTarget.Latest, true, scriptKind(abs));
     this.parsed.set(abs, sf);
     return sf;
   }
@@ -251,27 +262,43 @@ export class Project {
     return null;
   }
 
-  /** A top-level `const name = <expression>` in `file`, or the same through an import. */
+  /**
+   * A top-level `const name = <expression>` in `file`, or the same through an import. Only the file's own
+   * top level is read: what a name means inside a function is decided by scope (`declarationOf`), so a
+   * parameter or a destructured prop that shares the name is never mistaken for the constant.
+   */
   constant(file: string, name: string, hops = 3): { file: string; value: ts.Expression } | null {
+    const d = this.topVariable(file, name, hops);
+    if (!d || !d.initializer || !ts.isIdentifier(d.name) || (d.parent.flags & ts.NodeFlags.Const) === 0) return null;
+    return { file: d.getSourceFile().fileName, value: d.initializer };
+  }
+
+  /** The top-level variable `name` stands for in `file`: declared there, imported, or re-exported. */
+  topVariable(file: string, name: string, hops = 3): ts.VariableDeclaration | null {
     const sf = this.source(file);
     if (!sf || hops < 0) return null;
-    const found: ts.Expression[] = [];
-    let other = false;
-    each(sf, (n) => {
-      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name) {
-        const isConst = (n.parent.flags & ts.NodeFlags.Const) !== 0;
-        if (isConst && n.initializer) found.push(n.initializer);
-        else other = true;
-      }
-      if (ts.isParameter(n) && bindingNames(n.name).includes(name)) other = true;
-    });
-    // One const and nothing else by that name: no shadowing to reason about.
-    if (found.length === 1 && !other) return { file, value: found[0] };
-    if (found.length || other) return null;
+    for (const s of sf.statements) {
+      if (!ts.isVariableStatement(s)) continue;
+      for (const d of s.declarationList.declarations) if (bindingNames(d.name).includes(name)) return d;
+    }
     const imported = this.importOf(file, name);
-    if (!imported || imported.namespace) return null;
-    const target = this.resolveModule(file, imported.spec);
-    return target ? this.constant(target, imported.name, hops - 1) : null;
+    if (imported) {
+      const target = imported.namespace ? null : this.resolveModule(file, imported.spec);
+      return target ? this.topVariable(target, imported.name, hops - 1) : null;
+    }
+    for (const s of sf.statements) {
+      if (!ts.isExportDeclaration(s) || !s.moduleSpecifier || !ts.isStringLiteral(s.moduleSpecifier)) continue;
+      const from = this.resolveModule(file, s.moduleSpecifier.text);
+      if (!from) continue;
+      if (s.exportClause && ts.isNamedExports(s.exportClause)) {
+        const el = s.exportClause.elements.find((x) => x.name.text === name);
+        if (el) return this.topVariable(from, (el.propertyName ?? el.name).text, hops - 1);
+      } else if (!s.exportClause) {
+        const found = this.topVariable(from, name, hops - 1);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 
   /** Methods and function-valued properties called `name` in the files `entry` reaches. */
@@ -331,6 +358,12 @@ export class Project {
     const candidates = this.methodsNamed(entry, name);
     return candidates.length > 0 && candidates.length <= MAX_METHOD_CANDIDATES ? candidates : [];
   }
+}
+
+/** `.js` files routinely hold JSX; read as plain TypeScript the markup is lost and so is whatever it injects. */
+function scriptKind(file: string): ts.ScriptKind {
+  if (/\.[jt]sx$/.test(file)) return ts.ScriptKind.TSX;
+  return /\.[cm]?js$/.test(file) ? ts.ScriptKind.JSX : ts.ScriptKind.TS;
 }
 
 const projects = new WeakMap<ProjectModel, Project>();
@@ -490,6 +523,8 @@ function refuses(branch: ts.Statement): boolean {
   if (constant(e)) return true;
   if (ts.isObjectLiteralExpression(e)) {
     const props = e.properties.filter(ts.isPropertyAssignment);
+    // `{ ok: true }` says the work is done (a dry run, a no-op): the opposite of turning the request away.
+    if (props.some((p) => unwrap(p.initializer).kind === ts.SyntaxKind.TrueKeyword && SUCCESS_FIELD.test(p.name.getText()))) return false;
     if (props.length === e.properties.length && props.every((p) => constant(p.initializer))) return true;
     if (props.some((p) => unwrap(p.initializer).kind === ts.SyntaxKind.FalseKeyword || /^errors?$/.test(p.name.getText()))) return true;
   }
@@ -504,33 +539,101 @@ function ifLeaves(s: ts.IfStatement, only?: ts.SyntaxKind): boolean {
   return leaves(s.thenStatement, only) || (!!s.elseStatement && leaves(s.elseStatement, only));
 }
 
+/** A call a decision rests on, with the field of its result the decision reads (null: the result as a whole). */
+interface Asked {
+  call: ts.CallExpression;
+  field: string | null;
+}
+
+function propertyKey(name: ts.PropertyName | ts.BindingName | undefined): string | null {
+  if (!name) return null;
+  return ts.isIdentifier(name) || ts.isStringLiteralLike(name) ? name.text : null;
+}
+
 /**
- * The expressions that decide what a function does next: the conditions of ifs that can leave it and, for
- * a helper (whose answer its caller acts on), the conditions of `?:` and what it returns. Local variables in them are replaced by what they
- * were set from, so `const t = await guard(req); if (!t.ok) return` leads back to the guard call.
+ * The calls an expression's value rests on. Local variables are replaced by what they were set from, so
+ * `const t = await guard(req); if (!t.ok) return` leads back to the guard call, and the field is kept:
+ * `t.ok` asks about `ok`, not about whatever else `t` holds. For `const t = { good: verify(), kind: x }`
+ * a test of `t.kind` leads to `x` and never to the verification stored beside it.
  */
-function decisions(fn: Fn, asHelper: boolean, only?: ts.SyntaxKind): ts.Node[] {
-  const withReturns = asHelper;
-  const out: ts.Node[] = [];
-  if (!fn.body) return out;
-  if (withReturns && !ts.isBlock(fn.body)) out.push(fn.body);
-  each(fn.body, (n) => {
-    if (ts.isIfStatement(n) && ifLeaves(n, only)) out.push(n.expression);
-    if (asHelper && !only && ts.isConditionalExpression(n)) out.push(n.condition);
-    if (withReturns && ts.isReturnStatement(n) && n.expression && enclosing(n, isFn) === fn) out.push(n.expression);
-  });
-  const added = new Set<ts.Node>(out);
-  for (let i = 0; i < out.length && out.length < 200; i++) {
-    each(out[i], (n) => {
-      if (!ts.isIdentifier(n) || isPropertyName(n)) return;
-      const init = initializerOf(n);
-      if (init && !added.has(init)) {
-        added.add(init);
-        out.push(init);
+function asked(roots: Array<{ node: ts.Node; field: string | null }>): Asked[] {
+  const out: Asked[] = [];
+  const followed = new Map<ts.Node, Set<string>>();
+  const follow = (id: ts.Identifier, field: string | null): void => {
+    const decl = declarationOf(id);
+    if (!decl) return;
+    // `const { ok } = t` asks about `ok` of t; `const { data: { user } } = x` asks about `data` of x.
+    let node: ts.Node = decl;
+    let want = field;
+    while (ts.isBindingElement(node.parent)) {
+      const el = node.parent;
+      want = ts.isObjectBindingPattern(el.parent) ? propertyKey(el.propertyName ?? el.name) : null;
+      node = el.parent;
+    }
+    const d = node.parent;
+    if (!ts.isVariableDeclaration(d) || !d.initializer) return;
+    const key = want ?? "\u0000";
+    const fields = followed.get(d.initializer) ?? new Set<string>();
+    if (fields.has(key)) return;
+    fields.add(key);
+    followed.set(d.initializer, fields);
+    walk(d.initializer, want);
+  };
+  const walk = (n: ts.Node, field: string | null): void => {
+    if (out.length > 300) return;
+    if (ts.isParenthesizedExpression(n) || ts.isNonNullExpression(n) || ts.isAsExpression(n) || ts.isSatisfiesExpression(n) || ts.isAwaitExpression(n) || ts.isTypeAssertionExpression(n)) {
+      walk(n.expression, field);
+      return;
+    }
+    if (ts.isIdentifier(n)) {
+      if (!isPropertyName(n)) follow(n, field);
+      return;
+    }
+    if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression)) {
+      follow(n.expression, n.name.text);
+      return;
+    }
+    if (ts.isElementAccessExpression(n) && ts.isIdentifier(n.expression) && ts.isStringLiteralLike(n.argumentExpression)) {
+      follow(n.expression, n.argumentExpression.text);
+      return;
+    }
+    if (ts.isObjectLiteralExpression(n) && field !== null) {
+      for (const p of n.properties) {
+        if (ts.isSpreadAssignment(p)) walk(p.expression, field);
+        else if (propertyKey(p.name) !== field) continue;
+        else if (ts.isPropertyAssignment(p)) walk(p.initializer, null);
+        else if (ts.isShorthandPropertyAssignment(p)) follow(p.name, null);
       }
-    });
-  }
+      return;
+    }
+    if (ts.isConditionalExpression(n)) {
+      walk(n.condition, null);
+      walk(n.whenTrue, field);
+      walk(n.whenFalse, field);
+      return;
+    }
+    if (ts.isBinaryExpression(n)) {
+      const op = n.operatorToken.kind;
+      if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.AmpersandAmpersandToken || op === ts.SyntaxKind.QuestionQuestionToken) {
+        walk(n.left, field);
+        walk(n.right, field);
+        return;
+      }
+    }
+    if (ts.isCallExpression(n)) out.push({ call: n, field });
+    ts.forEachChild(n, (c) => walk(c, null));
+  };
+  for (const r of roots) walk(r.node, r.field);
   return out;
+}
+
+/** Visits the nodes of a function's own body, not those of functions written inside it. */
+function eachOwn(node: ts.Node, visit: (n: ts.Node) => void): void {
+  ts.forEachChild(node, (c) => {
+    if (isFn(c)) return;
+    visit(c);
+    eachOwn(c, visit);
+  });
 }
 
 function callsIn(nodes: ts.Node[]): ts.CallExpression[] {
@@ -559,11 +662,24 @@ function isCoercion(call: ts.CallExpression): boolean {
 // Verified requests: signatures, sealed values, sessions
 // ---------------------------------------------------------------------------
 
+/** An expression's text with local variables replaced by what they were set from, so two names for one value read the same. */
+function settledText(e: ts.Expression, depth = 3): string {
+  const x = unwrap(e);
+  if (ts.isIdentifier(x) && depth > 0) {
+    const init = initializerOf(x);
+    const d = declarationOf(x);
+    if (init && d && ts.isVariableDeclaration(d.parent)) return settledText(init, depth - 1);
+  }
+  return x.getText().replace(/\s+/g, "");
+}
+
 /** A call that itself decides whether the caller is genuine. */
 function isVerification(call: ts.CallExpression, project: Project): boolean {
   const callee = unwrap(call.expression);
   const name = calleeName(call);
-  if (name === "timingSafeEqual" || name === "constructEvent" || name === "constructEventAsync") return true;
+  // Comparing a value with itself answers yes for everyone.
+  if (name === "timingSafeEqual") return call.arguments.length < 2 || settledText(call.arguments[0]) !== settledText(call.arguments[1]);
+  if (name === "constructEvent" || name === "constructEventAsync") return true;
   if (ts.isPropertyAccessExpression(callee)) {
     const object = callee.expression.getText();
     if (name === "verify" && /\bsubtle$/.test(object)) return true;
@@ -578,12 +694,48 @@ function isVerification(call: ts.CallExpression, project: Project): boolean {
   return false;
 }
 
+/** The same literal comes back from every return (for `field`, the same literal in that field): the answer does not depend on anything. */
+function answersTheSame(fn: Fn, field: string | null): boolean {
+  if (!fn.body) return false;
+  const returned: ts.Expression[] = [];
+  let other = false;
+  if (!ts.isBlock(fn.body)) returned.push(fn.body);
+  else {
+    eachOwn(fn.body, (n) => {
+      if (ts.isThrowStatement(n)) other = true;
+      if (ts.isReturnStatement(n)) {
+        if (n.expression) returned.push(n.expression);
+        else other = true;
+      }
+    });
+  }
+  if (other || returned.length === 0) return false;
+  const texts = new Set<string>();
+  for (const r of returned) {
+    let v: ts.Expression | undefined = unwrap(r);
+    if (field !== null) {
+      if (!ts.isObjectLiteralExpression(v)) return false;
+      if (v.properties.some(ts.isSpreadAssignment)) return false;
+      const p: ts.ObjectLiteralElementLike | undefined = v.properties.find((x) => propertyKey(x.name) === field);
+      v = p && ts.isPropertyAssignment(p) ? unwrap(p.initializer) : undefined;
+    }
+    if (!v) return false;
+    const literal = v.kind === ts.SyntaxKind.TrueKeyword || v.kind === ts.SyntaxKind.FalseKeyword || v.kind === ts.SyntaxKind.NullKeyword || ts.isStringLiteralLike(v) || ts.isNumericLiteral(v);
+    if (!literal) return false;
+    texts.add(v.getText());
+  }
+  return texts.size === 1;
+}
+
 /**
- * True when a function's own outcome depends on a verification: one sits in a condition or in what it
- * returns, directly or through another such function. Computing a MAC is not enough; it has to be compared.
+ * True when what a function answers depends on a verification: one sits in a condition that makes it leave
+ * early, or in what it returns, directly or through another such function. With `field`, the caller reads
+ * only that field of the answer, so only that field counts: a verification that picks a log label beside a
+ * constant `ok: true` guards nothing. Computing a MAC is not enough; it has to be compared.
  */
-function isGuardFn(fn: Fn, project: Project, entry: string, hops: number, active = new Set<Fn>()): boolean {
-  const memo = project.guardMemo.get(fn);
+function isGuardFn(fn: Fn, field: string | null, project: Project, entry: string, hops: number, active = new Set<Fn>()): boolean {
+  const key = field ?? "\u0000";
+  const memo = project.guardMemo.get(fn)?.get(key);
   if (memo !== undefined) return memo;
   if (active.has(fn)) return false;
   active.add(fn);
@@ -591,43 +743,147 @@ function isGuardFn(fn: Fn, project: Project, entry: string, hops: number, active
   const text = fn.getText();
   // Authenticated decryption: only a value sealed with the server's key opens.
   if (/\bcreateDecipheriv\s*\(/.test(text) && /\.setAuthTag\s*\(/.test(text)) result = true;
-  if (!result) {
-    for (const call of callsIn(decisions(fn, true))) {
-      if (isVerification(call, project)) result = true;
+  if (!result && fn.body && !answersTheSame(fn, field)) {
+    const roots: Array<{ node: ts.Node; field: string | null }> = [];
+    if (!ts.isBlock(fn.body)) roots.push({ node: fn.body, field });
+    each(fn.body, (n) => {
+      if (ts.isIfStatement(n) && ifLeaves(n)) roots.push({ node: n.expression, field: null });
+      if (ts.isReturnStatement(n) && n.expression && enclosing(n, isFn) === fn) roots.push({ node: n.expression, field });
+    });
+    for (const a of asked(roots)) {
+      if (isVerification(a.call, project)) result = true;
       else if (hops > 0) {
-        const targets = project.resolveCall(call, entry);
-        result = targets.length > 0 && targets.every((t) => isGuardFn(t, project, entry, hops - 1, active));
+        const targets = project.resolveCall(a.call, entry);
+        result = targets.length > 0 && targets.every((t) => isGuardFn(t, a.field, project, entry, hops - 1, active));
       }
       if (result) break;
     }
   }
   active.delete(fn);
   // A "no" reached while part of a cycle was cut short is not final, so only top-level answers are kept.
-  if (result || active.size === 0) project.guardMemo.set(fn, result);
+  if (result || active.size === 0) {
+    const byField = project.guardMemo.get(fn) ?? new Map<string, boolean>();
+    byField.set(key, result);
+    project.guardMemo.set(fn, byField);
+  }
   return result;
 }
 
 /** A helper that throws unless the caller is verified, so calling it is the guard. */
 function isAssertFn(fn: Fn, project: Project, entry: string, hops: number): boolean {
-  const throwing = decisions(fn, false, ts.SyntaxKind.ThrowStatement);
-  for (const call of callsIn(throwing)) {
-    if (isVerification(call, project)) return true;
-    const targets = project.resolveCall(call, entry);
-    if (targets.length > 0 && targets.every((t) => isGuardFn(t, project, entry, hops))) return true;
+  if (!fn.body) return false;
+  const roots: Array<{ node: ts.Node; field: string | null }> = [];
+  each(fn.body, (n) => {
+    if (ts.isIfStatement(n) && ifLeaves(n, ts.SyntaxKind.ThrowStatement)) roots.push({ node: n.expression, field: null });
+  });
+  for (const a of asked(roots)) {
+    if (isVerification(a.call, project)) return true;
+    const targets = project.resolveCall(a.call, entry);
+    if (targets.length > 0 && targets.every((t) => isGuardFn(t, a.field, project, entry, hops))) return true;
   }
   return false;
 }
 
-function verifiedRequest(handler: Fn, project: Project, entry: string): boolean {
-  for (const call of callsIn(decisions(handler, false))) {
-    if (isVerification(call, project)) return true;
-    const targets = project.resolveCall(call, entry);
-    if (targets.length > 0 && targets.every((t) => isGuardFn(t, project, entry, MAX_HOPS - 1))) return true;
-  }
+function isLogging(call: ts.CallExpression): boolean {
+  let root: ts.Expression = unwrap(call.expression);
+  while (ts.isPropertyAccessExpression(root) || ts.isCallExpression(root)) root = unwrap(root.expression);
+  return ts.isIdentifier(root) && /^(?:console|logger|log)$/i.test(root.text);
+}
+
+/**
+ * Does the handler do something that lasts between two positions? A call whose answer is thrown away is
+ * made for its effect (`await ledger.record(...)`); so is a table write, and a call into a project function
+ * that writes. Logging, guards and plain value methods (`headers.set`, `parts.push`) are not.
+ */
+function effectBetween(handler: Fn, from: number, to: number, project: Project, entry: string): boolean {
   if (!handler.body) return false;
-  for (const call of callsIn([handler.body])) {
+  let found = false;
+  eachOwn(handler.body, (n) => {
+    if (found || !ts.isCallExpression(n) || n.getStart() < from || n.getEnd() > to || isLogging(n) || isCoercion(n)) return;
+    let top: ts.Node = n;
+    let awaited = false;
+    while (ts.isAwaitExpression(top.parent) || ts.isParenthesizedExpression(top.parent) || ts.isVoidExpression(top.parent)) {
+      if (ts.isAwaitExpression(top.parent)) awaited = true;
+      top = top.parent;
+    }
+    const discarded = ts.isExpressionStatement(top.parent);
+    const targets = project.resolveCall(n, entry);
+    if (targets.length > 0) {
+      if (targets.every((t) => isAssertFn(t, project, entry, MAX_HOPS - 1) || isGuardFn(t, null, project, entry, MAX_HOPS - 1))) return;
+      if (discarded || targets.some((t) => withinReach(DATA_WRITE, t, project, entry, 2))) found = true;
+      return;
+    }
+    if (discarded && (awaited || !PLATFORM_METHODS.has(calleeName(n)))) found = true;
+  });
+  if (found) return true;
+  const sf = handler.getSourceFile();
+  const lo = Math.max(from, handler.body.getStart());
+  return to > lo && DATA_WRITE.test(sf.text.slice(lo, to));
+}
+
+/** The statement a node belongs to. */
+function statementOf(node: ts.Node): ts.Statement | null {
+  for (let cur: ts.Node | undefined = node; cur; cur = cur.parent) {
+    if (isFn(cur)) return null;
+    if (ts.isStatement(cur) && !ts.isBlock(cur)) return cur;
+  }
+  return null;
+}
+
+function blockLeaves(block: ts.Block): boolean {
+  const last = block.statements[block.statements.length - 1];
+  return !!last && (ts.isReturnStatement(last) || ts.isThrowStatement(last));
+}
+
+/**
+ * True when every request has to pass the statement before the handler's work: it stands in the handler's
+ * own body (or in a `try` there), not behind a condition, a loop or a callback, and nothing that lasts has
+ * been done before it. For a helper that guards by throwing (`asserts`), a `catch` that swallows the throw
+ * and lets the handler carry on to more work undoes the guard.
+ */
+function standsInFront(stmt: ts.Statement, handler: Fn, asserts: boolean, project: Project, entry: string): boolean {
+  if (!handler.body || !ts.isBlock(handler.body)) return false;
+  let cur: ts.Node = stmt;
+  while (cur.parent !== handler.body) {
+    const p: ts.Node = cur.parent;
+    if (ts.isBlock(p)) {
+      if (p !== handler.body && !ts.isTryStatement(p.parent)) return false;
+    } else if (ts.isTryStatement(p)) {
+      if (p.tryBlock !== cur) return false;
+      const swallowed = asserts && !!p.catchClause && !blockLeaves(p.catchClause.block);
+      if (swallowed && effectBetween(handler, p.getEnd(), handler.body.getEnd(), project, entry)) return false;
+    } else return false;
+    cur = p;
+  }
+  return !effectBetween(handler, handler.body.getStart(), stmt.getStart(), project, entry);
+}
+
+/**
+ * The handler is gated by a verification: an `if` that can leave it tests the verification's answer (the
+ * field tested is the field that depends on it), or a helper that throws unless the caller is verified is
+ * called, and in both cases the statement stands in front of the handler's work.
+ */
+function verifiedRequest(handler: Fn, project: Project, entry: string): boolean {
+  if (!handler.body || !ts.isBlock(handler.body)) return false;
+  const ifs: ts.IfStatement[] = [];
+  const calls: ts.CallExpression[] = [];
+  eachOwn(handler.body, (n) => {
+    if (ts.isIfStatement(n) && ifLeaves(n)) ifs.push(n);
+    if (ts.isCallExpression(n)) calls.push(n);
+  });
+  for (const n of ifs) {
+    const rests = asked([{ node: n.expression, field: null }]).some((a) => {
+      if (isVerification(a.call, project)) return true;
+      const targets = project.resolveCall(a.call, entry);
+      return targets.length > 0 && targets.every((t) => isGuardFn(t, a.field, project, entry, MAX_HOPS - 1));
+    });
+    if (rests && standsInFront(n, handler, false, project, entry)) return true;
+  }
+  for (const call of calls) {
     const targets = project.resolveCall(call, entry);
-    if (targets.length > 0 && targets.every((t) => isAssertFn(t, project, entry, MAX_HOPS - 1))) return true;
+    if (targets.length === 0 || !targets.every((t) => isAssertFn(t, project, entry, MAX_HOPS - 1))) continue;
+    const stmt = statementOf(call);
+    if (stmt && standsInFront(stmt, handler, true, project, entry)) return true;
   }
   return false;
 }
@@ -751,14 +1007,14 @@ function callCarries(call: ts.CallExpression, t: Taint): boolean {
 
 interface Sink {
   throughCalls: Through;
-  hit(fn: Fn, t: Taint): boolean;
+  hit(fn: Fn, t: Taint, project: Project, entry: string): boolean;
 }
 
 /** Follows the value from `fn` into the functions it is passed to until `sink` sees it used. */
 function reaches(fn: Fn, t: Taint, sink: Sink, project: Project, entry: string, hops: number, seen: Set<Fn>): boolean {
   seen.add(fn);
   spread(fn, t, sink.throughCalls);
-  if (sink.hit(fn, t)) return true;
+  if (sink.hit(fn, t, project, entry)) return true;
   if (hops <= 0 || !fn.body) return false;
   for (const call of callsIn([fn.body])) {
     if (isCoercion(call) || !callCarries(call, t)) continue;
@@ -773,31 +1029,83 @@ function reaches(fn: Fn, t: Taint, sink: Sink, project: Project, entry: string, 
   return false;
 }
 
-/** The value is hashed, or compared in constant time: it is a secret being looked up, not an id. */
-const hashedLookup: Sink = {
-  throughCalls: false,
-  hit(fn, t) {
-    if (!fn.body) return false;
-    return callsIn([fn.body]).some((call) => {
-      const name = calleeName(call);
-      const callee = unwrap(call.expression);
-      const receiver = ts.isPropertyAccessExpression(callee) ? callee.expression.getText() : "";
-      const hashing = (name === "update" && /\bcreateH(?:ash|mac)\s*\(/.test(receiver)) || (name === "digest" && /\bsubtle$/.test(receiver));
-      const comparing = name === "timingSafeEqual";
-      return (hashing || comparing) && call.arguments.some((a) => carries(a, t, true));
-    });
-  },
-};
+/** The call hashes the value, or compares it in constant time. */
+function hashesValue(call: ts.CallExpression, t: Taint): boolean {
+  const name = calleeName(call);
+  const callee = unwrap(call.expression);
+  const receiver = ts.isPropertyAccessExpression(callee) ? callee.expression.getText() : "";
+  const hashing = (name === "update" && /\bcreateH(?:ash|mac)\s*\(/.test(receiver)) || (name === "digest" && /\bsubtle$/.test(receiver));
+  const comparing = name === "timingSafeEqual";
+  return (hashing || comparing) && call.arguments.some((a) => carries(a, t, true));
+}
+
+/**
+ * What becomes of a URL token: "hashed" when it is hashed (or compared in constant time) and the raw value
+ * goes nowhere else, "raw" when the value itself is handed to something that can keep or look up by it,
+ * "unused" when neither. A secret link is looked up by its hash. A route that hashes its `[id]` for a log
+ * line and then deletes the row by the id itself is using a plain id, however many hashes sit beside it.
+ */
+function tokenUse(fn: Fn, t: Taint, project: Project, entry: string, hops: number, seen: Set<Fn>): "hashed" | "raw" | "unused" {
+  seen.add(fn);
+  spread(fn, t, false);
+  if (!fn.body) return "unused";
+  let hashed = false;
+  for (const call of callsIn([fn.body])) {
+    if (isCoercion(call) || isLogging(call)) continue;
+    if (hashesValue(call, t)) {
+      hashed = true;
+      continue;
+    }
+    if (!callCarries(call, t)) continue;
+    const targets = project.resolveCall(call, entry);
+    if (targets.length === 0) {
+      if (INERT_METHODS.has(calleeName(call))) continue;
+      return "raw";
+    }
+    if (hops <= 0) return "raw";
+    for (const target of targets) {
+      if (seen.has(target)) continue;
+      const next = intoCallee(call, target, t);
+      if (!next) continue;
+      const use = tokenUse(target, next, project, entry, hops - 1, seen);
+      if (use === "raw") return "raw";
+      if (use === "hashed") hashed = true;
+    }
+  }
+  return hashed ? "hashed" : "unused";
+}
+
+/** No state is read or kept: no await, no `this`, and no name from outside the function except the language's own. */
+function isPure(fn: Fn): boolean {
+  let pure = true;
+  const walk = (n: ts.Node): void => {
+    if (!pure || ts.isTypeNode(n)) return;
+    if (ts.isAwaitExpression(n) || n.kind === ts.SyntaxKind.ThisKeyword) pure = false;
+    else if (ts.isIdentifier(n) && !isPropertyName(n)) {
+      const d = declarationOf(n);
+      const inside = d !== null && d.getStart() >= fn.getStart() && d.getEnd() <= fn.getEnd();
+      if (!inside && !PURE_GLOBALS.has(n.text)) pure = false;
+    }
+    ts.forEachChild(n, walk);
+  };
+  if (fn.body) walk(fn.body);
+  return pure;
+}
 
 /** A count kept for this visitor is compared with a limit, and going over is refused. */
 const visitorLimit: Sink = {
   throughCalls: false,
-  hit(fn, t) {
+  hit(fn, t, project, entry) {
     if (!fn.body) return false;
     const counts = new Set<ts.Node>();
     const countVars = new Set<ts.Identifier>();
     for (const call of callsIn([fn.body])) {
-      if (!isCoercion(call) && call.arguments.some((a) => carries(a, t, true))) counts.add(call);
+      if (isCoercion(call) || !call.arguments.some((a) => carries(a, t, true))) continue;
+      // A count is kept somewhere. A function that only reshapes the address (`parseIp(ip)`) keeps nothing,
+      // so a test of what it returns is a format check, not a limit.
+      const targets = project.resolveCall(call, entry);
+      if (targets.length > 0 && targets.every(isPure)) continue;
+      counts.add(call);
     }
     const holdsCount = (n: ts.Node): boolean => {
       let found = false;
@@ -830,16 +1138,53 @@ const visitorLimit: Sink = {
   },
 };
 
-/** The function turns the request away depending on the value, or runs the value through a schema. */
+/**
+ * True when a condition only asks whether the value is there at all (`!input`, `input == null`,
+ * `typeof input !== "object"`). That says nothing about what the value holds.
+ */
+function onlyPresence(condition: ts.Expression, t: Taint): boolean {
+  const refs: ts.Identifier[] = [];
+  each(condition, (n) => {
+    if (ts.isIdentifier(n) && !isPropertyName(n) && isCarrier(n, t)) refs.push(n);
+  });
+  if (refs.length === 0) return false;
+  const logical = (k: ts.SyntaxKind) => k === ts.SyntaxKind.BarBarToken || k === ts.SyntaxKind.AmpersandAmpersandToken;
+  const empty = (e: ts.Expression) => {
+    const v = unwrap(e);
+    return v.kind === ts.SyntaxKind.NullKeyword || (ts.isIdentifier(v) && v.text === "undefined") || (ts.isStringLiteralLike(v) && /^(?:object|undefined)$/.test(v.text));
+  };
+  return refs.every((id) => {
+    let cur: ts.Node = id;
+    for (;;) {
+      if (cur === condition) return true;
+      const p = cur.parent;
+      if (ts.isParenthesizedExpression(p) || ts.isTypeOfExpression(p)) cur = p;
+      else if (ts.isPrefixUnaryExpression(p) && p.operator === ts.SyntaxKind.ExclamationToken) cur = p;
+      else if (ts.isBinaryExpression(p) && logical(p.operatorToken.kind)) cur = p;
+      else if (ts.isBinaryExpression(p) && /^[!=]==?$/.test(p.operatorToken.getText()) && empty(p.left === cur ? p.right : p.left)) cur = p;
+      else return false;
+    }
+  });
+}
+
+// Objects whose `parse` reads a format. It answers "is this JSON", never "is this what we accept".
+const FORMAT_READERS = /^(?:JSON|JSON5|Date|Number|Math|qs|querystring|url|URL|path|cookie|cookies|YAML|yaml|superjson|Papa|csv|xml|ini|toml|dotenv)$/;
+
+/** The function turns the request away depending on what the value holds, or runs the value through a schema. */
 const rejection: Sink = {
   throughCalls: "sync",
-  hit(fn, t) {
+  hit(fn, t, project, entry) {
     if (!fn.body) return false;
     let found = false;
     each(fn.body, (n) => {
       if (found) return;
-      if (ts.isIfStatement(n) && ifRefuses(n) && carries(n.expression, t, "sync")) found = true;
+      if (ts.isIfStatement(n) && ifRefuses(n) && carries(n.expression, t, "sync") && !onlyPresence(n.expression, t)) found = true;
       if (ts.isCallExpression(n) && /^(?:parse|safeParse|parseAsync|safeParseAsync|validate|validateSync)$/.test(calleeName(n)) && n.arguments.some((a) => carries(a, t, true))) {
+        const callee = unwrap(n.expression);
+        // `JSON.parse(raw)` reads a format and accepts anything in it.
+        if (ts.isPropertyAccessExpression(callee) && FORMAT_READERS.test(callee.expression.getText())) return;
+        // The project's own `parse(x)` is judged by what it does (it is followed), not by its name.
+        if (ts.isIdentifier(callee) && project.resolveCall(n, entry).length > 0) return;
         found = true;
       }
     });
@@ -901,6 +1246,31 @@ function withinReach(what: RegExp, fn: Fn, project: Project, entry: string, hops
   return callsIn([fn.body]).some((call) => project.resolveCall(call, entry).some((t) => withinReach(what, t, project, entry, hops - 1, seen)));
 }
 
+/**
+ * Does the function, or anything it calls within `hops`, use a module-level value whose declaration contains
+ * `what`? A client built once at the top of a file (`const admin = createClient(url, SERVICE_ROLE_KEY)`) is
+ * in no function's text, here or in the file it is imported from.
+ */
+function usesModuleValue(what: RegExp, fn: Fn, project: Project, entry: string, hops: number, seen = new Set<Fn>()): boolean {
+  if (seen.has(fn) || !fn.body) return false;
+  seen.add(fn);
+  const file = fn.getSourceFile().fileName;
+  const names = new Set<string>();
+  each(fn.body, (n) => {
+    if (!ts.isIdentifier(n) || isPropertyName(n) || names.has(n.text)) return;
+    const d = declarationOf(n);
+    if (d === null || ts.isSourceFile(statementOf(d)?.parent ?? d)) names.add(n.text);
+  });
+  for (const name of names) {
+    const d = project.topVariable(file, name);
+    if (!d) continue;
+    if (what.test(d.getText())) return true;
+    if (d.initializer && callsIn([d.initializer]).some((c) => project.resolveCall(c, entry).some((t) => withinReach(what, t, project, entry, 1)))) return true;
+  }
+  if (hops <= 0) return false;
+  return callsIn([fn.body]).some((call) => project.resolveCall(call, entry).some((t) => usesModuleValue(what, t, project, entry, hops - 1, seen)));
+}
+
 export type HandlerGuard = "verified-request" | "link-token" | "visitor-limit";
 
 /**
@@ -908,9 +1278,10 @@ export type HandlerGuard = "verified-request" | "link-token" | "visitor-limit";
  * null when none can be shown.
  *
  *  verified-request  leaving the handler early depends on a signature check, a sealed value or a session
- *                    read, reached through the project's own helpers.
- *  link-token        a URL segment is hashed (or compared in constant time) before anything is looked up:
- *                    the link is the permission. A plain id never qualifies.
+ *                    read, reached through the project's own helpers, before the handler does anything
+ *                    that lasts.
+ *  link-token        a URL segment is hashed (or compared in constant time) and its raw value is handed to
+ *                    nothing else: the link is the permission. A plain id never qualifies, hashed or not.
  *  visitor-limit     a public endpoint that counts requests per visitor address and refuses over a limit.
  *                    Never accepted for a route that works with the service role.
  */
@@ -925,7 +1296,7 @@ export function handlerGuard(model: ProjectModel, endpoint: ApiEndpoint): Handle
     if (verifiedRequest(handler, project, entry)) return "verified-request";
 
     const params = urlParams(handler);
-    if ((params.whole.size || params.members.size) && reaches(handler, params, hashedLookup, project, entry, MAX_HOPS, new Set())) return "link-token";
+    if ((params.whole.size || params.members.size) && tokenUse(handler, params, project, entry, MAX_HOPS, new Set()) === "hashed") return "link-token";
 
     const visitor = visitorAddress(handler, project, entry);
     if (visitor.nodes.size) {
@@ -935,7 +1306,7 @@ export function handlerGuard(model: ProjectModel, endpoint: ApiEndpoint): Handle
         // two calls of it, writes to tables or calls auth.admin, and a service-role client is within the
         // same reach, the route stays reported.
         const writes = [...walked].some((f) => DATA_WRITE.test(f.getText())) || withinReach(DATA_WRITE, handler, project, entry, 2);
-        const privileged = writes && (SERVICE_ROLE.test(sf.text) || withinReach(SERVICE_ROLE, handler, project, entry, 2));
+        const privileged = writes && (SERVICE_ROLE.test(sf.text) || withinReach(SERVICE_ROLE, handler, project, entry, 2) || usesModuleValue(SERVICE_ROLE, handler, project, entry, 2));
         if (!privileged) return "visitor-limit";
       }
     }
@@ -943,6 +1314,17 @@ export function handlerGuard(model: ProjectModel, endpoint: ApiEndpoint): Handle
   } catch {
     return null;
   }
+}
+
+/** A `?:` (or a chain of them) whose every outcome is a literal written in the code. */
+function picksLiteral(e: ts.Expression, top = true): boolean {
+  const x = unwrap(e);
+  if (ts.isConditionalExpression(x)) return picksLiteral(x.whenTrue, false) && picksLiteral(x.whenFalse, false);
+  if (top) return false;
+  return (
+    ts.isStringLiteralLike(x) || ts.isNumericLiteral(x) || x.kind === ts.SyntaxKind.NullKeyword || x.kind === ts.SyntaxKind.TrueKeyword ||
+    x.kind === ts.SyntaxKind.FalseKeyword || (ts.isIdentifier(x) && x.text === "undefined")
+  );
 }
 
 /**
@@ -971,8 +1353,32 @@ export function bodyCheckedDownstream(model: ProjectModel, endpoint: ApiEndpoint
     if (!body.whole.size) return false;
     spread(handler, body, false);
 
+    // `const reason = b.reason === "a" ? "a" : b.reason === "b" ? "b" : null` holds one of the values written
+    // in the code, never what was sent. Such a variable no longer carries the body.
+    const picked = new Set<ts.Identifier>();
+    each(handler.body, (n) => {
+      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && body.whole.has(n.name) && n.initializer && picksLiteral(n.initializer)) picked.add(n.name);
+    });
+    for (const d of picked) body.whole.delete(d);
+
     const handedTo = callsIn([handler.body]).filter((c) => !isCoercion(c) && callCarries(c, body));
-    if (handedTo.length === 0) return false;
+    if (handedTo.length === 0) {
+      // Nothing that was sent reaches any call. That is a checked body only when the handler picked its
+      // values from the code's own list and turns away a request that matched none of them; a body copied
+      // field by field into an object (`row.email = b.email`) has gone somewhere this does not follow.
+      let copied = false;
+      let refused = false;
+      each(handler.body, (n) => {
+        if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && !ts.isIdentifier(n.left) && carries(n.right, body, false)) copied = true;
+        if (!ts.isIfStatement(n) || !ifRefuses(n)) return;
+        each(n.expression, (c) => {
+          if (!ts.isIdentifier(c) || isPropertyName(c)) return;
+          const d = declarationOf(c);
+          if (d && picked.has(d)) refused = true;
+        });
+      });
+      return refused && !copied;
+    }
     return handedTo.every((call) => {
       const targets = project.resolveCall(call, entry);
       return (
@@ -998,6 +1404,14 @@ export function isFixedText(e: ts.Expression, project: Project, hops = 4): boole
   if (ts.isTemplateExpression(x)) return x.templateSpans.every((s) => isFixedText(s.expression, project, hops));
   if (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.PlusToken) return isFixedText(x.left, project, hops) && isFixedText(x.right, project, hops);
   if (ts.isIdentifier(x) && hops > 0) {
+    // Scope decides what the name means here. A parameter, a destructured prop or a `let` of that name is
+    // not the constant, whatever else the file declares.
+    const local = declarationOf(x);
+    if (local) {
+      const d = local.parent;
+      const fixed = ts.isVariableDeclaration(d) && d.name === local && !!d.initializer && (d.parent.flags & ts.NodeFlags.Const) !== 0;
+      return fixed && isFixedText(d.initializer!, project, hops - 1);
+    }
     const c = project.constant(x.getSourceFile().fileName, x.text);
     return c !== null && isFixedText(c.value, project, hops - 1);
   }
@@ -1008,7 +1422,8 @@ export function isFixedText(e: ts.Expression, project: Project, hops = 4): boole
  * True when an equality on this line finds a stored record by its key: one side is a field of the row being
  * iterated (`for (const s of rows) if (s.tokenHash === h)`, `rows.find((r) => r.tokenHash === h)`). That is
  * what a database index does, and its timing says nothing about the caller's secret. Comparing the iterated
- * value itself (`sigs.some((sig) => sig === expected)`) is a verification and is not matched.
+ * value itself (`sigs.some((sig) => sig === expected)`), or asking `some`/`every` whether a row matches
+ * (`candidates.some((c) => c.signature === sent)`), is a verification and is not matched.
  */
 export function isRecordLookup(project: Project, file: string, line: number, mentions: RegExp): boolean {
   const sf = project.source(file);
@@ -1025,6 +1440,13 @@ export function isRecordLookup(project: Project, file: string, line: number, men
   });
   if (equalities.length === 0) return false;
 
+  // Rows worked out on the spot from a MAC or hash (`secrets.map((s) => ({ signature: hmac(s, body) }))`)
+  // are candidates for the caller's value, not stored records.
+  const stored = (rows: ts.Expression): boolean => {
+    const r = unwrap(rows);
+    const made = ts.isIdentifier(r) ? (initializerOf(r) ?? r) : r;
+    return !/\bcreateH(?:ash|mac)\s*\(|\bsubtle\s*\.|\.sign\s*\(/.test(made.getText());
+  };
   const iterated = (side: ts.Expression): boolean => {
     const s = unwrap(side);
     if (!ts.isPropertyAccessExpression(s) || !ts.isIdentifier(s.expression)) return false;
@@ -1032,11 +1454,15 @@ export function isRecordLookup(project: Project, file: string, line: number, men
     for (let cur: ts.Node = s; cur.parent; cur = cur.parent) {
       const p = cur.parent;
       if ((ts.isForOfStatement(p) || ts.isForInStatement(p)) && ts.isVariableDeclarationList(p.initializer)) {
-        if (p.initializer.declarations.some((d) => bindingNames(d.name).includes(row))) return true;
+        if (p.initializer.declarations.some((d) => bindingNames(d.name).includes(row))) return stored(p.expression);
       }
       if ((ts.isArrowFunction(p) || ts.isFunctionExpression(p)) && p.parameters.some((x) => bindingNames(x.name).includes(row))) {
         const call = p.parent;
-        return ts.isCallExpression(call) && call.arguments.includes(p) && /^(?:find|findLast|findIndex|findLastIndex|filter|some|every)$/.test(calleeName(call));
+        const receiver = ts.isCallExpression(call) ? unwrap(call.expression) : null;
+        if (receiver && ts.isPropertyAccessExpression(receiver) && !stored(receiver.expression)) return false;
+        // `find` and `filter` hand back the row. `some` and `every` hand back yes or no, which is a decision
+        // about the value being compared, so they are never a lookup.
+        return ts.isCallExpression(call) && call.arguments.includes(p) && /^(?:find|findLast|findIndex|findLastIndex|filter)$/.test(calleeName(call));
       }
     }
     return false;
