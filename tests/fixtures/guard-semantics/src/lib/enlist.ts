@@ -21,3 +21,9 @@ export async function enlistUnlimited(input: { email: string; visitor: string })
   await ledger.record("enlist", { email: input.email, visitor: input.visitor });
   return { status: "saved" };
 }
+
+/** Twin: looks at what it was given only to choose how to store it. It never turns anything away. */
+export async function enlistEither(input: { email: string; visitor: string }): Promise<number | void> {
+  if (input.email.includes("@")) return ledger.bump(input.email);
+  return ledger.record("enlist", input.email);
+}

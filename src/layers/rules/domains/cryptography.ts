@@ -2,6 +2,7 @@ import fg from "fast-glob";
 import { safeReadFile } from "../../../utils/fs.js";
 import type { Finding, ProjectModel } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
+import { enclosingFunctionText, isRecordLookup, projectFor } from "../handler-analysis.js";
 
 function mkFinding(
   ruleId: string,
@@ -140,13 +141,21 @@ export const cryptographyRules: SecurityRule[] = [
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
       const hashCallRe = /createHash\s*\(\s*["'](md5|sha1)["']/i;
+      // The rule is about MD5/SHA-1 protecting something. It used to test for that context and then
+      // ignore the answer (`!context && !hashCall` is false for every file with a hash call), so a
+      // checksum, cache key or ETag was reported as a broken password hash. The context is now required,
+      // and read from the function the hash is in: its name, its arguments, what it hashes.
+      const protectsSomething =
+        /pass(?:word|wd|phrase|code)?\b|\bpwd\b|signature|\bsign(?:ed|ing|s)?\b|\bsig\b|hmac|secret|token|credential|\bauth|session|\botp\b|api[_-]?key|\bverif/i;
+      const project = projectFor(model);
       for (const { file, source } of files) {
-        const hasPasswordContext = /\bpassword|\bhash_password|\bverifyPassword|signature|\bsign\b/i.test(source);
-        if (!hasPasswordContext && !hashCallRe.test(source)) continue;
+        if (!hashCallRe.test(source)) continue;
         const lines = source.split("\n");
         lines.forEach((line, idx) => {
           const m = line.match(/createHash\s*\(\s*["'](md5|sha1)["']/i);
           if (!m) return;
+          const around = enclosingFunctionText(project, file, idx + 1) ?? source;
+          if (!protectsSomething.test(around)) return;
           findings.push(
             mkFinding(
               "CRYPTO-002",
@@ -423,6 +432,7 @@ export const cryptographyRules: SecurityRule[] = [
       // !== signature.length)` early-exits and `if (index === tokens.length)`
       // iterators.
       const hasLengthCompare = /\.(?:length|size|index|byteLength|count)\b/;
+      const project = projectFor(model);
 
       for (const { file, source } of files) {
         if (!/hmac|signature|token|digest|\bmac\b/i.test(source)) continue;
@@ -475,6 +485,10 @@ export const cryptographyRules: SecurityRule[] = [
           if (/\.(?:current|value|id|name|count|provider|type|kind|scheme)\s*$/.test(otherSide)) {
             return;
           }
+
+          // Finding a stored row by its key (`rows.find((r) => r.tokenHash === h)`) is an index lookup,
+          // not a decision about a caller's secret: the name matched, the meaning did not.
+          if (isRecordLookup(project, file, idx + 1, /hmac|signature|token|mac|digest|sig/i)) return;
 
           findings.push(
             mkFinding(

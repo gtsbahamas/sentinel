@@ -6,6 +6,7 @@ import { loadConfig, type ConventionRule } from "../../../config.js";
 import { DEFAULT_EXCLUDED_SEGMENTS, isExcludedPath } from "../../recon/pattern-inference.js";
 import type { Finding } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
+import { handlerGuard } from "../handler-analysis.js";
 
 // Compute the path that `match` globs are written against. Endpoint files
 // are absolute on disk; conventions in `.sentinelrc.json` and inferred
@@ -149,6 +150,14 @@ export const authAccessControlRules: SecurityRule[] = [
             /\b(?:isAuthorized|isAuthenticated|isAdmin|hasPermission|hasAccess|canAccess)\s*\(/.test(source) &&
             /(?:401|403|Unauthorized|Forbidden)/i.test(source);
           if (hasIsAuthorizedHelper) continue;
+
+          // The checks above read the route file alone and look for guard-shaped names, so a guard kept
+          // in a helper (`const t = await twilioRequest(req); if (!t.ok) return t.res;`) was invisible
+          // and a correctly guarded route was reported as open. Follow the handler's calls into the
+          // project's own code and accept it only when what they DO protects the route: a verified
+          // signature, sealed value or session that gates the handler; a URL token that is hashed before
+          // anything is looked up; or a public endpoint limited per visitor. Unresolvable means reported.
+          if (handlerGuard(model, endpoint)) continue;
 
           findings.push(
             mkFinding(

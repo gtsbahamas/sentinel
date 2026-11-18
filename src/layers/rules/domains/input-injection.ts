@@ -2,6 +2,9 @@ import { safeReadFile } from "../../../utils/fs.js";
 import fg from "fast-glob";
 import type { Finding, ProjectModel } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
+import ts from "typescript";
+import { bodyCheckedDownstream, isFixedText, projectFor } from "../handler-analysis.js";
+import { isTestCode } from "../../../utils/test-code.js";
 
 function mkFinding(
   ruleId: string,
@@ -55,10 +58,12 @@ async function scanLines(
   model: ProjectModel,
   pattern: RegExp,
   makeFinding: (file: string, line: number, match: RegExpMatchArray) => Finding,
+  applies?: (source: string) => boolean,
 ): Promise<Finding[]> {
   const findings: Finding[] = [];
   const files = await walkSourceFiles(model);
   for (const { file, source } of files) {
+    if (applies && !applies(source)) continue;
     const lines = source.split("\n");
     lines.forEach((line, idx) => {
       const match = line.match(pattern);
@@ -81,27 +86,56 @@ export const inputInjectionRules: SecurityRule[] = [
     async check(model) {
       const findings: Finding[] = [];
       const files = await walkSourceFiles(model);
+      const project = projectFor(model);
       for (const { file, source } of files) {
         if (!/dangerouslySetInnerHTML/.test(source)) continue;
         const hasSanitizer = /DOMPurify|sanitize-html|isomorphic-dompurify/.test(source);
         if (hasSanitizer) continue;
-        const lines = source.split("\n");
-        lines.forEach((line, idx) => {
-          if (/dangerouslySetInnerHTML/.test(line)) {
-            findings.push(
-              mkFinding(
-                "INPUT-001",
-                "critical",
-                "dangerouslySetInnerHTML without sanitizer",
-                "React component renders raw HTML without sanitization.",
-                "Your app renders user-supplied HTML without sanitization. An attacker can inject a script tag that runs in other users' browsers, stealing their session cookies or redirecting them to a phishing site.",
-                "Sanitize input with DOMPurify before passing to dangerouslySetInnerHTML.",
-                [{ file, line: idx + 1, snippet: line.trim() }],
-                { cwe: "CWE-79", owasp: "A03:2021" },
-              ),
-            );
+        const report = (line: number, snippet: string) =>
+          findings.push(
+            mkFinding(
+              "INPUT-001",
+              "critical",
+              "dangerouslySetInnerHTML without sanitizer",
+              "React component renders raw HTML without sanitization.",
+              "Your app renders user-supplied HTML without sanitization. An attacker can inject a script tag that runs in other users' browsers, stealing their session cookies or redirecting them to a phishing site.",
+              "Sanitize input with DOMPurify before passing to dangerouslySetInnerHTML.",
+              [{ file, line, snippet }],
+              { cwe: "CWE-79", owasp: "A03:2021" },
+            ),
+          );
+
+        // The rule used to fire on the word alone. What matters is the value: a string fixed in the
+        // source (an inline boot script, a constant) cannot carry anyone's input, so only a value that
+        // is not provably fixed is reported.
+        const sf = project.source(file);
+        if (!sf) {
+          source.split("\n").forEach((line, idx) => {
+            if (/dangerouslySetInnerHTML/.test(line)) report(idx + 1, line.trim());
+          });
+          continue;
+        }
+        const visit = (node: ts.Node): void => {
+          let value: ts.Expression | undefined;
+          if (ts.isJsxAttribute(node) && node.name.getText() === "dangerouslySetInnerHTML") {
+            value = node.initializer && ts.isJsxExpression(node.initializer) ? node.initializer.expression : undefined;
+          } else if (ts.isPropertyAssignment(node) && node.name.getText() === "dangerouslySetInnerHTML") {
+            value = node.initializer;
+          } else {
+            ts.forEachChild(node, visit);
+            return;
           }
-        });
+          let html: ts.Expression | undefined;
+          if (value && ts.isObjectLiteralExpression(value)) {
+            for (const p of value.properties) {
+              if (ts.isPropertyAssignment(p) && p.name.getText() === "__html") html = p.initializer;
+            }
+          }
+          if (html && isFixedText(html, project)) return;
+          const line = sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+          report(line, sf.text.split("\n")[line - 1].trim());
+        };
+        visit(sf);
       }
       return findings;
     },
@@ -159,6 +193,8 @@ export const inputInjectionRules: SecurityRule[] = [
             [{ file, line, snippet: match[0] }],
             { cwe: "CWE-89", owasp: "A03:2021" },
           ),
+        // Test code builds SQL for a throwaway database from its own values; no visitor reaches it.
+        (source) => !isTestCode(source),
       );
     },
   },
@@ -365,6 +401,12 @@ export const inputInjectionRules: SecurityRule[] = [
 
         // Skip 4: comment-line-only matches and 410-stub deprecated routes.
         if (/status:\s*410\b|\.status\(\s*410\s*\)/.test(source)) continue;
+
+        // Skip 5: the body is checked by the function it is handed to. Everything above reads the route
+        // file alone, so `engine.pressKeys(token, String(b.digits))` looked unvalidated although
+        // pressKeys refuses anything but phone keys. Follow the body into the project's own functions
+        // and skip only when each one it reaches refuses based on what it was given.
+        if (bodyCheckedDownstream(model, endpoint)) continue;
 
         findings.push(
           mkFinding(
