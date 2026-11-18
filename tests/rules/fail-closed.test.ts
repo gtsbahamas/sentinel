@@ -41,6 +41,7 @@ function lines(ruleId: string, file: string): number[] {
 const rr = (p: string) => `src/app/api/rr/${p}/route.ts`;
 const fc = (p: string) => `src/app/api/fc/${p}/route.ts`;
 const zz = (p: string) => `src/app/api/zz/${p}/route.ts`;
+const yy = (p: string) => `src/app/api/yy/${p}/route.ts`;
 const api = (p: string) => `src/app/api/${p}/route.ts`;
 
 describe("AUTH-001: a handler the analysis cannot prove guarded stays reported", () => {
@@ -129,6 +130,58 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
     ["a proven field overwritten through a for-of target", zz("a79-truthy-then-override")],
     ["a link token that is hashed and stored, with nothing looked up", zz("l/[token]/a30-link-hash-no-lookup")],
   ];
+  // Found by a second attack on the proof (41 more). After it the general proof was given up for a short
+  // list of shapes; these are named by their folder, which says what each one does.
+  const third = [
+    "l/[token]/y32-hash-stored-answer-kept",
+    "l/[token]/y34-hash-sent-outward",
+    "y03-shipped-key",
+    "y04-unset-means-echo",
+    "y05-common-prefix",
+    "y06-neither-side-sent",
+    "y07-secret-in-same-object",
+    "y08-rest-values",
+    "y09-caller-brings-key",
+    "y10-method-by-name",
+    "y11-subclass-override",
+    "y12-constructor-swaps-method",
+    "y14z-holder-guest",
+    "y15z-sink-disk",
+    "y18-module-value-through-local",
+    "y19-module-value-through-helper",
+    "y20-mint-for-anyone",
+    "y21-env-answered",
+    "y22-array-from-by-name",
+    "y23-replace-by-name",
+    "y24-reviver-by-name",
+    "y25-getter-by-destructuring",
+    "y26-to-string-in-template",
+    "y27-thenable-awaited",
+    "y28-package-named-log",
+    "y29-write-taken-for-count",
+    "y30-limiter-answer-ignored",
+    "y31-limiter-never-read",
+    "y33-raw-bearer",
+    "y35-patched-elsewhere",
+    "y36-client-patched",
+    "y40-switch-shadow",
+    "y43-to-json",
+    "y48-local-named-cookies",
+  ];
+  for (const name of third) open.push([`(third attack) ${name}`, yy(name)]);
+  // Guards the short list cannot prove: reported again. A constant-time compare, a sealed value, a link
+  // token and a visitor limit all need facts about values (which side is the server's secret, what is a
+  // lookup, what is a count) that both attacks showed this analysis gets wrong.
+  const unprovable: Array<[string, string]> = [
+    ["a MAC compared in a helper, t.ok !== true", rr("s01-not-true")],
+    ["a MAC compared in a helper, t.ok === false", rr("s06-eq-false")],
+    ["a MAC compared in a helper, work in the else", rr("s09-else-work")],
+    ["a MAC compared in a helper, if (t.ok) {} else return", rr("s10-positive-else-refuse")],
+    ["a MAC compared in a helper, t.ok !== false", fc("q03-not-false-on-boolean")],
+    ["a MAC compared in a helper, at the top of the only branch that works", fc("q04-guard-in-branch")],
+    ["a session read beside a body read with .catch()", zz("s4-safe-early-return-value")],
+  ];
+  for (const [what, file] of unprovable) open.push([`(guarded, not provable) ${what}`, file]);
   for (const [what, file] of open) {
     it(`still reports ${what}`, () => {
       expect(files("AUTH-001")).toContain(file);
@@ -136,21 +189,15 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
   }
 
   const guarded: Array<[string, string]> = [
-    ["t.ok !== true", rr("s01-not-true")],
     ["!(who && who.id)", rr("s02-not-and")],
     ["if (who) { work; return } else { return 401 }", rr("s03-inside-else")],
     ["a refusing block that logs first", rr("s04-block-log")],
     ["who == null", rr("s05-eq-null")],
-    ["t.ok === false where the helper answers false", rr("s06-eq-false")],
     ["!who?.id", rr("s08-optional-id")],
-    ["if (!t.ok) return; else { work }", rr("s09-else-work")],
-    ["if (t.ok) {} else return", rr("s10-positive-else-refuse")],
     ["the guard and the work inside a try whose catch answers 500", rr("s14-in-try")],
     ["!who || who.role !== admin", rr("s15-or-role")],
     ["who === null || who === undefined", rr("s16-typeof")],
     ["an error field that holds a refusal for everyone not signed in", fc("q01-error-field")],
-    ["t.ok !== false where the helper answers false", fc("q03-not-false-on-boolean")],
-    ["a guard at the top of the only branch that works", fc("q04-guard-in-branch")],
   ];
   for (const [what, file] of guarded) {
     it(`does not report ${what}`, () => {
@@ -177,36 +224,20 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
       [
         fc("q01-error-field"),
         fc("q02-inline-chain"),
-        fc("q03-not-false-on-boolean"),
-        fc("q04-guard-in-branch"),
-        api("forms/begin"),
-        api("forms/enlist"),
-        api("links/[token]/back"),
-        api("links/[token]/keys"),
-        api("links/[token]/remove"),
         api("member/desk"),
         api("member/either"),
         api("member/inside"),
         api("member/note"),
         api("member/policy"),
         api("member/thrown"),
-        api("payment-events"),
-        api("plan/resume"),
-        api("provider-call"),
-        rr("s01-not-true"),
         rr("s02-not-and"),
         rr("s03-inside-else"),
         rr("s04-block-log"),
         rr("s05-eq-null"),
-        rr("s06-eq-false"),
         rr("s08-optional-id"),
-        rr("s09-else-work"),
-        rr("s10-positive-else-refuse"),
         rr("s14-in-try"),
         rr("s15-or-role"),
         rr("s16-typeof"),
-        api("worker/beat"),
-        zz("s4-safe-early-return-value"),
       ].sort(),
     );
   });
@@ -253,15 +284,24 @@ describe("CRYPTO-008: a comparison is a lookup only when the other side is prove
     });
   }
 
-  const quiet: Array<[string, string, number]> = [
+  // The lookup exemption is gone: the shape it was written for is a hash in name only, and two attacks
+  // found a dozen ways to make a real secret comparison look like a lookup. These are correct code and are
+  // reported; the cost is a finding to dismiss, not a comparison that leaks.
+  const lookups: Array<[string, string, number]> = [
     ["a stored hash matched with a hash helper's answer", attack, 45],
     ["a stored hash matched with a constant set from a hash helper", attack, 49],
     ["a stored key matched with an inline SHA-256 of the value sent", attack, 54],
     ["a key parameter every caller fills with a hash", "src/lib/fc/store.ts", 6],
   ];
-  for (const [what, file, line] of quiet) {
-    it(`does not report ${what}`, () => {
-      expect(lines("CRYPTO-008", file)).not.toContain(line);
+  for (const [what, file, line] of lookups) {
+    it(`reports, as before the exemption existed, ${what}`, () => {
+      expect(lines("CRYPTO-008", file)).toContain(line);
+    });
+  }
+  const third: Array<[string, number]> = [["k01", 8], ["k02", 9], ["k03", 8], ["k04", 7], ["k05", 9], ["k06", 10], ["k07", 8], ["k08", 3], ["k09", 8], ["k11", 10]];
+  for (const [file, line] of third) {
+    it(`still reports (third attack) ${file}:${line}`, () => {
+      expect(lines("CRYPTO-008", `src/lib/yy/${file}.ts`)).toContain(line);
     });
   }
 });

@@ -35,25 +35,35 @@ const api = (p: string) => `src/app/api/${p}/route.ts`;
 
 describe("AUTH-001 follows the guard out of the route file", () => {
   const guarded: Array<[string, string]> = [
-    ["a MAC check three hops away, result gates the handler", api("provider-call")],
-    ["a MAC check directly in the if, extensionless import", api("payment-events")],
-    ["the same guard through a path alias", api("worker/beat")],
-    ["a value only this server could have sealed (AES-GCM)", api("plan/resume")],
     ["sign-in read in a helper, 401 without it", api("member/note")],
     ["sign-in read two helpers away", api("member/desk")],
     ["a helper that throws when nobody is signed in", api("member/policy")],
     ["sign-in read in a helper, the handler throwing without it", api("member/thrown")],
     ["sign-in read in the handler, an error or no user answered 401 in a block", api("member/either")],
     ["sign-in read in a helper, the work done inside the signed-in branch", api("member/inside")],
+  ];
+  for (const [what, file] of guarded) {
+    it(`does not report ${what}`, () => {
+      expect(reported("AUTH-001")).not.toContain(file);
+    });
+  }
+
+  // Guarded in fact, and reported again since the recognition fails closed (see fail-closed.test.ts): each
+  // needs a fact about a value that cannot be proven here. A finding to dismiss, never a hidden one.
+  const notProvable: Array<[string, string]> = [
+    ["a MAC check three hops away, result gates the handler", api("provider-call")],
+    ["a MAC check directly in the if, extensionless import", api("payment-events")],
+    ["the same guard through a path alias", api("worker/beat")],
+    ["a value only this server could have sealed (AES-GCM)", api("plan/resume")],
     ["a link token found by its hash", api("links/[token]/remove")],
     ["a link token hashed inside a method on an object", api("links/[token]/keys")],
     ["a link token found by its hash and sent back as the address to return to", api("links/[token]/back")],
     ["a public form limited per visitor", api("forms/enlist")],
     ["a public start limited per visitor inside a method", api("forms/begin")],
   ];
-  for (const [what, file] of guarded) {
-    it(`does not report ${what}`, () => {
-      expect(reported("AUTH-001")).not.toContain(file);
+  for (const [what, file] of notProvable) {
+    it(`reports, for want of proof, ${what}`, () => {
+      expect(reported("AUTH-001")).toContain(file);
     });
   }
 
@@ -135,10 +145,6 @@ describe("INPUT-003 is about code a visitor can reach", () => {
 });
 
 describe("CRYPTO-008 tells a lookup from a verification", () => {
-  it("does not report finding a stored row by a key every caller fills with a hash", () => {
-    const lines = findings.filter((f) => f.ruleId === "CRYPTO-008" && f.evidence[0].file.endsWith("lib/fc/store.ts")).map((f) => f.evidence[0].line);
-    expect(lines).not.toContain(6);
-  });
   // The store below was the shape this exemption was written for. Its key is a hash by its parameter's name
   // only, and nothing in the fixture calls it, so there is no proof: it is reported again (fail closed).
   it("reports a stored row found by a key that is a hash in name only", () => {
