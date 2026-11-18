@@ -225,7 +225,12 @@ export class Project {
     const sf = this.source(file);
     if (!sf || hops < 0) return null;
     const here = this.topLevel(sf, name);
-    if (here) return here;
+    // `export { anyone as whoIs }` beside a `whoIs` of the file's own: an importer gets one, the file's own
+    // code the other, and this lookup serves both. Neither is given.
+    const renamed = sf.statements.some(
+      (s) => ts.isExportDeclaration(s) && !!s.exportClause && ts.isNamedExports(s.exportClause) && s.exportClause.elements.some((el) => el.name.text === name && (!!s.moduleSpecifier || (el.propertyName ?? el.name).text !== name)),
+    );
+    if (here) return renamed ? null : here;
     const imported = this.importOf(file, name);
     if (imported && !imported.namespace) {
       const target = this.resolveModule(file, imported.spec);
@@ -256,7 +261,7 @@ export class Project {
    */
   constant(file: string, name: string, hops = 3): { file: string; value: ts.Expression } | null {
     const d = this.topVariable(file, name, hops);
-    if (!d || !d.initializer || !ts.isIdentifier(d.name) || (d.parent.flags & ts.NodeFlags.Const) === 0) return null;
+    if (!d || !d.initializer || !ts.isIdentifier(d.name) || !isConstList(d.parent)) return null;
     return { file: d.getSourceFile().fileName, value: d.initializer };
   }
 
@@ -441,6 +446,35 @@ function unwrap(e: ts.Expression): ts.Expression {
   return cur;
 }
 
+/** A `const` list and nothing else: `using` and `await using` carry the same bit and run code when the block ends. */
+function isConstList(list: ts.Node): boolean {
+  return ts.isVariableDeclarationList(list) && (list.flags & ts.NodeFlags.BlockScoped) === ts.NodeFlags.Const;
+}
+
+const declaredNames = new WeakMap<ts.SourceFile, Set<string>>();
+
+/**
+ * Every name a file declares or imports, at any depth and by any means (a class, an enum, a namespace, a
+ * function, a variable, a parameter, an import). A name on this list is never taken for the platform's own.
+ */
+function declaresAnywhere(sf: ts.SourceFile, name: string): boolean {
+  let names = declaredNames.get(sf);
+  if (!names) {
+    const found = new Set<string>();
+    each(sf, (n) => {
+      const named = (n as { name?: ts.Node }).name;
+      const declares =
+        ts.isClassLike(n) || ts.isFunctionLike(n) || ts.isEnumDeclaration(n) || ts.isModuleDeclaration(n) || ts.isImportEqualsDeclaration(n) ||
+        ts.isVariableDeclaration(n) || ts.isParameter(n) || ts.isBindingElement(n) || ts.isImportClause(n) || ts.isImportSpecifier(n) || ts.isNamespaceImport(n) ||
+        ts.isInterfaceDeclaration(n) || ts.isTypeAliasDeclaration(n);
+      if (declares && named && ts.isIdentifier(named)) found.add(named.text);
+    });
+    names = found;
+    declaredNames.set(sf, names);
+  }
+  return names.has(name);
+}
+
 function each(node: ts.Node, visit: (n: ts.Node) => void): void {
   visit(node);
   ts.forEachChild(node, (c) => each(c, visit));
@@ -505,7 +539,7 @@ function hoistedVar(body: ts.Node, name: string): ts.Identifier | undefined {
   let found: ts.Identifier | undefined;
   const walk = (n: ts.Node): void => {
     if (found || isFn(n)) return;
-    if (ts.isVariableDeclarationList(n) && (n.flags & (ts.NodeFlags.Let | ts.NodeFlags.Const)) === 0) {
+    if (ts.isVariableDeclarationList(n) && (n.flags & ts.NodeFlags.BlockScoped) === 0) {
       for (const d of n.declarations) found ??= bindingIdentifiers(d.name).find((b) => b.text === name);
     }
     ts.forEachChild(n, walk);
@@ -527,7 +561,7 @@ function declaredFn(decl: ts.Identifier): Fn | null {
     const same = siblings.filter((st) => ts.isFunctionDeclaration(st) && st.name?.text === decl.text);
     return same.length === 1 && !isReassigned(decl) ? p : null;
   }
-  if (ts.isVariableDeclaration(p) && p.name === decl && p.initializer && ts.isVariableDeclarationList(p.parent) && (p.parent.flags & ts.NodeFlags.Const) !== 0) {
+  if (ts.isVariableDeclaration(p) && p.name === decl && p.initializer && ts.isVariableDeclarationList(p.parent) && isConstList(p.parent)) {
     const init = unwrap(p.initializer);
     if (ts.isArrowFunction(init) || (ts.isFunctionExpression(init) && !init.asteriskToken)) return init;
   }
@@ -609,8 +643,10 @@ function isCoercion(call: ts.CallExpression): boolean {
 //
 // THE CHECK. A Supabase session read: `client.auth.getUser()` or `.getClaims()`, awaited, on a client made in
 // the same function by a `create...Client` of an `@supabase/*` package the project lists, or by a project
-// function that does nothing but return one (after `await cookies()`). Nothing else is a check: not a
-// constant-time compare, not another library, not a name.
+// function that does nothing but return one (after `await cookies()`). The client is made from the
+// environment and, at most, cookie accessors that hand the request's own jar straight through; the read is
+// handed nothing, or the caller's pass straight from a header. Nothing else is a check: not a constant-time
+// compare, not another library, not a name.
 //
 // A PROVEN VALUE is one that can only be truthy for a signed-in caller: the user of that read, a `const` set
 // from it, or the answer of a project helper proven by this same grammar. The proof carries what the value
@@ -664,7 +700,7 @@ function isAsync(fn: Fn): boolean {
 
 /** A name nothing in the file declares or imports: the language's or the platform's own. */
 function isGlobal(id: ts.Identifier, project: Project): boolean {
-  return declarationOf(id) === null && project.importOf(id.getSourceFile().fileName, id.text) === null;
+  return declarationOf(id) === null && !declaresAnywhere(id.getSourceFile(), id.text) && project.importOf(id.getSourceFile().fileName, id.text) === null;
 }
 
 /** A name declared inside a function (a parameter or a local), as opposed to a module's variable or a global. */
@@ -677,7 +713,7 @@ function isLocal(id: ts.Identifier): boolean {
 function emptyLiteral(x: ts.Expression): Empty | null {
   if (x.kind === ts.SyntaxKind.FalseKeyword) return "false";
   if (x.kind === ts.SyntaxKind.NullKeyword) return "null";
-  if (ts.isIdentifier(x) && x.text === "undefined" && declarationOf(x) === null) return "undefined";
+  if (ts.isIdentifier(x) && x.text === "undefined" && declarationOf(x) === null && !declaresAnywhere(x.getSourceFile(), x.text)) return "undefined";
   return null;
 }
 
@@ -761,7 +797,7 @@ function boundTo(id: ts.Identifier): { init: ts.Expression; prefix: string[] } |
   const d = node.parent;
   if (!ts.isVariableDeclaration(d) || !d.initializer || !ts.isVariableDeclarationList(d.parent)) return null;
   // Only a `const` is followed, and not once a field of it is written (`t.ok = true`).
-  if ((d.parent.flags & ts.NodeFlags.Const) === 0 || isReassigned(decl)) return null;
+  if (!isConstList(d.parent) || isReassigned(decl)) return null;
   return { init: d.initializer, prefix };
 }
 
@@ -838,10 +874,70 @@ function isClientConfig(args: readonly ts.Expression[], cx: Ctx): boolean {
   const cookies = options.properties[0];
   if (!ts.isPropertyAssignment(cookies) || propertyKey(cookies.name) !== "cookies") return false;
   const accessors = unwrap(cookies.initializer);
-  return (
-    ts.isObjectLiteralExpression(accessors) &&
-    accessors.properties.every((p) => ts.isMethodDeclaration(p) || (ts.isPropertyAssignment(p) && (ts.isArrowFunction(unwrap(p.initializer)) || ts.isFunctionExpression(unwrap(p.initializer)))))
-  );
+  if (!ts.isObjectLiteralExpression(accessors)) return false;
+  return accessors.properties.every((p) => {
+    const key = ts.isMethodDeclaration(p) || ts.isPropertyAssignment(p) ? propertyKey(p.name) : null;
+    const fn = ts.isMethodDeclaration(p) ? p : ts.isPropertyAssignment(p) ? unwrap(p.initializer) : null;
+    if (!key || !fn || !isFn(fn) || !fn.body || fn.asteriskToken || isAsync(fn) || fn.parameters.some((q) => q.initializer || q.dotDotDotToken)) return false;
+    if (key === "getAll" || key === "get") return isJarRead(fn, key, cx);
+    return (key === "setAll" || key === "set" || key === "remove") && isJarWrite(fn, cx);
+  });
+}
+
+/** The request's own cookie jar: `<parameter>.cookies`, or a `const` set from `cookies()` of next/headers. */
+function isJar(e: ts.Expression, cx: Ctx): boolean {
+  const x = stripParens(e);
+  if (ts.isPropertyAccessExpression(x) && x.name.text === "cookies" && (x.flags & ts.NodeFlags.OptionalChain) === 0) {
+    const of = stripParens(x.expression);
+    const d = ts.isIdentifier(of) ? declarationOf(of) : null;
+    return !!d && ts.isParameter(d.parent) && d.parent.name === d && !d.parent.dotDotDotToken && !d.parent.initializer && !isReassigned(d);
+  }
+  if (!ts.isIdentifier(x) || !isLocal(x)) return false;
+  const b = boundTo(x);
+  const init = b && b.prefix.length === 0 ? peel(b.init) : null;
+  return !!init && ts.isCallExpression(init.x) && isNextHeaders(init.x, cx) && calleeName(init.x) === "cookies";
+}
+
+/** A read accessor that hands the jar's own answer straight through: `() => jar.getAll()`, `(name) => jar.get(name)?.value`. */
+function isJarRead(fn: Fn, key: string, cx: Ctx): boolean {
+  let answer: ts.Expression | undefined;
+  if (!fn.body) return false;
+  if (!ts.isBlock(fn.body)) answer = fn.body;
+  else if (fn.body.statements.length === 1 && ts.isReturnStatement(fn.body.statements[0])) answer = fn.body.statements[0].expression;
+  let x = answer ? stripParens(answer) : undefined;
+  if (key === "get" && x && ts.isPropertyAccessExpression(x) && x.name.text === "value") x = stripParens(x.expression);
+  if (!x || !ts.isCallExpression(x) || !ts.isPropertyAccessExpression(x.expression) || x.expression.name.text !== key || !isJar(x.expression.expression, cx)) return false;
+  if (key === "getAll") return x.arguments.length === 0;
+  const name = x.arguments.length === 1 ? x.arguments[0] : null;
+  const d = name && ts.isIdentifier(name) ? declarationOf(name) : null;
+  return !!d && fn.parameters.length === 1 && fn.parameters[0].name === d;
+}
+
+/**
+ * A write accessor that only puts cookies in a jar: every call in it is `.forEach(...)` over its own
+ * parameter or `.set(...)`/`.delete(...)` on a jar, every name is a local, and nothing is made or assigned.
+ */
+function isJarWrite(fn: Fn, cx: Ctx): boolean {
+  let ok = true;
+  each(fn, (n) => {
+    if (!ok || n === fn) return;
+    if (ts.isIdentifier(n) && !isPropertyName(n) && !ts.isBindingElement(n.parent) && !ts.isParameter(n.parent) && !ts.isTypeNode(n.parent) && !ts.isQualifiedName(n.parent)) {
+      if (!isLocal(n) || isClient(n, cx)) ok = false;
+    } else if (ts.isCallExpression(n)) {
+      const callee = stripParens(n.expression);
+      if (!ts.isPropertyAccessExpression(callee) || (n.flags & ts.NodeFlags.OptionalChain) !== 0) ok = false;
+      else if (callee.name.text === "forEach") ok = isOwnParameter(stripParens(callee.expression), fn);
+      else ok = (callee.name.text === "set" || callee.name.text === "delete") && isJar(callee.expression, cx);
+    } else if (
+      ts.isNewExpression(n) || ts.isTaggedTemplateExpression(n) || ts.isAwaitExpression(n) || ts.isYieldExpression(n) || ts.isDeleteExpression(n) || ts.isClassLike(n) ||
+      ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n) || ts.isTemplateExpression(n) || ts.isSpreadElement(n) || ts.isSpreadAssignment(n) ||
+      ts.isComputedPropertyName(n) || ts.isElementAccessExpression(n) || ts.isThrowStatement(n) || ts.isVariableDeclaration(n) || ts.isForOfStatement(n) || ts.isForInStatement(n) ||
+      (ts.isBinaryExpression(n) && n.operatorToken.kind !== ts.SyntaxKind.CommaToken)
+    ) {
+      ok = false;
+    }
+  });
+  return ok;
 }
 
 /** A project function that does nothing but hand back a Supabase client, after `cookies()` at most. */
@@ -852,7 +948,7 @@ function isClientMaker(fn: Fn, cx: Ctx, depth: number): boolean {
   const last = statements[statements.length - 1];
   if (!last || !ts.isReturnStatement(last) || !last.expression) return false;
   for (const s of statements.slice(0, -1)) {
-    if (!ts.isVariableStatement(s) || (s.declarationList.flags & ts.NodeFlags.Const) === 0) return false;
+    if (!ts.isVariableStatement(s) || !isConstList(s.declarationList)) return false;
     for (const d of s.declarationList.declarations) {
       const init = d.initializer ? peel(d.initializer).x : null;
       if (!ts.isIdentifier(d.name) || !init || !ts.isCallExpression(init) || !isNextHeaders(init, cx)) return false;
@@ -868,8 +964,29 @@ function sessionRead(call: ts.CallExpression, cx: Ctx): string[] | null {
   if (!ts.isPropertyAccessExpression(callee)) return null;
   const auth = stripParens(callee.expression);
   if (!ts.isPropertyAccessExpression(auth) || auth.name.text !== "auth" || !isClient(auth.expression, cx)) return null;
+  // Nothing is handed to the read but, at most, the caller's own pass straight from a header of the request:
+  // a pass kept in the code, a key sent along, an option to accept an expired pass are all someone else's say.
+  if (call.arguments.length > 1 || (call.arguments.length === 1 && !isSentPass(call.arguments[0]))) return null;
   if (callee.name.text === "getUser") return ["data", "user"];
   return callee.name.text === "getClaims" ? ["data"] : null;
+}
+
+/** `req.headers.get("name")` on a parameter, alone or with `?? ""` / `|| ""`, written in place. */
+function isSentPass(e: ts.Expression): boolean {
+  let x = stripParens(e);
+  if (ts.isBinaryExpression(x) && (x.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || x.operatorToken.kind === ts.SyntaxKind.BarBarToken)) {
+    const other = stripParens(x.right);
+    if (!ts.isStringLiteralLike(other) || other.text !== "") return false;
+    x = stripParens(x.left);
+  }
+  if (!ts.isCallExpression(x) || (x.flags & ts.NodeFlags.OptionalChain) !== 0 || x.arguments.length !== 1 || !ts.isStringLiteralLike(x.arguments[0])) return false;
+  const get = stripParens(x.expression);
+  if (!ts.isPropertyAccessExpression(get) || get.name.text !== "get") return false;
+  const headers = stripParens(get.expression);
+  if (!ts.isPropertyAccessExpression(headers) || headers.name.text !== "headers") return false;
+  const of = stripParens(headers.expression);
+  const d = ts.isIdentifier(of) ? declarationOf(of) : null;
+  return !!d && ts.isParameter(d.parent) && d.parent.name === d && !d.parent.dotDotDotToken && !d.parent.initializer && !isReassigned(d);
 }
 
 /** A parameter of `fn` itself, written as a plain name and never assigned to. */
@@ -879,16 +996,18 @@ function isOwnParameter(e: ts.Expression, fn: Fn): boolean {
   return !!d && ts.isParameter(d.parent) && d.parent.name === d && d.parent.parent === fn && !d.parent.dotDotDotToken && !isReassigned(d);
 }
 
-/** May `new X(...)` run for anyone? `Response`, the language's errors, and a project class that adds nothing to run. */
-function isQuietClass(name: ts.Identifier, cx: Ctx, depth = 0): boolean {
-  if (depth > 3 || declarationOf(name) !== null) return false;
-  const file = name.getSourceFile().fileName;
-  const cls = classNamed(cx.project, file, name.text, 3);
+/**
+ * May `new X(...)` run for anyone? The platform's `Response`, the language's errors, and a project class
+ * that is one of those errors under another name: `class Refused extends Error {}`, with nothing in it.
+ * Any member at all and it is not quiet: with no constructor, a getter, `toString`, `valueOf`, `toJSON`,
+ * `then` or a disposer still runs when the object is read, printed, compared, answered, awaited or dropped.
+ */
+function isQuietClass(name: ts.Identifier, cx: Ctx): boolean {
+  if (declarationOf(name) !== null) return false;
+  const cls = classNamed(cx.project, name.getSourceFile().fileName, name.text, 3);
   if (!cls) return isGlobal(name, cx.project) && (name.text === "Response" || ERROR_CLASSES.test(name.text));
-  if (cls.members.some((m) => ts.isConstructorDeclaration(m) || ts.isClassStaticBlockDeclaration(m) || (ts.isPropertyDeclaration(m) && !!m.initializer))) return false;
-  const base = cls.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression;
-  if (!base) return true;
-  return ts.isIdentifier(base) && ERROR_CLASSES.test(base.text) && isGlobal(base, cx.project);
+  const base = cls.heritageClauses?.length === 1 && cls.heritageClauses[0].token === ts.SyntaxKind.ExtendsKeyword ? cls.heritageClauses[0].types[0]?.expression : undefined;
+  return cls.members.length === 0 && !!base && ts.isIdentifier(base) && ERROR_CLASSES.test(base.text) && isGlobal(base, cx.project);
 }
 
 /** The one class of that name at the top of a file, here or where it is imported from. */
@@ -908,7 +1027,8 @@ function isQuiet(e: ts.Node, fn: Fn, cx: Ctx, depth: number): boolean {
   if (ts.isParenthesizedExpression(e) || ts.isNonNullExpression(e) || ts.isAsExpression(e) || ts.isSatisfiesExpression(e) || ts.isAwaitExpression(e)) return q(e.expression);
   if (ts.isStringLiteralLike(e) || ts.isNumericLiteral(e)) return true;
   if (e.kind === ts.SyntaxKind.TrueKeyword || e.kind === ts.SyntaxKind.FalseKeyword || e.kind === ts.SyntaxKind.NullKeyword) return true;
-  if (ts.isIdentifier(e)) return isLocal(e) || (e.text === "undefined" && isGlobal(e, cx.project));
+  // A client holds the key it was made with: it is quiet only as the receiver of the session read.
+  if (ts.isIdentifier(e)) return (isLocal(e) && !isClient(e, cx)) || (e.text === "undefined" && isGlobal(e, cx.project));
   if (ts.isTemplateExpression(e)) return e.templateSpans.every((s) => q(s.expression));
   if (ts.isPropertyAccessExpression(e)) return ts.isIdentifier(e.name) && q(e.expression);
   if (ts.isElementAccessExpression(e)) return (ts.isStringLiteralLike(e.argumentExpression) || ts.isNumericLiteral(e.argumentExpression)) && q(e.expression);
@@ -1002,7 +1122,10 @@ function proveValue(e: ts.Expression, path: string[], cx: Ctx, depth: number, aw
     // `{ ok: false, res }` asked for `ok`. As a whole an object is always truthy, so it proves nothing; a
     // spread, a method, a getter or a computed key can put anything in any field.
     if (path.length === 0 || x.properties.some((p) => (!ts.isPropertyAssignment(p) && !ts.isShorthandPropertyAssignment(p)) || propertyKey(p.name) === null)) return null;
+    // `__proto__` puts fields behind the ones written; a field not written may still be one every object has.
+    if (x.properties.some((q) => propertyKey(q.name) === "__proto__")) return null;
     const p = [...x.properties].reverse().find((q) => propertyKey(q.name) === path[0]);
+    if (!p && path[0] in Object.prototype) return null;
     if (!p) return { fails: new Set<Empty>([path.length > 1 ? "other" : "undefined"]) };
     return proveValue(ts.isPropertyAssignment(p) ? p.initializer : (p as ts.ShorthandPropertyAssignment).name, path.slice(1), cx, depth);
   }
@@ -1056,7 +1179,7 @@ function proveCall(call: ts.CallExpression, awaited: boolean, path: string[], cx
 function neverEmpty(e: ts.Expression, path: string[], depth = 0): boolean {
   const x = peel(e).x;
   if (path.length > 0) {
-    if (!ts.isObjectLiteralExpression(x) || x.properties.some((p) => !ts.isPropertyAssignment(p) || propertyKey(p.name) === null)) return false;
+    if (!ts.isObjectLiteralExpression(x) || x.properties.some((p) => !ts.isPropertyAssignment(p) || propertyKey(p.name) === null || propertyKey(p.name) === "__proto__")) return false;
     const p = [...x.properties].reverse().find((q) => propertyKey(q.name) === path[0]);
     return !!p && ts.isPropertyAssignment(p) && neverEmpty(p.initializer, path.slice(1), depth);
   }
@@ -1236,7 +1359,7 @@ class Walk {
       return true;
     }
     if (ts.isVariableStatement(s)) {
-      if ((s.declarationList.flags & ts.NodeFlags.Const) === 0) throw new Unproven();
+      if (!isConstList(s.declarationList)) throw new Unproven();
       for (const d of s.declarationList.declarations) {
         if (!d.initializer || !plainBinding(d.name)) throw new Unproven();
         this.quiet(d.initializer);
@@ -1686,7 +1809,7 @@ export function isFixedText(e: ts.Expression, project: Project, hops = 4): boole
     const local = declarationOf(x);
     if (local) {
       const d = local.parent;
-      const fixed = ts.isVariableDeclaration(d) && d.name === local && !!d.initializer && (d.parent.flags & ts.NodeFlags.Const) !== 0;
+      const fixed = ts.isVariableDeclaration(d) && d.name === local && !!d.initializer && ts.isVariableDeclarationList(d.parent) && isConstList(d.parent);
       return fixed && isFixedText(d.initializer!, project, hops - 1);
     }
     const c = project.constant(x.getSourceFile().fileName, x.text);

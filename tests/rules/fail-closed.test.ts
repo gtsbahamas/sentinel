@@ -258,6 +258,7 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
     ["a client made for this request and response by a project function (the real app's shape)", gr("g01-route-client")],
     ["the caller's own pass, read from a header and handed to the session read", ww("c3-closed")],
     ["a helper that throws unless that pass is good", ww("c5-closed-must")],
+    ["the request's cookie jar handed straight through, the writes in a try (the real app's server guard)", ww("c6-closed-store")],
   ];
   for (const [what, file] of guarded) {
     it(`does not report ${what}`, () => {
@@ -301,6 +302,7 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
         rr("s16-typeof"),
         ww("c3-closed"),
         ww("c5-closed-must"),
+        ww("c6-closed-store"),
         // Open, and nothing but an echo of the request runs for anyone: the grammar's own claim.
         ww("p18-catch-returns-ok"),
       ].sort(),
