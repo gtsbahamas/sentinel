@@ -26,3 +26,8 @@ export function k05(sent: string, keys: Key[]) {
   const signatureHash = createHash("sha256").update(process.env.PEPPER + sent).digest("hex");
   return keys.find((k) => k.tokenHash === signatureHash);
 }
+// vulnerable: the project's own createHash, which hashes nothing
+const createHashLike = { createHash: (_alg: string) => ({ update: (s: string) => ({ digest: (_enc: string) => s }) }) };
+export function k06(sent: string, keys: Key[]) {
+  return keys.find((k) => k.tokenHash === createHashLike.createHash("sha256").update(sent).digest("hex"));
+}

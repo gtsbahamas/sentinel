@@ -87,6 +87,11 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
     ["a limited form that stores before the limiter is asked", fc("w17-limited-write-first")],
     ["a limiter helper that stores before it counts", fc("w18-limited-late-helper")],
     ["a link route that stores what was sent before the link is looked at", "src/app/api/fc/links/[token]/w19-write-first/route.ts"],
+    // names prove nothing: the project's own code is read, whatever it is called
+    ["the project's own function called timingSafeEqual", fc("x02-own-timing-safe-equal")],
+    ["a write before the guard through an import renamed to log", fc("x03-ledger-named-log")],
+    ["a write before the guard handed to .then() by name", fc("x04-then-by-name")],
+    ["a guard's answer overwritten with Object.assign before the test", fc("x05-answer-rewritten")],
   ];
   for (const [what, file] of open) {
     it(`still reports ${what}`, () => {
@@ -116,6 +121,14 @@ describe("AUTH-001: a handler the analysis cannot prove guarded stays reported",
       expect(files("AUTH-001")).not.toContain(file);
     });
   }
+
+  // The rule's older, name-based exemption already leaves this file out (it sees `auth.getUser(`), so the
+  // recognition is asked directly: the project's own object with an `auth.getUser` is not a session read.
+  it("does not accept the project's own object with an auth.getUser that answers anyone", () => {
+    const own = model.endpoints.filter((e) => relative(root, e.file) === fc("x01-own-get-user"));
+    expect(own.length).toBeGreaterThan(0);
+    for (const e of own) expect(handlerGuard(model, e)).toBeNull();
+  });
 
   // Every mutation handler in the fixture the guard recognition accepts, asked directly (the rule's older,
   // name-based exemptions are not in play here). A handler that newly appears in this list is a new silence
@@ -179,6 +192,7 @@ describe("CRYPTO-008: a comparison is a lookup only when the other side is prove
     ["a variable merely named digest", "src/lib/fc/crypto.ts", 18],
     ["a helper merely named hashOf", "src/lib/fc/crypto.ts", 22],
     ["a hash that mixes in a server secret", "src/lib/fc/crypto.ts", 27],
+    ["the project's own createHash, which hashes nothing", "src/lib/fc/crypto.ts", 32],
     ["a key parameter that one caller fills with the token itself", "src/lib/fc/store.ts", 10],
     ["a key parameter nothing in the project is seen to fill (session)", "src/lib/store/memory.ts", 10],
     ["a key parameter nothing in the project is seen to fill (log)", "src/lib/store/memory.ts", 15],
