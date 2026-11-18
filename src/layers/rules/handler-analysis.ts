@@ -220,22 +220,30 @@ export class Project {
     return null;
   }
 
-  /** The function `name` refers to in `file`: declared there, imported, or re-exported. */
-  lookup(file: string, name: string, hops = 4): Fn | null {
+  /**
+   * The function `name` refers to. Asked from inside `file` (`exported` false) it is the file's own
+   * declaration or its import. Asked from a file that imports it (`exported` true) it is what `file` exports
+   * under that name, which a declaration the file keeps to itself is not: `export { anyone as whoIs }` or
+   * `export * from "./open"` can stand beside an unexported `whoIs`.
+   */
+  lookup(file: string, name: string, hops = 4, exported = false): Fn | null {
     const sf = this.source(file);
     if (!sf || hops < 0) return null;
-    const here = this.topLevel(sf, name);
-    // `export { anyone as whoIs }` beside a `whoIs` of the file's own: an importer gets one, the file's own
-    // code the other, and this lookup serves both. Neither is given.
-    const renamed = sf.statements.some(
-      (s) => ts.isExportDeclaration(s) && !!s.exportClause && ts.isNamedExports(s.exportClause) && s.exportClause.elements.some((el) => el.name.text === name && (!!s.moduleSpecifier || (el.propertyName ?? el.name).text !== name)),
+    const viaImport = (): Fn | null => {
+      const imported = this.importOf(file, name);
+      const target = imported && !imported.namespace ? this.resolveModule(file, imported.spec) : null;
+      return target && imported ? this.lookup(target, imported.name, hops - 1, true) : null;
+    };
+    if (!exported) return this.topLevel(sf, name) ?? viaImport();
+    if (name === "default") return this.topLevel(sf, name);
+    const has = (n: ts.Node, kind: ts.SyntaxKind) => (ts.canHaveModifiers(n) ? ts.getModifiers(n) ?? [] : []).some((m) => m.kind === kind);
+    const declaredExported = sf.statements.some(
+      (s) =>
+        has(s, ts.SyntaxKind.ExportKeyword) && !has(s, ts.SyntaxKind.DefaultKeyword) &&
+        ((ts.isFunctionDeclaration(s) && s.name?.text === name) || (ts.isVariableStatement(s) && s.declarationList.declarations.some((d) => ts.isIdentifier(d.name) && d.name.text === name))),
     );
-    if (here) return renamed ? null : here;
-    const imported = this.importOf(file, name);
-    if (imported && !imported.namespace) {
-      const target = this.resolveModule(file, imported.spec);
-      return target ? this.lookup(target, imported.name, hops - 1) : null;
-    }
+    if (declaredExported) return this.topLevel(sf, name);
+    const stars: string[] = [];
     for (const s of sf.statements) {
       if (!ts.isExportDeclaration(s)) continue;
       const from = s.moduleSpecifier && ts.isStringLiteral(s.moduleSpecifier) ? this.resolveModule(file, s.moduleSpecifier.text) : null;
@@ -243,15 +251,17 @@ export class Project {
         for (const el of s.exportClause.elements) {
           if (el.name.text !== name) continue;
           const original = (el.propertyName ?? el.name).text;
-          if (from) return this.lookup(from, original, hops - 1);
-          if (original !== name) return this.lookup(file, original, hops - 1);
+          if (s.moduleSpecifier) return from ? this.lookup(from, original, hops - 1, true) : null;
+          return this.lookup(file, original, hops - 1);
         }
-      } else if (!s.exportClause && from) {
-        const found = this.lookup(from, name, hops - 1);
-        if (found) return found;
+      } else if (!s.exportClause) {
+        if (!from) return null; // a star from somewhere unreadable could be bringing the name in
+        stars.push(from);
       }
     }
-    return null;
+    // Two stars that both carry the name make it ambiguous: only a single source is followed.
+    const found = stars.map((from) => this.lookup(from, name, hops - 1, true)).filter((f): f is Fn => f !== null);
+    return found.length === 1 ? found[0] : null;
   }
 
   /**
@@ -398,7 +408,7 @@ export class Project {
       const imported = this.importOf(file, object.text);
       if (imported?.namespace) {
         const target = this.resolveModule(file, imported.spec);
-        const found = target ? this.lookup(target, name) : null;
+        const found = target ? this.lookup(target, name, 4, true) : null;
         return found ? [found] : [];
       }
       if (imported && !this.resolveModule(file, imported.spec)) return []; // a package's object, or code that could not be read
@@ -817,7 +827,7 @@ function helperOf(call: ts.CallExpression, cx: Ctx): Fn | null {
   if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && declarationOf(callee.expression) === null) {
     const imported = cx.project.importOf(file, callee.expression.text);
     const target = imported?.namespace ? cx.project.resolveModule(file, imported.spec) : null;
-    return target ? cx.project.lookup(target, callee.name.text) : null;
+    return target ? cx.project.lookup(target, callee.name.text, 4, true) : null;
   }
   return null;
 }
@@ -919,11 +929,14 @@ function isJarRead(fn: Fn, key: string, cx: Ctx): boolean {
  */
 function isJarWrite(fn: Fn, cx: Ctx): boolean {
   let ok = true;
-  each(fn, (n) => {
-    if (!ok || n === fn) return;
-    if (ts.isIdentifier(n) && !isPropertyName(n) && !ts.isBindingElement(n.parent) && !ts.isParameter(n.parent) && !ts.isTypeNode(n.parent) && !ts.isQualifiedName(n.parent)) {
-      if (!isLocal(n) || isClient(n, cx)) ok = false;
-    } else if (ts.isCallExpression(n)) {
+  const visit = (n: ts.Node): void => {
+    if (!ok || ts.isTypeNode(n)) return;
+    if (ts.isIdentifier(n)) {
+      const declares = (ts.isBindingElement(n.parent) || ts.isParameter(n.parent) || ts.isMethodDeclaration(n.parent) || ts.isFunctionExpression(n.parent)) && n.parent.name === n;
+      if (!declares && !isPropertyName(n) && (!isLocal(n) || isClient(n, cx))) ok = false;
+      return;
+    }
+    if (ts.isCallExpression(n)) {
       const callee = stripParens(n.expression);
       if (!ts.isPropertyAccessExpression(callee) || (n.flags & ts.NodeFlags.OptionalChain) !== 0) ok = false;
       else if (callee.name.text === "forEach") ok = isOwnParameter(stripParens(callee.expression), fn);
@@ -936,7 +949,9 @@ function isJarWrite(fn: Fn, cx: Ctx): boolean {
     ) {
       ok = false;
     }
-  });
+    ts.forEachChild(n, visit);
+  };
+  ts.forEachChild(fn, visit);
   return ok;
 }
 
@@ -1053,8 +1068,6 @@ function isQuiet(e: ts.Node, fn: Fn, cx: Ctx, depth: number): boolean {
 
 function isQuietCall(call: ts.CallExpression, fn: Fn, cx: Ctx, depth: number): boolean {
   if ((call.flags & ts.NodeFlags.OptionalChain) !== 0) return false;
-  // Making the client has its own rule for what it may be handed (configuration: nothing that runs).
-  if (isClient(call, cx)) return true;
   if (!call.arguments.every((a) => isQuiet(a, fn, cx, depth))) return false;
   if (isNextHeaders(call, cx) || sessionRead(call, cx)) return true;
   const helper = helperOf(call, cx);
@@ -1362,6 +1375,9 @@ class Walk {
       if (!isConstList(s.declarationList)) throw new Unproven();
       for (const d of s.declarationList.declarations) {
         if (!d.initializer || !plainBinding(d.name)) throw new Unproven();
+        // Making the client has its own rule for what it may be handed, and is quiet only here, as the
+        // whole of a `const name = ...`: inside an object, an array or a `?:` it could be read back out.
+        if (ts.isIdentifier(d.name) && isClient(d.initializer, this.cx)) continue;
         this.quiet(d.initializer);
       }
       return s.declarationList.declarations.some((d) => this.asserts(d.initializer!));
