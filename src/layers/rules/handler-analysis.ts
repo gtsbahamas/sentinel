@@ -850,10 +850,47 @@ function standsInFront(stmt: ts.Statement, handler: Fn, asserts: boolean, projec
   return !effectBetween(handler, handler.body.getStart(), stmt.getStart(), project, entry);
 }
 
+/** True when control never runs past the statement: it is a return or a throw, or ends in one on every path. */
+function alwaysLeaves(s: ts.Statement): boolean {
+  if (ts.isReturnStatement(s) || ts.isThrowStatement(s)) return true;
+  if (ts.isBlock(s)) return s.statements.length > 0 && alwaysLeaves(s.statements[s.statements.length - 1]);
+  if (ts.isIfStatement(s)) return !!s.elseStatement && alwaysLeaves(s.thenStatement) && alwaysLeaves(s.elseStatement);
+  return false;
+}
+
+/** A value read as it stands (`t`, `t.ok`, `check(req)`), not something worked out from it. */
+function plain(x: ts.Expression): boolean {
+  const v = unwrap(x);
+  return ts.isIdentifier(v) || ts.isCallExpression(v) || ((ts.isPropertyAccessExpression(v) || ts.isElementAccessExpression(v)) && plain(v.expression));
+}
+
 /**
- * The handler is gated by a verification: an `if` that can leave it tests the verification's answer (the
- * field tested is the field that depends on it), or a helper that throws unless the caller is verified is
- * called, and in both cases the statement stands in front of the handler's work.
+ * The values a condition is true for whenever they are missing or false: `x` in `!x`, `x === false`,
+ * `x == null`, `x === undefined`, and in either side of an `||`. Nothing is taken from an `&&` (the other
+ * side can still say no), from a bare `x` or from a comparison with anything else: those do not turn every
+ * failed check away.
+ */
+function failedTests(condition: ts.Expression): ts.Expression[] {
+  const e = unwrap(condition);
+  const empty = (x: ts.Expression): boolean => {
+    const v = unwrap(x);
+    return v.kind === ts.SyntaxKind.FalseKeyword || v.kind === ts.SyntaxKind.NullKeyword || (ts.isIdentifier(v) && v.text === "undefined");
+  };
+  if (ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.ExclamationToken) return plain(e.operand) ? [e.operand] : [];
+  if (!ts.isBinaryExpression(e)) return [];
+  const op = e.operatorToken.kind;
+  if (op === ts.SyntaxKind.BarBarToken) return [...failedTests(e.left), ...failedTests(e.right)];
+  if (op === ts.SyntaxKind.EqualsEqualsEqualsToken || op === ts.SyntaxKind.EqualsEqualsToken) {
+    if (empty(e.right) && plain(e.left)) return [e.left];
+    if (empty(e.left) && plain(e.right)) return [e.right];
+  }
+  return [];
+}
+
+/**
+ * The handler is gated by a verification: an `if` that always leaves it when the verification's answer
+ * is missing or false (the field tested is the field that depends on it), or a helper that throws unless
+ * the caller is verified is called, and in both cases the statement stands in front of the handler's work.
  */
 function verifiedRequest(handler: Fn, project: Project, entry: string): boolean {
   if (!handler.body || !ts.isBlock(handler.body)) return false;
@@ -863,13 +900,23 @@ function verifiedRequest(handler: Fn, project: Project, entry: string): boolean 
     if (ts.isIfStatement(n) && ifLeaves(n)) ifs.push(n);
     if (ts.isCallExpression(n)) calls.push(n);
   });
-  for (const n of ifs) {
-    const rests = asked([{ node: n.expression, field: null }]).some((a) => {
+  const verified = (value: ts.Expression): boolean =>
+    asked([{ node: value, field: null }]).some((a) => {
       if (isVerification(a.call, project)) return true;
       const targets = project.resolveCall(a.call, entry);
       return targets.length > 0 && targets.every((t) => isGuardFn(t, a.field, project, entry, MAX_HOPS - 1));
     });
-    if (rests && standsInFront(n, handler, false, project, entry)) return true;
+  for (const n of ifs) {
+    // Only the plain form counts: the branch taken when the verification failed always leaves. A test the
+    // other way round, one that needs a second condition to agree, or a leave behind another `if` lets a
+    // failed check through.
+    if (!alwaysLeaves(n.thenStatement)) continue;
+    if (failedTests(n.expression).some(verified) && standsInFront(n, handler, false, project, entry)) return true;
+    // The other way round is a guard only when the work is inside the branch: `if (who) { work; return }`
+    // with nothing after it but the refusal.
+    const cond = unwrap(n.expression);
+    const inside = !n.elseStatement && plain(cond) && verified(cond);
+    if (inside && standsInFront(n, handler, false, project, entry) && !effectBetween(handler, n.getEnd(), handler.body.getEnd(), project, entry)) return true;
   }
   for (const call of calls) {
     const targets = project.resolveCall(call, entry);
@@ -1459,7 +1506,8 @@ export function isFixedText(e: ts.Expression, project: Project, hops = 4): boole
 /**
  * True when an equality on this line finds a stored record by its key: one side is a field of the row being
  * iterated (`for (const s of rows) if (s.tokenHash === h)`, `rows.find((r) => r.tokenHash === h)`). That is
- * what a database index does, and its timing says nothing about the caller's secret. Comparing the iterated
+ * what a database index does, and its timing says nothing about the caller's secret, as long as the key is a
+ * hash of it (by the field's name, or by what it is matched with) and not the secret itself. Comparing the iterated
  * value itself (`sigs.some((sig) => sig === expected)`), or asking `some`/`every` whether a row matches
  * (`candidates.some((c) => c.signature === sent)`), is a verification and is not matched.
  */
@@ -1505,7 +1553,11 @@ export function isRecordLookup(project: Project, file: string, line: number, men
     }
     return false;
   };
-  return equalities.every((b) => iterated(b.left) || iterated(b.right));
+  // A row is found by a key when the field holds a hash, or what it is matched with is one. A stored secret
+  // matched as it is (`keys.find((k) => k.token === sent)`) decides whether the caller knows the secret.
+  const hashed = (e: ts.Expression): boolean => /hash|digest|fingerprint|checksum/i.test(`${unwrap(e).getText()} ${settledText(e)}`);
+  const byKey = (row: ts.Expression, other: ts.Expression): boolean => iterated(row) && (hashed(row) || hashed(other));
+  return equalities.every((b) => byKey(b.left, b.right) || byKey(b.right, b.left));
 }
 
 /** The source text of the function around a line (or the line itself at the top level), with its name. */

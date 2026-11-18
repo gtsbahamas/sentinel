@@ -44,6 +44,7 @@ describe("AUTH-001 follows the guard out of the route file", () => {
     ["a helper that throws when nobody is signed in", api("member/policy")],
     ["sign-in read in a helper, the handler throwing without it", api("member/thrown")],
     ["sign-in read in the handler, an error or no user answered 401 in a block", api("member/either")],
+    ["sign-in read in a helper, the work done inside the signed-in branch", api("member/inside")],
     ["a link token found by its hash", api("links/[token]/remove")],
     ["a link token hashed inside a method on an object", api("links/[token]/keys")],
     ["a link token found by its hash and sent back as the address to return to", api("links/[token]/back")],
