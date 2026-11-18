@@ -786,18 +786,6 @@ function helperOf(call: ts.CallExpression, cx: Ctx): Fn | null {
   return null;
 }
 
-/** True when evaluating the node runs something: a call, a `new`, an `await`. Functions written there are not run. */
-function runsCode(node: ts.Node): boolean {
-  let runs = false;
-  const walk = (n: ts.Node): void => {
-    if (runs || (isFn(n) && n !== node) || ts.isGetAccessorDeclaration(n) || ts.isSetAccessorDeclaration(n)) return;
-    if (ts.isCallExpression(n) || ts.isNewExpression(n) || ts.isAwaitExpression(n) || ts.isTaggedTemplateExpression(n) || ts.isSpreadElement(n) || ts.isSpreadAssignment(n)) runs = true;
-    else ts.forEachChild(n, walk);
-  };
-  walk(node);
-  return runs;
-}
-
 /** `cookies()` or `headers()` from next/headers. */
 function isNextHeaders(call: ts.CallExpression, cx: Ctx): boolean {
   const callee = stripParens(call.expression);
@@ -822,15 +810,43 @@ function isClient(e: ts.Expression, cx: Ctx, depth = 0): boolean {
   if (!ts.isIdentifier(callee)) return false;
   if (declarationOf(callee) === null) {
     const pkg = cx.project.packageImport(x.getSourceFile().fileName, callee.text);
-    if (pkg) return /^@supabase\//.test(pkg.spec) && SUPABASE_CLIENT.test(pkg.name) && x.arguments.every((a) => !runsCode(a));
+    if (pkg) return /^@supabase\//.test(pkg.spec) && SUPABASE_CLIENT.test(pkg.name) && isClientConfig(x.arguments, cx);
   }
+  // A maker may be handed the request and the response it sets cookies on: locals, nothing worked out.
   const maker = helperOf(x, cx);
-  return !!maker && x.arguments.length === 0 && isClientMaker(maker, cx, depth + 1);
+  return !!maker && x.arguments.every((a) => ts.isIdentifier(a) && isLocal(a)) && isClientMaker(maker, cx, depth + 1);
+}
+
+/**
+ * What a client may be made with: the project's address and key straight from the environment, and at most
+ * the cookie accessors. An address or key that came with the request, or a `fetch` of the project's own,
+ * would let the caller decide what "signed in" means.
+ */
+function isClientConfig(args: readonly ts.Expression[], cx: Ctx): boolean {
+  const fromEnv = (a: ts.Expression | undefined): boolean => {
+    if (!a) return false;
+    let x = unwrap(a);
+    if (ts.isCallExpression(x) && x.arguments.length === 0 && ts.isPropertyAccessExpression(x.expression) && x.expression.name.text === "trim") x = unwrap(x.expression.expression);
+    if (!ts.isPropertyAccessExpression(x) || !ts.isPropertyAccessExpression(x.expression) || x.expression.name.text !== "env") return false;
+    const root = x.expression.expression;
+    return ts.isIdentifier(root) && root.text === "process" && isGlobal(root, cx.project);
+  };
+  if (args.length < 2 || args.length > 3 || !fromEnv(args[0]) || !fromEnv(args[1])) return false;
+  if (args.length === 2) return true;
+  const options = unwrap(args[2]);
+  if (!ts.isObjectLiteralExpression(options) || options.properties.length !== 1) return false;
+  const cookies = options.properties[0];
+  if (!ts.isPropertyAssignment(cookies) || propertyKey(cookies.name) !== "cookies") return false;
+  const accessors = unwrap(cookies.initializer);
+  return (
+    ts.isObjectLiteralExpression(accessors) &&
+    accessors.properties.every((p) => ts.isMethodDeclaration(p) || (ts.isPropertyAssignment(p) && (ts.isArrowFunction(unwrap(p.initializer)) || ts.isFunctionExpression(unwrap(p.initializer)))))
+  );
 }
 
 /** A project function that does nothing but hand back a Supabase client, after `cookies()` at most. */
 function isClientMaker(fn: Fn, cx: Ctx, depth: number): boolean {
-  if (!fn.body || fn.asteriskToken || fn.parameters.length > 0) return false;
+  if (!fn.body || fn.asteriskToken || fn.parameters.some((p) => p.initializer || p.dotDotDotToken || !ts.isIdentifier(p.name))) return false;
   if (!ts.isBlock(fn.body)) return isClient(fn.body, cx, depth);
   const statements = fn.body.statements;
   const last = statements[statements.length - 1];
