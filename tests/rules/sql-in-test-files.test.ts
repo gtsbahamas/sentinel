@@ -21,6 +21,8 @@ const MUST_ALARM: Record<string, string> = {
   // In the Pages Router every file under pages/ is served, whatever it is called.
   "pages/api/users.test.ts": CHAI_ROUTE,
   "src/pages/api/__tests__/users.ts": CHAI_ROUTE,
+  "pages/users.test.tsx": CHAI_ROUTE,
+  "src/pages/__tests__/users.tsx": CHAI_ROUTE,
   // Nothing under an API route tree is waved through on its name.
   "src/app/api/users/__tests__/users.test.ts": TEST_BODY,
   "app/api/orders.spec.ts": TEST_BODY,
@@ -30,6 +32,15 @@ const MUST_ALARM: Record<string, string> = {
   "netlify/functions/users.test.ts": CHAI_ROUTE,
   // A route handler is live wherever it sits.
   "src/app/orders/__tests__/route.ts": CHAI_ROUTE,
+  // No route.* file is test code, whatever else its name says.
+  "src/app/orders/route.test.ts": CHAI_ROUTE,
+  "src/lib/route.spec.ts": CHAI_ROUTE,
+  "src/app/billing/__tests__/route.test.tsx": CHAI_ROUTE,
+  // Letter case does not make a served folder or a route file into test code: on a filesystem that
+  // ignores case the framework serves these all the same.
+  "web/Pages/users.test.tsx": CHAI_ROUTE,
+  "server/API/users.spec.ts": CHAI_ROUTE,
+  "src/app/invoices/__tests__/Route.ts": CHAI_ROUTE,
   // A name that only resembles the convention.
   "src/lib/test.ts": SQL,
   "src/lib/latest.spec-sheet.ts": SQL,
@@ -92,5 +103,21 @@ describe("isTestFile", () => {
   it("reads Windows separators the same way", () => {
     expect(isTestFile("src\\lib\\users.test.ts")).toBe(true);
     expect(isTestFile("src\\app\\api\\users\\users.test.ts")).toBe(false);
+  });
+  it("ignores letter case in a served folder or a route file name", () => {
+    for (const file of ["Pages/users.test.tsx", "src/Api/users.test.ts", "app/ROUTES/users.spec.ts", "netlify/Functions/__tests__/users.ts"]) {
+      expect(isTestFile(file), file).toBe(false);
+    }
+    for (const file of ["src/lib/Route.test.ts", "src/lib/__tests__/ROUTE.tsx", "src/lib/Route.spec.mjs"]) {
+      expect(isTestFile(file), file).toBe(false);
+    }
+  });
+  it("still asks for the usual spelling of a test file name or folder", () => {
+    expect(isTestFile("src/lib/users.TEST.ts")).toBe(false);
+    expect(isTestFile("src/lib/__Tests__/users.ts")).toBe(false);
+  });
+  it("does not take a longer name beginning with route for a route file", () => {
+    expect(isTestFile("src/lib/router.test.ts")).toBe(true);
+    expect(isTestFile("src/lib/routes.spec.ts")).toBe(true);
   });
 });
