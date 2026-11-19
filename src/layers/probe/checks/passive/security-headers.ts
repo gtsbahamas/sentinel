@@ -2,19 +2,19 @@ import { randomUUID } from "crypto";
 import type { ProbeTarget, ProbeFinding, ProbeError, SecurityDomain, AggressionLevel } from "../../../../model/types.js";
 import type { ProbeCheck, ProbeCheckContext, ProbeCheckResult } from "../base.js";
 import { TargetUnreachable } from "../../http-client.js";
+import { MISSING_HEADER_SEVERITY, type SecurityHeader } from "../../../../model/header-severity.js";
 
 const EXPECTED_HEADERS: Array<{
-  name: string;
-  severity: "high" | "medium" | "low";
+  name: SecurityHeader;
   description: string;
   cwe: string;
 }> = [
-  { name: "strict-transport-security", severity: "high", description: "HSTS header missing — browsers won't enforce HTTPS", cwe: "CWE-319" },
-  { name: "content-security-policy", severity: "medium", description: "CSP header missing — no XSS mitigation at the browser level", cwe: "CWE-79" },
-  { name: "x-frame-options", severity: "medium", description: "X-Frame-Options missing — page can be embedded in iframes (clickjacking)", cwe: "CWE-1021" },
-  { name: "x-content-type-options", severity: "low", description: "X-Content-Type-Options missing — browser may MIME-sniff responses", cwe: "CWE-16" },
-  { name: "referrer-policy", severity: "low", description: "Referrer-Policy missing — full URL may leak in Referer header", cwe: "CWE-200" },
-  { name: "permissions-policy", severity: "low", description: "Permissions-Policy missing — browser features not explicitly restricted", cwe: "CWE-16" },
+  { name: "strict-transport-security", description: "HSTS header missing — browsers won't enforce HTTPS", cwe: "CWE-319" },
+  { name: "content-security-policy", description: "CSP header missing — no XSS mitigation at the browser level", cwe: "CWE-79" },
+  { name: "x-frame-options", description: "X-Frame-Options missing — page can be embedded in iframes (clickjacking)", cwe: "CWE-1021" },
+  { name: "x-content-type-options", description: "X-Content-Type-Options missing — browser may MIME-sniff responses", cwe: "CWE-16" },
+  { name: "referrer-policy", description: "Referrer-Policy missing — full URL may leak in Referer header", cwe: "CWE-200" },
+  { name: "permissions-policy", description: "Permissions-Policy missing — browser features not explicitly restricted", cwe: "CWE-16" },
 ];
 
 export const securityHeadersCheck: ProbeCheck = {
@@ -59,7 +59,7 @@ export const securityHeadersCheck: ProbeCheck = {
           const probeFinding: ProbeFinding = {
             id: `PROBE-HDR-${randomUUID().slice(0, 8)}`,
             domain: "infrastructure",
-            severity: expected.severity,
+            severity: MISSING_HEADER_SEVERITY[expected.name],
             confidence: "confirmed",
             title: `Missing security header: ${expected.name}`,
             description: expected.description,

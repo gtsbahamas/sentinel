@@ -4,6 +4,7 @@ import fg from "fast-glob";
 import { safeReadFile, readEnvFile, parseEnvFile } from "../../../utils/fs.js";
 import type { Finding, ProjectModel } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
+import { MISSING_HEADER_SEVERITY } from "../../../model/header-severity.js";
 
 function mkFinding(
   ruleId: string,
@@ -77,7 +78,7 @@ export const infrastructureRules: SecurityRule[] = [
     description: "No CSP header configured in next.config, middleware, or vercel.json",
     impact:
       "Your app has no Content Security Policy header. An attacker who finds any XSS vulnerability can load scripts from any domain, making exploitation trivial and persistent.",
-    severity: "high",
+    severity: MISSING_HEADER_SEVERITY["content-security-policy"],
     appliesTo: ["nextjs-supabase", "react-vite-supabase"],
     references: { cwe: "CWE-693" },
     check(model) {
@@ -86,7 +87,7 @@ export const infrastructureRules: SecurityRule[] = [
         findings.push(
           mkFinding(
             "INFRA-001",
-            "high",
+            MISSING_HEADER_SEVERITY["content-security-policy"],
             "No Content-Security-Policy header",
             "Without a CSP, a single XSS hole can load arbitrary scripts, iframes, and exfiltrate data.",
             "Your app has no Content Security Policy header. An attacker who finds any XSS vulnerability can load scripts from any domain, making exploitation trivial and persistent.",
@@ -107,7 +108,7 @@ export const infrastructureRules: SecurityRule[] = [
     description: "HSTS not configured",
     impact:
       "Your app does not set the Strict-Transport-Security header. An attacker on a public wifi network can intercept the first HTTP request before it redirects to HTTPS, stealing cookies or injecting content.",
-    severity: "high",
+    severity: MISSING_HEADER_SEVERITY["strict-transport-security"],
     appliesTo: ["nextjs-supabase", "react-vite-supabase"],
     references: { cwe: "CWE-319" },
     check(model) {
@@ -122,7 +123,7 @@ export const infrastructureRules: SecurityRule[] = [
         findings.push(
           mkFinding(
             "INFRA-002",
-            "high",
+            MISSING_HEADER_SEVERITY["strict-transport-security"],
             "No Strict-Transport-Security header",
             "HSTS prevents downgrade attacks to plain HTTP and cookie leakage on the first request of a session.",
             "Your app does not set the Strict-Transport-Security header. An attacker on a public wifi network can intercept the first HTTP request before it redirects to HTTPS, stealing cookies or injecting content.",
@@ -143,7 +144,7 @@ export const infrastructureRules: SecurityRule[] = [
     description: "No clickjacking protection configured",
     impact:
       "Your app has no X-Frame-Options header. An attacker can embed your app in an invisible iframe on their site and trick users into clicking buttons they cannot see.",
-    severity: "medium",
+    severity: MISSING_HEADER_SEVERITY["x-frame-options"],
     appliesTo: ["nextjs-supabase", "react-vite-supabase"],
     references: { cwe: "CWE-1021" },
     check(model) {
@@ -155,7 +156,7 @@ export const infrastructureRules: SecurityRule[] = [
         findings.push(
           mkFinding(
             "INFRA-003",
-            "medium",
+            MISSING_HEADER_SEVERITY["x-frame-options"],
             "No X-Frame-Options or frame-ancestors directive",
             "Any origin can embed this site in an iframe, enabling clickjacking.",
             "Your app has no X-Frame-Options header. An attacker can embed your app in an invisible iframe on their site and trick users into clicking buttons they cannot see.",
@@ -391,7 +392,7 @@ export const infrastructureRules: SecurityRule[] = [
     description: "No Referrer-Policy, or set to unsafe-url",
     impact:
       "Your app has no Referrer-Policy or uses an unsafe one. When users navigate from your app to external sites, the full URL including query parameters is sent as the referrer, potentially leaking tokens or session data.",
-    severity: "low",
+    severity: MISSING_HEADER_SEVERITY["referrer-policy"],
     appliesTo: ["nextjs-supabase", "react-vite-supabase"],
     references: { cwe: "CWE-200" },
     check(model) {
@@ -401,7 +402,7 @@ export const infrastructureRules: SecurityRule[] = [
         findings.push(
           mkFinding(
             "INFRA-009",
-            "low",
+            MISSING_HEADER_SEVERITY["referrer-policy"],
             "No Referrer-Policy header",
             "Without a policy, full URLs (including query strings with tokens) leak in the Referer header to third-party links.",
             "Your app has no Referrer-Policy or uses an unsafe one. When users navigate from your app to external sites, the full URL including query parameters is sent as the referrer, potentially leaking tokens or session data.",
