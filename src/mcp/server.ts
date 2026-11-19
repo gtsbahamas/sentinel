@@ -22,6 +22,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { runScan, type ScanOptions } from "../commands/scan.js";
+import { VERSION } from "../version.js";
 
 interface ScanProjectArgs {
   path: string;
@@ -191,7 +192,7 @@ export function createMcpServer(): Server {
   const server = new Server(
     {
       name: "shipsafe-sentinel",
-      version: "0.1.1",
+      version: VERSION,
     },
     {
       capabilities: {

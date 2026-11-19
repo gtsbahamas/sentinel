@@ -2,6 +2,7 @@ import { readFile } from "fs/promises";
 import chalk from "chalk";
 import type { Finding, Severity } from "../model/types.js";
 import { isAtOrAbove } from "../model/severity.js";
+import { VERSION } from "../version.js";
 
 export interface DiffOptions {
   baseline: string;
@@ -148,10 +149,10 @@ function formatTerminalDiff(result: DiffResult): string {
   return lines.join("\n");
 }
 
-function formatJsonDiff(result: DiffResult): string {
+export function formatJsonDiff(result: DiffResult): string {
   return JSON.stringify(
     {
-      version: "0.1.0",
+      version: VERSION,
       generated_at: new Date().toISOString(),
       baseline_total: result.baselineTotal,
       current_total: result.currentTotal,

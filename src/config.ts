@@ -60,10 +60,15 @@ export type PatternInferenceConfig = z.infer<typeof PatternInferenceSchema>;
 const ConfigSchema = z.object({
   stack: z.enum(["nextjs-supabase", "react-vite-supabase", "generic-web"]),
   domains: z.array(z.string()),
+  // `exclude`: paths the project walk skips. `ignore`: paths the user wants
+  // no findings from; each is added to `exclude` and findings there are dropped.
   exclude: z.array(z.string()),
+  ignore: z.array(z.string()).optional(),
   severity: z.object({
     failOn: SeveritySchema,
   }),
+  // Short spelling of `severity.failOn`; the nested key wins when both are set.
+  failOn: SeveritySchema.optional(),
   output: z.object({
     format: z.enum(["terminal", "json", "html", "all"]),
     dir: z.string(),
@@ -73,7 +78,12 @@ const ConfigSchema = z.object({
   patternInference: PatternInferenceSchema.optional(),
 });
 
-export type SentinelConfig = z.infer<typeof ConfigSchema>;
+// The loaded config carries the failing severity once (top-level `failOn` is
+// folded into `severity.failOn`). `exclude` already contains every `ignore`
+// entry; `ignore` is kept so findings under those paths can be dropped too.
+export type SentinelConfig = Omit<z.infer<typeof ConfigSchema>, "ignore" | "failOn"> & {
+  ignore: string[];
+};
 
 export const CONFIG_DEFAULTS: SentinelConfig = {
   stack: "nextjs-supabase",
@@ -89,6 +99,7 @@ export const CONFIG_DEFAULTS: SentinelConfig = {
     "public",
     "widget-build",
   ],
+  ignore: [],
   severity: { failOn: "high" },
   output: { format: "terminal", dir: ".sentinel/reports" },
   ai: {
@@ -112,6 +123,62 @@ export const CONFIG_DEFAULTS: SentinelConfig = {
   },
 };
 
+// Peel optional/default wrappers to reach the object schema underneath, if any.
+function objectShape(schema: z.ZodTypeAny): z.ZodRawShape | null {
+  let inner = schema;
+  while (inner instanceof z.ZodOptional || inner instanceof z.ZodDefault) {
+    inner = inner._def.innerType;
+  }
+  return inner instanceof z.ZodObject ? inner.shape : null;
+}
+
+// Dotted paths of every key in `value` that the schema does not define.
+// Keys starting with "_" are notes to the reader (.sentinelrc.defaults.json
+// uses them) and are never reported.
+function unknownKeys(value: unknown, shape: z.ZodRawShape, prefix = ""): string[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  const found: string[] = [];
+  for (const [key, child] of Object.entries(value)) {
+    const known = shape[key];
+    if (!known) {
+      if (!key.startsWith("_")) found.push(prefix + key);
+      continue;
+    }
+    const childShape = objectShape(known);
+    if (childShape) found.push(...unknownKeys(child, childShape, `${prefix}${key}.`));
+  }
+  return found;
+}
+
+// A scan loads the config several times; each file is warned about once.
+const warnedConfigPaths = new Set<string>();
+
+/** Forget which config files have been warned about (for tests). */
+export function resetConfigWarnings(): void {
+  warnedConfigPaths.clear();
+}
+
+// Goes to stderr so `--format json` output and the MCP stdio stream stay clean.
+function warnUnknownKeys(configPath: string, parsed: unknown): void {
+  if (warnedConfigPaths.has(configPath)) return;
+  warnedConfigPaths.add(configPath);
+  const unknown = unknownKeys(parsed, ConfigSchema.shape);
+  if (unknown.length === 0) return;
+  process.stderr.write(
+    `Warning: ${configPath} has ${unknown.length === 1 ? "a key" : "keys"} Sentinel does not know and will not use: ${unknown.join(", ")}\n`,
+  );
+}
+
+// "test/" and "test" name the same directory; the walker wants no trailing slash.
+function normalizeExcludes(paths: string[]): string[] {
+  return [...new Set(paths.map((p) => p.replace(/\/+$/, "")).filter((p) => p !== ""))];
+}
+
+/**
+ * Load `.sentinelrc.json` from the project root over the defaults. Unknown
+ * keys are reported once on stderr and otherwise left alone; invalid values
+ * for known keys throw.
+ */
 export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
   const configPath = join(projectPath, ".sentinelrc.json");
 
@@ -122,10 +189,16 @@ export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
   const raw = await readFile(configPath, "utf-8");
   const parsed = JSON.parse(raw);
 
+  warnUnknownKeys(configPath, parsed);
+
   const merged = {
     ...CONFIG_DEFAULTS,
     ...parsed,
-    severity: { ...CONFIG_DEFAULTS.severity, ...(parsed.severity ?? {}) },
+    severity: {
+      ...CONFIG_DEFAULTS.severity,
+      ...(parsed.failOn !== undefined ? { failOn: parsed.failOn } : {}),
+      ...(parsed.severity ?? {}),
+    },
     output: { ...CONFIG_DEFAULTS.output, ...(parsed.output ?? {}) },
     ai: { ...CONFIG_DEFAULTS.ai, ...(parsed.ai ?? {}) },
     // conventions: optional, no defaults. Caller-supplied or absent.
@@ -135,5 +208,7 @@ export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
     patternInference: parsed.patternInference,
   };
 
-  return ConfigSchema.parse(merged);
+  const { failOn: _failOn, ...config } = ConfigSchema.parse(merged);
+  const ignore = normalizeExcludes(config.ignore ?? []);
+  return { ...config, ignore, exclude: normalizeExcludes([...config.exclude, ...ignore]) };
 }

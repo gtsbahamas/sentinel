@@ -5,6 +5,7 @@ import type {
   Severity,
   VerifyResult,
 } from "../model/types.js";
+import { VERSION } from "../version.js";
 
 export interface LayerTiming {
   recon_ms: number;
@@ -27,7 +28,7 @@ export function formatJson(
   const aiLayerStatus = timing.ai ? "complete" : "skipped";
 
   const output = {
-    version: "0.1.0",
+    version: VERSION,
     timestamp: new Date().toISOString(),
     project: {
       name: model.meta.name,

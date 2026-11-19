@@ -7,6 +7,7 @@ import type {
 } from "../model/types.js";
 import { compareSeverity } from "../model/severity.js";
 import { SECURITY_DOMAINS } from "../model/types.js";
+import { VERSION } from "../version.js";
 
 const SEVERITY_COLOR: Record<Severity, (s: string) => string> = {
   critical: chalk.bgRed.white.bold,
@@ -25,7 +26,7 @@ export function formatTerminal(
 ): string {
   const lines: string[] = [];
 
-  lines.push(chalk.bold("  SENTINEL v0.1.0 — Security Assessment"));
+  lines.push(chalk.bold(`  SENTINEL v${VERSION} — Security Assessment`));
   lines.push(`  Target: ${model.meta.path}`);
   lines.push(`  Stack:  ${model.meta.stack} (${model.meta.framework})`);
   lines.push(`  Layers: Recon ${chalk.green("✓")}  Rules ${chalk.green("✓")}`);

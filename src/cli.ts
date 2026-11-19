@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { readFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
 import { resolveTarget } from "./resolve-target.js";
 import { runScan } from "./commands/scan.js";
 import { runDiff } from "./commands/diff.js";
@@ -12,17 +9,16 @@ import { runFixCommand } from "./commands/fix.js";
 import { runMcp } from "./commands/mcp.js";
 import { runInit } from "./commands/init.js";
 import { runPatterns } from "./commands/patterns.js";
+import { formatRuleCatalog } from "./commands/register-rules.js";
+import { VERSION } from "./version.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkgPath = join(__dirname, "..", "package.json");
-const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 
 const program = new Command();
 
 program
   .name("sentinel")
   .description("Security assessment CLI for Next.js + Supabase codebases")
-  .version(pkg.version);
+  .version(VERSION);
 
 // Deferred exit: set process.exitCode and let Node drain stdout naturally.
 // Using process.exit() after a large stdout.write() can truncate output
@@ -34,7 +30,8 @@ function exitAfterDrain(code: number): void {
 program
   .command("scan")
   .description("Run Recon + Rules (+ AI) scan against a project")
-  .argument("<path>", "Path or GitHub URL (e.g. https://github.com/user/repo)")
+  .argument("[path]", "Path or GitHub URL (e.g. https://github.com/user/repo)")
+  .option("--list-rules", "List every rule (id, severity, title) and exit; needs no path")
   .option("-f, --format <format>", "Output format (terminal|json|html)", "terminal")
   .option("-o, --out <file>", "Write report to file instead of stdout")
   .option("--fail-on <level>", "Exit 1 if findings at or above level")
@@ -66,7 +63,15 @@ program
   .option("--shipsafe-token <token>", "ShipSafe scanner bearer token (env: SHIPSAFE_TOKEN)")
   .option("--shipsafe-project <id>", "ShipSafe project id (env: SHIPSAFE_PROJECT_ID)")
   .option("--shipsafe-run-id <id>", "Optional sentinel run id to correlate with ShipSafe (env: SHIPSAFE_RUN_ID)")
-  .action(async (rawPath, options) => {
+  .action(async (rawPath: string | undefined, options, command: Command) => {
+    if (options.listRules) {
+      process.stdout.write(formatRuleCatalog(options.format));
+      return;
+    }
+    if (!rawPath) {
+      command.error("error: missing required argument 'path'");
+      return;
+    }
     const path = await resolveTarget(rawPath);
     const exitCode = await runScan({
       path,

@@ -2,6 +2,7 @@ import type { Finding, ProjectModel, Severity, SecurityDomain } from "../model/t
 import { compareSeverity } from "../model/severity.js";
 import { SECURITY_DOMAINS } from "../model/types.js";
 import type { LayerTiming } from "./json.js";
+import { VERSION } from "../version.js";
 
 const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low", "info"];
 
@@ -234,7 +235,7 @@ export function formatHtml(
 ${domainSections}
 
 <footer>
-  Sentinel v0.1.0 — ${findings.length} findings across ${byDomain.size} domains
+  Sentinel v${VERSION} — ${findings.length} findings across ${byDomain.size} domains
 </footer>
 </div>
 </body>

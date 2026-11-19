@@ -3,21 +3,11 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
-import { runRules, registerRules, resetRegistry } from "../layers/rules/index.js";
+import { runRules } from "../layers/rules/index.js";
+import { registerAllRules } from "./register-rules.js";
+import { dropIgnoredFindings } from "../utils/ignored-findings.js";
 import { inferContext, readContext } from "../layers/context/index.js";
 import { applyContextSuppressions } from "../layers/context/suppression.js";
-import { secretsExposureRules } from "../layers/rules/domains/secrets-exposure.js";
-import { inputInjectionRules } from "../layers/rules/domains/input-injection.js";
-import { authAccessControlRules } from "../layers/rules/domains/auth-access-control.js";
-import { fileUploadRules } from "../layers/rules/domains/file-upload.js";
-import { supplyChainRules } from "../layers/rules/domains/supply-chain.js";
-import { repoIntegrityRules, resetRepoIntegrityCache } from "../layers/rules/domains/repo-integrity.js";
-import { cryptographyRules } from "../layers/rules/domains/cryptography.js";
-import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitoring.js";
-import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
-import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
-import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
-import { llmFeatureRules } from "../layers/rules/domains/llm-features.js";
 import { registerFixer, resetFixerRegistry } from "../layers/fix/registry.js";
 import { crypto001Fixer } from "../layers/fix/deterministic/crypto-001.js";
 import { crypto002Fixer } from "../layers/fix/deterministic/crypto-002.js";
@@ -126,25 +116,15 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
   const contextFromFile = await readContext(options.path);
   const context = contextFromFile ?? await inferContext(model);
 
-  resetRegistry();
-  registerRules(secretsExposureRules);
-  registerRules(inputInjectionRules);
-  registerRules(authAccessControlRules);
-  registerRules(fileUploadRules);
-  registerRules(supplyChainRules);
-  registerRules(repoIntegrityRules);
-  // Memoized whole-tree walk must not survive into the next scan in this process.
-  resetRepoIntegrityCache();
-  registerRules(cryptographyRules);
-  registerRules(loggingMonitoringRules);
-  registerRules(apiSecurityRules);
-  registerRules(businessLogicRules);
-  registerRules(infrastructureRules);
-  registerRules(llmFeatureRules);
+  registerAllRules();
 
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
   const rulesStart = Date.now();
-  const rawFindings = await runRules(model, context, emitter ?? undefined);
+  const rawFindings = dropIgnoredFindings(
+    await runRules(model, context, emitter ?? undefined),
+    options.path,
+    config.ignore,
+  );
   emitter?.emitEvent({ type: "layer:complete", layer: "rules", durationMs: Date.now() - rulesStart, timestamp: Date.now() });
 
   const findings = applyContextSuppressions(rawFindings, context);

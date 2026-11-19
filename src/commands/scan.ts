@@ -2,20 +2,9 @@ import { writeFile, mkdir } from "fs/promises";
 import { dirname, join, resolve } from "path";
 import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
-import { runRules, registerRules, resetRegistry } from "../layers/rules/index.js";
-import { secretsExposureRules } from "../layers/rules/domains/secrets-exposure.js";
-import { inputInjectionRules } from "../layers/rules/domains/input-injection.js";
-import { authAccessControlRules } from "../layers/rules/domains/auth-access-control.js";
-import { fileUploadRules } from "../layers/rules/domains/file-upload.js";
-import { supplyChainRules } from "../layers/rules/domains/supply-chain.js";
-import { repoIntegrityRules, resetRepoIntegrityCache } from "../layers/rules/domains/repo-integrity.js";
-import { cryptographyRules } from "../layers/rules/domains/cryptography.js";
-import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitoring.js";
-import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
-import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
-import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
-import { llmFeatureRules } from "../layers/rules/domains/llm-features.js";
-import { pythonFrameworkRules } from "../layers/rules/domains/python-framework.js";
+import { runRules } from "../layers/rules/index.js";
+import { registerAllRules } from "./register-rules.js";
+import { dropIgnoredFindings } from "../utils/ignored-findings.js";
 import { runAI, runDryRun, createProvider, runVerify, type DryRunResult } from "../layers/ai/index.js";
 import { MockProvider } from "../layers/ai/providers/mock.js";
 import { formatTerminal } from "../output/terminal.js";
@@ -130,26 +119,15 @@ export async function runScan(options: ScanOptions): Promise<number> {
     process.stderr.write("Run `sentinel context` to reduce false positives.\n\n");
   }
 
-  resetRegistry();
-  registerRules(secretsExposureRules);
-  registerRules(inputInjectionRules);
-  registerRules(authAccessControlRules);
-  registerRules(fileUploadRules);
-  registerRules(supplyChainRules);
-  registerRules(repoIntegrityRules);
-  // Memoized whole-tree walk must not survive into the next scan in this process.
-  resetRepoIntegrityCache();
-  registerRules(cryptographyRules);
-  registerRules(loggingMonitoringRules);
-  registerRules(apiSecurityRules);
-  registerRules(businessLogicRules);
-  registerRules(infrastructureRules);
-  registerRules(llmFeatureRules);
-  registerRules(pythonFrameworkRules);
+  registerAllRules();
 
   const rulesStart = Date.now();
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
-  const ruleFindings = await runRules(model, context, emitter ?? undefined);
+  const ruleFindings = dropIgnoredFindings(
+    await runRules(model, context, emitter ?? undefined),
+    options.path,
+    config.ignore,
+  );
   const rules_ms = Date.now() - rulesStart;
   emitter?.emitEvent({ type: "layer:complete", layer: "rules", durationMs: rules_ms, timestamp: Date.now() });
 
@@ -232,7 +210,10 @@ export async function runScan(options: ScanOptions): Promise<number> {
   // but verify only examines rule findings — the AI layer has its own
   // context-awareness via buildProjectSummary).
   const allFindings = applyContextSuppressions(
-    [...ruleFindingsForReport, ...(aiResult?.findings ?? [])],
+    [
+      ...ruleFindingsForReport,
+      ...dropIgnoredFindings(aiResult?.findings ?? [], options.path, config.ignore),
+    ],
     context,
   );
 
