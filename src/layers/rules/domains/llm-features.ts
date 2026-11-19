@@ -363,7 +363,8 @@ function hasHtmlSanitizer(source: string): boolean {
 // or sends model output somewhere directly. Saving chat history after a
 // reply is not an outward action.
 
-export const ACTION_GATE_DOCS_URL = "https://seatrial.io/docs/action-gate";
+// OWASP's guidance on the fix (human approval in front of high-impact actions).
+export const EXCESSIVE_AGENCY_URL = "https://genai.owasp.org/llmrisk/llm062025-excessive-agency/";
 
 interface Leg {
   re: RegExp;
@@ -997,7 +998,7 @@ export const llmFeatureRules: SecurityRule[] = [
       "Your app gives one AI feature all three things an attack needs: your private data, content from strangers, and a way to send things out. An attacker can hide instructions in a chat message, an email, an uploaded file, or a web page, and the model will read your customers' records and send them wherever the attacker asked. Any two of these are manageable; all three together are how AI agents leak data.",
     severity: "high",
     appliesTo: ALL_WEB,
-    references: { cwe: CWE_PROMPT, owasp: OWASP_LLM01, external: ["OWASP-LLM06:2025", "OWASP-LLM02:2025", ACTION_GATE_DOCS_URL] },
+    references: { cwe: CWE_PROMPT, owasp: OWASP_LLM01, external: ["OWASP-LLM06:2025", "OWASP-LLM02:2025", EXCESSIVE_AGENCY_URL] },
     async check(model) {
       const findings: Finding[] = [];
       const root = model.meta.path;
@@ -1061,7 +1062,7 @@ export const llmFeatureRules: SecurityRule[] = [
             "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
             `This AI feature ${privateHit.what} (private data), ${untrustedHit.what} (untrusted content), and ${outwardHit.what} (outward action), with no human approval in front of the outward action.`,
             "Your app gives one AI feature all three things an attack needs: your private data, content from strangers, and a way to send things out. An attacker can hide instructions in a chat message, an email, an uploaded file, or a web page, and the model will read your customers' records and send them wherever the attacker asked. Any two of these are manageable; all three together are how AI agents leak data.",
-            `Remove one of the three legs (scope the agent to the signed-in user's own data, stop feeding it outside content, or take away the send/write tool), or put a human approval in front of the outward action so nothing leaves until a person says yes. Seatrial Action Gate does exactly that: route the tool call through the gate and it waits for an approver before it runs. Setup: ${ACTION_GATE_DOCS_URL}`,
+            `Remove one of the three legs (scope the agent to the signed-in user's own data, stop feeding it outside content, or take away the send/write tool), or put a human approval in front of the outward action so nothing leaves until a person says yes: the tool call waits for an approver before it runs. How: ${EXCESSIVE_AGENCY_URL}`,
             [outwardHit, privateHit, untrustedHit].map((h) => ({ file: h.file, line: h.line, snippet: h.snippet })),
             { cwe: CWE_PROMPT, owasp: OWASP_LLM01 },
           ),
