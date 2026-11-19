@@ -1,7 +1,9 @@
 import { safeReadFile } from "../../../utils/fs.js";
 import fg from "fast-glob";
+import { relative } from "path";
 import type { Finding, ProjectModel } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
+import { isTestFile } from "../../../utils/test-code.js";
 
 function mkFinding(
   ruleId: string,
@@ -55,10 +57,13 @@ async function scanLines(
   model: ProjectModel,
   pattern: RegExp,
   makeFinding: (file: string, line: number, match: RegExpMatchArray) => Finding,
+  // Given the file's path inside the project; return false to leave the file out.
+  applies?: (projectPath: string) => boolean,
 ): Promise<Finding[]> {
   const findings: Finding[] = [];
   const files = await walkSourceFiles(model);
   for (const { file, source } of files) {
+    if (applies && !applies(relative(model.meta.path, file))) continue;
     const lines = source.split("\n");
     lines.forEach((line, idx) => {
       const match = line.match(pattern);
@@ -159,6 +164,8 @@ export const inputInjectionRules: SecurityRule[] = [
             [{ file, line, snippet: match[0] }],
             { cwe: "CWE-89", owasp: "A03:2021" },
           ),
+        // A test file builds SQL for a throwaway database from its own values; no visitor reaches it.
+        (projectPath) => !isTestFile(projectPath),
       );
     },
   },
