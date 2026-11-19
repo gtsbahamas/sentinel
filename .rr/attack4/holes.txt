@@ -1,0 +1,56 @@
+Attack round 4 on head 9925cdd vs .rr/master  (AUTH-001 only; CRYPTO-008 not attacked)
+Stage: .rr/attack4/stage (generator: .rr/attack4/make.py). Scans: out-main.txt, out-head.txt (one run each, both exit 0, stderr empty).
+Routes: src/app/api/ww/<name>/route.ts; helpers: src/lib/ww/{kit.ts,things.ts,alias.ts,dflt.ts,swap.js,hub.ts}.
+
+Attempts: 41 vulnerable routes + 2 open controls + 3 closed controls + 1 harmless probe (p18). All 47 are reported by master.
+Controls: c1-open, c2-open stay reported at head. c3-closed, c4-closed-jar, c5-closed-must are silent at head (correct).
+Silent at head and reported by master: 20 vulnerable routes (below). p18 is also silent but does nothing harmful: not a hole.
+Evidence level: the master/head difference is observed (one scan per side). Exploitability is by reading the code against JS
+semantics; nothing was executed or type-checked.
+CONFIRMED 18: l01, l03, o01, q01-q11, k03 (language semantics alone) and k01, k02, s01 (read in the published packages,
+@supabase/auth-js and supabase-js 2.119.1: getClaims honours `allowExpired`, fetchJwk looks in the caller-given `jwks`/`keys`
+before the project's, `supabaseKey` is an instance field). k01/k02 apply to versions that have getClaims; the stage pins
+supabase-js 2.45.0, which I did not check for it. k02 needs an asymmetric alg with a kid (HS tokens fall back to getUser).
+UNVERIFIED 2: k04, k05 (that a no-argument getUser() on an @supabase/ssr client reaches cookies.getAll is from memory).
+Conditional: k03 and k05 are open only while the stored pass is live.
+All 20 are (b) contrived-but-valid; none is ordinary code. k01 and l01 are the closest to something a developer could write.
+
+== A. What the session read is handed  (sessionRead ignores arguments; isClientConfig does not read accessor bodies) ==
+k01-expired-pass (b, nearly a)  getClaims(pass, { allowExpired: true }): an expired pass is accepted. [sessionRead]  (library option from memory)
+k02-caller-key (b)              getClaims(body.pass, { jwks: { keys: [body.key] } }): the caller supplies the key its own pass is verified with. [sessionRead]  (library option from memory)
+k03-pass-in-code (b)            getUser("<pass written in the code>"): every caller is that account. [sessionRead / isQuiet: a string literal argument]
+k04-accessor-writes (b)         createServerClient(env, env, { cookies: { getAll() { ledger.record(...); return [] } } }): the accessor writes for any caller. [isClientConfig]
+k05-accessor-stored-session (b) cookies.getAll returns a session kept in process.env, whoever calls: everyone is signed in. [isClientConfig]
+
+== B. Which function a name stands for  (Project.lookup: topLevel is tried before export declarations) ==
+l01-export-alias (b)            alias.ts has an unexported, correct `whoIs` and `export { anyone as whoIs }`. The route gets `anyone`; the proof reads the local `whoIs`. [Project.lookup]
+l03-namespace-alias (b)         same module through `import * as kit`; `kit.whoIs(req)`. [helperOf -> Project.lookup]
+
+== C. Object shape  (proveValue, missing-key branch) ==
+o01-proto-ok (b)                unverified answer is `{ __proto__: { ok: true }, memberId: "guest" }`; `ok` is "missing", so taken as undefined, but reads true. [proveValue]
+
+== D. Project classes: `new` is quiet when there is no constructor, and reading the object then runs its code  (isQuietClass + isQuiet) ==
+q01-getter (b)                  const n = tally.next; the getter writes, before the check. [isQuiet property read]
+q08-error-getter (b)            class Loud extends Error { get message() { write } }; console.log(loud.message). [isQuietClass, Error base]
+q02-to-string (b)               console.log(`hit ${stamp}`); toString() writes. [isQuiet template]
+q07-value-of (b)                -(meter as unknown as number); valueOf() writes. [isQuiet unary minus]
+q11-loose-equals (b)            (meter as unknown) == 1; valueOf() writes. [isQuiet ==]
+q03-to-json (b)                 refusal is Response.json({ message, dump }); Dump.toJSON() returns process.env: secrets to anyone. [isQuiet / isQuietCall Response.json]
+q04-thenable (b)                const done = await new Flush(); then() writes. [isQuiet await]
+q05-own-parameter-method (b)    drain(job) { await job.json() } is "reading the request"; the route passes new Job(), whose json() writes. [isQuietCall, isOwnParameter]
+q06-await-using (b)             `await using scope = new Scope()` passes the const test (AwaitUsing flag includes the Const bit); [Symbol.asyncDispose]() writes for every caller. [Walk.stmt]
+
+== E. Names the scope lookup cannot see  (declarationOf does not see class declarations, so isGlobal says yes) ==
+q09-class-named-console (b)     a `class console { static log() { write } }` in the route file; `await console.log(body.note)` before the check. [isGlobal / isQuietCall]
+q10-class-named-response (b)    a `class Response extends globalThis.Response { static json() { write } }`; the refusal writes. [isGlobal / isQuietCall]
+
+== F. Secrets held by a local  (isQuiet: any field of a local may be answered) ==
+s01-key-in-refusal (b)          client made with the service-role key; the refusal is Response.json({ key: (sb as any).supabaseKey }). [isQuiet]  (field name from memory)
+
+== Tried and still reported at head (no hole) ==
+Lookup: l02 default import beside a same-named export; l04 `({ whoIs } = table)` in a JS module.
+Polarity and flow: p01 `=== undefined`, p02 getUser `data` only, p03 `user ?? guest`, p04 helper not awaited, p05 catch swallows the
+refusal, p06 `!who && body.strict`, p07 `who || body.as`, p08 typeof, p09 assert helper not awaited, p10 block shadow,
+p11 `error` always null, p12 answer ignored, p13 getClaims `error`, p14 `who || body.force`, p15 `data || {}`,
+p16 `!read.data.nope`, p17 `== false`, p19 ternary guest, p20 re-exported open helper.
+Not tried: memoisation order across routes, proveFn cycle/depth cuts, module resolution twins (x.ts beside x.tsx).

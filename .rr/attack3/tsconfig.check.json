@@ -1,0 +1,2 @@
+{ "compilerOptions": { "noEmit": true, "skipLibCheck": true, "strict": true, "target": "es2023", "lib": ["es2023", "dom", "dom.iterable"], "module": "esnext", "moduleResolution": "bundler", "allowImportingTsExtensions": true, "types": ["node"], "baseUrl": "./stage", "paths": { "@/*": ["./src/*"] } },
+  "include": ["stage/src/app/api/yy/**/*.ts", "stage/src/lib/yy/**/*.ts", "stage/src/instrumentation.ts"] }
