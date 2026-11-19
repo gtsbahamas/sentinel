@@ -12,7 +12,7 @@ export function applyContextSuppressions(
     .map((f) => {
       // Suppress findings in excluded paths
       const file = f.evidence[0]?.file ?? "";
-      if (context.excludedPaths.some((p) => file.includes(p))) {
+      if (context.excludedPaths.some((p) => isUnderExcludedPath(file, p))) {
         return null;
       }
 
@@ -55,6 +55,22 @@ export function applyContextSuppressions(
       return f;
     })
     .filter((f): f is Finding => f !== null);
+}
+
+const pathSegments = (path: string) => path.split(/[\\/]+/).filter(Boolean);
+
+// An excluded entry names whole path segments ("scripts/", "seed.ts", "supabase/migrations/"), found
+// anywhere along the file's path: "scripts/" covers scripts/run.ts and not manuscripts/run.ts. An entry
+// ending in a slash is a folder, so it never matches the file's own name.
+function isUnderExcludedPath(file: string, excluded: string): boolean {
+  const wanted = pathSegments(excluded);
+  if (wanted.length === 0) return false;
+  const segments = pathSegments(file);
+  const lastStart = segments.length - wanted.length - (/[\\/]$/.test(excluded) ? 1 : 0);
+  for (let start = 0; start <= lastStart; start++) {
+    if (wanted.every((segment, i) => segments[start + i] === segment)) return true;
+  }
+  return false;
 }
 
 function extractPathFromTitle(title: string): string | null {

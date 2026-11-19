@@ -78,6 +78,56 @@ describe("applyContextSuppressions", () => {
     expect(result).toHaveLength(0);
   });
 
+  describe("excluded paths match whole path segments", () => {
+    const ctx: ProjectContext = {
+      ...CTX,
+      excludedPaths: ["scripts/", "tests/", "seed.ts", "supabase/migrations/"],
+    };
+    const survives = (file: string) =>
+      applyContextSuppressions([mkFinding({ id: "f1", ruleId: "SOME-001", evidence: [{ file, line: 1 }] })], ctx).length === 1;
+
+    it.each([
+      "src/manuscripts/upload.ts",
+      "src/app/api/contests/route.ts",
+      "src/app/api/latests/route.ts",
+      "src/lib/reseed.ts",
+      "src/lib/seed.tsx",
+      "src/app/api/scripts.ts",
+      "src/supabase/migrations.ts",
+      "src/app/migrations/route.ts",
+      "C:\\app\\src\\manuscripts\\upload.ts",
+    ])("keeps a finding in %s, which only contains an excluded name", (file) => {
+      expect(survives(file)).toBe(true);
+    });
+
+    it.each([
+      "scripts/seed-users.ts",
+      "/home/dev/app/scripts/deploy/run.ts",
+      "src/tests/helpers.ts",
+      "prisma/seed.ts",
+      "supabase/migrations/0001_init.sql",
+      "C:\\app\\scripts\\run.ts",
+    ])("still suppresses a finding in %s", (file) => {
+      expect(survives(file)).toBe(false);
+    });
+
+    it("does not take a file for the folder an entry names, or an empty entry for everything", () => {
+      const odd: ProjectContext = { ...CTX, excludedPaths: ["scripts/", "", "/"] };
+      const count = (file: string) =>
+        applyContextSuppressions([mkFinding({ id: "f1", evidence: [{ file, line: 1 }] })], odd).length;
+      expect(count("src/lib/scripts")).toBe(1);
+      expect(count("src/lib/users.ts")).toBe(1);
+    });
+
+    it("reads an entry the same with or without its trailing slash", () => {
+      const bare: ProjectContext = { ...CTX, excludedPaths: ["scripts"] };
+      const count = (file: string) =>
+        applyContextSuppressions([mkFinding({ id: "f1", evidence: [{ file, line: 1 }] })], bare).length;
+      expect(count("scripts/run.ts")).toBe(0);
+      expect(count("src/manuscripts/run.ts")).toBe(1);
+    });
+  });
+
   it("keeps findings outside excluded paths", () => {
     const finding = mkFinding({
       id: "f1",
