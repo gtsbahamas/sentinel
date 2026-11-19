@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { resetRegistry, registerRules, runRules } from "../../src/layers/rules/index.js";
+import { resetRegistry, registerRules, runRules, runRulesWithIgnored } from "../../src/layers/rules/index.js";
 import { authAccessControlRules } from "../../src/layers/rules/domains/auth-access-control.js";
 import { runRecon } from "../../src/layers/recon/index.js";
 import { emptyModel, makeEndpoint, stagedFixture } from "./helpers.js";
@@ -10,6 +10,14 @@ import { tmpdir } from "os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturePath = stagedFixture("vulnerable-nextjs");
+
+// The comment is honoured by the rule runner, not by each rule, so these run
+// the whole domain and read `ignored`.
+async function runAuthRules(model: Parameters<typeof runRulesWithIgnored>[0]) {
+  resetRegistry();
+  registerRules(authAccessControlRules);
+  return runRulesWithIgnored(model);
+}
 
 describe("auth-access-control rules", () => {
   it("flags mutation endpoint without auth (AUTH-001)", async () => {
@@ -153,8 +161,27 @@ describe("auth-access-control rules", () => {
           }),
         ],
       });
-      const findings = await auth011.check(model);
-      expect(findings).toHaveLength(0);
+      expect(await auth011.check(model)).toHaveLength(1);
+      const { findings, ignored } = await runAuthRules(model);
+      expect(findings.filter((f) => f.ruleId === "AUTH-011")).toHaveLength(0);
+      expect(ignored.map((i) => [i.ruleId, i.file, i.line])).toEqual([["AUTH-011", file, 1]]);
+    });
+
+    it("respects the // sentinel:ignore AUTH-001 pragma", async () => {
+      const file = makeTempFile(
+        [
+          "// Embeddable widget API, public on purpose.",
+          "// sentinel:ignore AUTH-001",
+          "export async function POST(req: Request) { await db.insert(await req.json()); return Response.json({}); }",
+          "",
+        ].join("\n"),
+      );
+      const model = emptyModel({
+        endpoints: [makeEndpoint({ path: "/api/leads", method: "POST", file, hasAuthCheck: false })],
+      });
+      const { findings, ignored } = await runAuthRules(model);
+      expect(findings.filter((f) => f.ruleId === "AUTH-001")).toHaveLength(0);
+      expect(ignored.map((i) => [i.ruleId, i.file, i.line])).toEqual([["AUTH-001", file, 2]]);
     });
   });
 
@@ -378,8 +405,12 @@ describe("auth-access-control rules", () => {
           }),
         ],
       });
-      const findings = await convention001.check(model);
-      expect(findings).toHaveLength(0);
+      expect(await convention001.check(model)).toHaveLength(1);
+      const { findings, ignored } = await runAuthRules(model);
+      expect(findings.filter((f) => f.ruleId === "CONVENTION-001")).toHaveLength(0);
+      expect(ignored.filter((i) => i.ruleId === "CONVENTION-001").map((i) => [i.file, i.line])).toEqual([
+        [files["src/app/api/admin/webhook/route.ts"], 1],
+      ]);
     });
   });
 
@@ -636,8 +667,46 @@ describe("auth-access-control rules", () => {
           },
         ],
       };
-      const findings = await pattern001.check(model);
-      expect(findings).toHaveLength(0);
+      expect(await pattern001.check(model)).toHaveLength(1);
+      const { findings, ignored } = await runAuthRules(model);
+      expect(findings.filter((f) => f.ruleId === "PATTERN-001")).toHaveLength(0);
+      expect(ignored.filter((i) => i.ruleId === "PATTERN-001").map((i) => [i.file, i.line])).toEqual([
+        [files["src/app/api/admin/users/route.ts"], 1],
+      ]);
+    });
+
+    it("an ignored CONVENTION-001 does not make PATTERN-001 go quiet on the same file", async () => {
+      // PATTERN-001 defers to CONVENTION-001 only when CONVENTION-001 really
+      // reports the file. Ignoring CONVENTION-001 must leave PATTERN-001 alarming.
+      const { root, files } = makeProject({
+        conventions: [{ match: "src/app/api/admin/**", require: "requireStaffPermission" }],
+        files: [
+          {
+            relPath: "src/app/api/admin/users/route.ts",
+            contents: "// sentinel:ignore CONVENTION-001\nexport async function GET() { return Response.json([]); }\n",
+          },
+        ],
+      });
+      const file = files["src/app/api/admin/users/route.ts"];
+      const model = {
+        ...emptyModel({
+          meta: { ...emptyModel().meta, path: root },
+          endpoints: [makeEndpoint({ path: "/api/admin/users", method: "GET", file })],
+        }),
+        inferredPatterns: [
+          {
+            domain: "auth" as const,
+            pathGlob: "src/app/api/admin/**",
+            dominantHelper: "requireStaffPermission",
+            prevalence: 0.94,
+            sampleSize: 17,
+            evidenceFiles: [],
+          },
+        ],
+      };
+      const { findings, ignored } = await runAuthRules(model);
+      expect(findings.filter((f) => f.ruleId === "PATTERN-001")).toHaveLength(1);
+      expect(ignored.map((i) => i.ruleId)).toEqual(["CONVENTION-001"]);
     });
   });
 });

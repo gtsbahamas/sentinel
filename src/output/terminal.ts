@@ -1,6 +1,8 @@
 import chalk from "chalk";
 import type {
   Finding,
+  IgnoredFinding,
+  SuppressedFinding,
   ProjectModel,
   Severity,
   VerifyResult,
@@ -24,7 +26,14 @@ export function formatTerminal(
   findings: Finding[],
   verifyResult?: VerifyResult | null,
   // `ignored`: findings left out because the config's `ignore` covers them.
-  options?: { keepDismissed?: boolean; ignored?: Finding[] },
+  // `ignoredByComment`: findings a `sentinel:ignore` comment covers.
+  // `suppressed`: findings the project context removed.
+  options?: {
+    keepDismissed?: boolean;
+    ignored?: Finding[];
+    ignoredByComment?: IgnoredFinding[];
+    suppressed?: SuppressedFinding[];
+  },
 ): string {
   const lines: string[] = [];
 
@@ -102,6 +111,41 @@ export function formatTerminal(
     lines.push(chalk.bold(`  IGNORED BY .sentinelrc.json (${ignored.length})`) + chalk.dim("  not counted above"));
     lines.push("");
     for (const f of ignored) lines.push(chalk.dim(`  ${describeIgnoredFinding(f)}`));
+  }
+
+  const ignoredByComment = options?.ignoredByComment ?? [];
+  if (ignoredByComment.length > 0) {
+    lines.push(chalk.dim(`  Ignored: ${ignoredByComment.length} (sentinel:ignore comment, not counted above)`));
+    lines.push("");
+    lines.push(chalk.bold(`  IGNORED (${ignoredByComment.length})`));
+    lines.push("");
+    for (const i of ignoredByComment) {
+      lines.push(
+        `  ${chalk.bold(i.ruleId)}  ${i.finding.title}  ${chalk.dim("[" + i.finding.severity + ", " + i.finding.domain + "]")}`,
+      );
+      lines.push(`           ${chalk.dim("sentinel:ignore at " + i.file + ":" + i.line)}`);
+    }
+  }
+
+  const suppressed = options?.suppressed ?? [];
+  if (suppressed.length > 0) {
+    lines.push(
+      chalk.dim(
+        `  Suppressed: ${suppressed.length} (project context, not counted above${options?.keepDismissed ? "" : "; list them with --no-dismiss"})`,
+      ),
+    );
+    if (options?.keepDismissed) {
+      lines.push("");
+      lines.push(chalk.bold(`  SUPPRESSED BY PROJECT CONTEXT (${suppressed.length})`));
+      lines.push("");
+      for (const s of suppressed) {
+        const f = s.finding;
+        const ev = f.evidence[0];
+        lines.push(`  ${chalk.bold(f.ruleId ?? f.id)}  ${f.title}  ${chalk.dim("[" + f.severity + ", " + f.domain + "]")}`);
+        if (ev) lines.push(`           ${chalk.dim(ev.file + (ev.line ? `:${ev.line}` : ""))}`);
+        lines.push(`           ${chalk.dim("Suppressed: " + s.reason)}`);
+      }
+    }
   }
 
   if (verifyResult) {

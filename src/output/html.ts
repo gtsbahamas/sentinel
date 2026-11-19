@@ -1,4 +1,4 @@
-import type { Finding, ProjectModel, Severity, SecurityDomain } from "../model/types.js";
+import type { Finding, IgnoredFinding, SuppressedFinding, ProjectModel, Severity, SecurityDomain } from "../model/types.js";
 import { compareSeverity } from "../model/severity.js";
 import { SECURITY_DOMAINS } from "../model/types.js";
 import type { LayerTiming } from "./json.js";
@@ -67,7 +67,31 @@ export function formatHtml(
   timing: LayerTiming,
   // Findings left out because the config's `ignore` covers them.
   ignored: Finding[] = [],
+  // Findings a `sentinel:ignore` comment covers.
+  ignoredByComment: IgnoredFinding[] = [],
+  // Findings the project context removed.
+  suppressed: SuppressedFinding[] = [],
 ): string {
+  const suppressedSection = suppressed.length
+    ? `
+<section class="domain-section" id="suppressed">
+  <h2>Suppressed by project context (${suppressed.length})</h2>
+  <p class="description">Removed by the project context (test and script paths, public routes, delegated checks). Not counted in the summary above.</p>
+  <table class="domain-table">
+    <thead><tr><th>Rule</th><th>Severity</th><th>Finding</th><th>File</th><th>Why</th></tr></thead>
+    <tbody>
+      ${suppressed
+        .map((s) => {
+          const ev = s.finding.evidence[0];
+          const where = ev ? `${ev.file}${ev.line !== undefined ? `:${ev.line}` : ""}` : "";
+          return `<tr><td><code>${escape(s.finding.ruleId ?? s.finding.id)}</code></td><td>${severityBadge(s.finding.severity)}</td><td>${escape(s.finding.title)}</td><td><code>${escape(where)}</code></td><td>${escape(s.reason)}</td></tr>`;
+        })
+        .join("")}
+    </tbody>
+  </table>
+</section>
+`
+    : "";
   const ignoredSection = ignored.length === 0 ? "" : `
 <section class="domain-section" id="ignored">
   <h2>Ignored by .sentinelrc.json (${ignored.length})</h2>
@@ -77,6 +101,25 @@ export function formatHtml(
   </ul>
 </section>
 `;
+  const ignoredByCommentSection = ignoredByComment.length
+    ? `
+<section class="domain-section" id="ignored-by-comment">
+  <h2>Ignored (${ignoredByComment.length})</h2>
+  <p class="description">Covered by a <code>sentinel:ignore</code> comment. Not counted in the summary above.</p>
+  <table class="domain-table">
+    <thead><tr><th>Rule</th><th>Severity</th><th>Finding</th><th>Comment at</th></tr></thead>
+    <tbody>
+      ${ignoredByComment
+        .map(
+          (i) =>
+            `<tr><td><code>${escape(i.ruleId)}</code></td><td>${severityBadge(i.finding.severity)}</td><td>${escape(i.finding.title)}</td><td><code>${escape(i.file)}:${i.line}</code></td></tr>`,
+        )
+        .join("")}
+    </tbody>
+  </table>
+</section>
+`
+    : "";
   const summary: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const f of findings) summary[f.severity]++;
 
@@ -246,8 +289,10 @@ export function formatHtml(
 
 ${domainSections}
 ${ignoredSection}
+${ignoredByCommentSection}
+${suppressedSection}
 <footer>
-  Sentinel v${VERSION} — ${findings.length} findings across ${byDomain.size} domains
+  Sentinel v${VERSION} — ${findings.length} findings across ${byDomain.size} domains${ignored.length + ignoredByComment.length ? `, ${ignored.length + ignoredByComment.length} ignored` : ""}${suppressed.length ? `, ${suppressed.length} suppressed` : ""}
 </footer>
 </div>
 </body>
