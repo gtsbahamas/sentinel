@@ -1,0 +1,14 @@
+verified-request src/app/api/fc/q01-error-field/route.ts
+verified-request src/app/api/member/desk/route.ts
+verified-request src/app/api/member/inside/route.ts
+verified-request src/app/api/member/note/route.ts
+verified-request src/app/api/member/policy/route.ts
+verified-request src/app/api/member/thrown/route.ts
+verified-request src/app/api/rr/s02-not-and/route.ts
+verified-request src/app/api/rr/s03-inside-else/route.ts
+verified-request src/app/api/rr/s04-block-log/route.ts
+verified-request src/app/api/rr/s05-eq-null/route.ts
+verified-request src/app/api/rr/s08-optional-id/route.ts
+verified-request src/app/api/rr/s14-in-try/route.ts
+verified-request src/app/api/rr/s15-or-role/route.ts
+verified-request src/app/api/rr/s16-typeof/route.ts

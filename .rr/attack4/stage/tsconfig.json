@@ -1,0 +1,4 @@
+{
+  // Path alias, as most Next.js apps have it.
+  "compilerOptions": { "allowImportingTsExtensions": true, "paths": { "@/*": ["./src/*"] } }
+}

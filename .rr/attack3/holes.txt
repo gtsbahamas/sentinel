@@ -1,0 +1,85 @@
+Attack round 3 on head 266945e (fix/false-positives-root-cause) vs .rr/master
+Stage: .rr/attack3/stage (generator: .rr/attack3/make.py). Scans: out-main.txt, out-head.txt (3 head runs identical).
+Per-route guard kind at head: npx tsx .rr/attack3/why.mts "$PWD" "$PWD/.rr/attack3/stage"
+
+Attempts: 40 AUTH-001 + 10 CRYPTO-008 (+ 2 AUTH controls, 1 CRYPTO control, 3 guarded twins).
+Silent at head and reported by master (observed, two scans): 34 AUTH-001 files, 10 CRYPTO-008 lines.
+Of those, confirmed holes: 31 AUTH-001 + 10 CRYPTO-008. Not confirmed: y33 (next-auth `raw: true` behaviour is from
+memory of the library, no copy installed to read), y35 (assumes instrumentation.ts and the route share one module
+instance), y40 (valid JS, but TS strict rejects it with TS2454).
+Evidence level: the master/head difference is observed. Exploitability is by reading the code against JS semantics;
+run.mts additionally RAN y05, y11, y12, y22-y27, y43 and k05 in Node (all behaved as claimed). tsc --strict over the
+yy files is clean apart from y40 and unresolved package imports (ajv, next-auth, memjs, supabase are not installed).
+Config-conditional: y04 (open when HOOK is unset), y06 (open when the two env values are equal, including both unset).
+About 22 distinct root causes; sections A-F and CRYPTO below name the function for each.
+Controls y01, y02, k10 stay reported. Twins y13a, y14a, y15a are really guarded (correctly silent).
+package.json of the stage gained next-auth and ajv (y33, y10 only).
+(a) = ordinary code a developer could write; (b) = contrived but valid.
+All routes are src/app/api/yy/<name>/route.ts; helpers in src/lib/yy/.
+
+== A. What counts as "a secret" / a real comparison  (secretDerived, platformCheck) ==
+y03-shipped-key (a)            x-api-key compared with process.env.NEXT_PUBLIC_API_KEY (ships in the browser bundle). Any process.env.* is a secret. [secretDerived]
+y04-unset-means-echo (a)       expected = secret ? mac(secret, raw) : sent; compared with sent. A `?:` that only mentions process.env makes the value "secret". Open when HOOK is unset. [secretDerived]
+y05-common-prefix (a)          n = Math.min(x.length, y.length); timingSafeEqual(x.subarray(0,n), y.subarray(0,n)). An empty header matches. Unconditional. [platformCheck: no check that the whole value is compared]
+y06-neither-side-sent (b)      timingSafeEqual(env A, env B): nothing from the request is compared. [platformCheck]
+y07-secret-in-same-object (b)  checkOk({ secret: env, header, body }) compares header with body; the parameter object is "secret" as a whole. [secretDerived: field-blind]
+y08-rest-values (b)            restOk(env, a, b) with (...v) compares v[1] with v[2]; a rest parameter is read as its first argument. [secretDerived]
+y09-caller-brings-key (b)      key = req.headers.get("x-tenant-key") ?? process.env.HOOK; MAC with that key. [secretDerived]
+y33-raw-bearer (a)             next-auth getToken({ req, raw: true }) returns the cookie unverified; any non-empty cookie passes. [platformCheck: getToken options not read]
+
+== B. Which code a call runs  (Project.resolveCall, methodsOf, madeBy) ==
+y10-method-by-name (a)         ajv.validate(shape, body) (a package object in a module const) is resolved to the project's unrelated hook.validate(req), reached through a barrel import, and taken for a signature check. [resolveCall -> methodsNamed by name only]
+y11-subclass-override (a)      Desk.guard() calls this.member(); the instance is OpenDesk, whose member() answers a guest. this.x() is resolved to the enclosing class only. [resolveCall, this branch]
+y12-constructor-swaps-method (b) constructor does this.passes = async () => guest; this.passes() still resolved to the method. [resolveCall, this branch; skips methodsOf "unknown"]
+y35-patched-elsewhere (b)      keeper.passThrough = () => true in a file loaded by instrumentation.ts, outside the route's import closure. [methodsOf: only the closure is looked at]
+y36-client-patched (b)         export const sb = createClient(...); sb.auth.getUser = fake; imported const followed with no reassignment check. [madeBy -> topVariable]
+y40-switch-shadow (b, JS only; TS strict rejects with TS2454) `const who` in `case 1:` shadows the import in `default:` after fall-through; scope lookup stops at the clause. [declarationOf]
+
+== C. Memoisation across routes  (proofMemo / inertMemo are per function, method lookup is per entry) ==
+y14z-holder-guest (a)          holderOf(g) { return g.present() } proven while walking y14a (only memberDoor.present in that route's closure); the kept proof is reused for this route, which passes guestDoor. [proveFn memo]
+y15z-sink-disk (b)             remember(sink, v) { await sink.stash(v) } judged inert while walking y15a (no-op sink); reused here where sink writes, before the guard. [isInertFn memo]
+  Both depend on which route is walked first (endpoint order is not sorted). The reverse order gives a false positive instead (y14y-bearer-member, really guarded, is reported).
+
+== D. Effects the inert list lets through before the guard  (isInert / isInertCall) ==
+y22-array-from-by-name (a)     await Promise.all(Array.from(sent.rows, save)); save writes; a function passed by name to Array.from is not read.
+y23-replace-by-name (b)        raw.replace(/\w+/g, save); the second argument is not looked at.
+y24-reviver-by-name (b)        JSON.parse(text, keep).
+y25-getter-by-destructuring (b) const { next } = tally; the getter check only covers `a.b` reads.
+y26-to-string-in-template (b)  `${stamp}` with a toString() that writes (methods in a literal are skipped as definitions).
+y27-thenable-awaited (b)       await { then() { write } }.
+y43-to-json (b)                JSON.stringify({ toJSON() { write } }).
+y28-package-named-log (b)      import log from "memjs"; log.Client.create().set(...): any call rooted at an import named log/logger from any listed package is logging. [isLogging]
+
+== E. What everyone is answered  (Walk.ungatedReturn, proveValue) ==
+y18-module-value-through-local (a) const all = vault; return Response.json({ keys: [...all.entries()] }). The a25 fix only refuses module names written in the return itself.
+y19-module-value-through-helper (a) return Response.json(allKeys()) where allKeys() returns a module Map. No auth anywhere: `const VERBOSE = false; if (VERBOSE) ...` sets walk.used (an empty literal counts as a proven test).
+y20-mint-for-anyone (a)        returns `${userId}.${HMAC(SESSION_SECRET, userId)}` for any userId sent; same VERBOSE trick.
+y21-env-answered (b)           return Response.json({ stripe: process.env.STRIPE_LIVE }).
+y48-local-named-cookies (b)    const cookies = sessions; cookies.getAll(): a local whose NAME ends in cookies/headers/params makes get/getAll/has inert. [isInertCall LOOKUP_METHODS]
+
+== F. Visitor limit / link token  (limitingIf, handlerGuard, tokenUse) ==
+y29-write-taken-for-count (a)  position = await addLead({ ip, email }); if (position > 5000) return 409. The write itself is the "count". [limitingIf]
+y30-limiter-answer-ignored (a) over = await tooMany(ip); if (over) console.warn(...) (no return); then addLead({ ip, ... }). [handlerGuard visitor-limit: the helper's refusal need not reach the handler]
+y31-limiter-never-read (a)     await tooMany(ip); then the write. Same.
+l/[token]/y32-hash-stored-answer-kept (a) const saved = await addClaim(digestOf(token), body). The a30 fix only catches a call whose answer is thrown away. [tokenUse]
+l/[token]/y34-hash-sent-outward (b) fetch(`https://.../${digestOf(token)}`, { method: "POST", body }). [tokenUse + isInert accept]
+
+== CRYPTO-008  (isRecordLookup, provenHash, plainValue) ==
+k01.ts:8 (a)   sentSigs.find((s) => s.signature === sha(secret)), secret a parameter: hash of the SERVER secret matched with rows the caller sent (c01 with the secret handed in). [plainValue: any parameter; stored(): any parameter]
+k02.ts:9 (b)   same with rows from `await readSigs(header)`. [stored(): awaited read]
+k09.ts:8 (a)   same split in two functions: siftRows(rows, h) called with sha(secret). [provenHash parameter rule]
+k11.ts:10 (b)  same with rows kept in a module `let` filled from the request. [stored(): not local]
+k03.ts:8 (a)   keyFor(lookup, raw?) retries with keyFor(raw) on a miss (legacy plain rows); calls inside the function itself are skipped. [provenHash occurrence scan]
+k04.ts:7 (a)   raw caller through `const store = await import("./k04.ts"); store.rowFor(sent)`: a property call that does not resolve is ignored. [provenHash occurrence scan]
+k05.ts:9 (b)   function padFor(this: void, pad, lookup): `this` shifts the parameter index, the hash is checked at the wrong argument. [provenHash]
+k06.ts:10 (b)  inner `const s = parseOne(header)` shadows the loop row; iterated() matches the row by name. [isRecordLookup iterated]
+k07.ts:8 (b)   `req.headers\n.get("x-admin-token") === adminToken || keys.find(...)`: the raw comparison starts on the line above and is not among the line's equalities. [isRecordLookup line window]
+k08.ts:3 (a)   sent.token === "9f8a7c6b5d4e3f2a1b0c9d8e7f6a5b4c": a line whose only comparisons are with literals is a "lookup" (every() over fixed, no lookup required). [isRecordLookup]
+
+== Tried and still reported at head (closed) ==
+y13z door strategy with a signature check (no memo kept when a call-site argument was read), y14b (lax walked first),
+y16 / y17 module or proven value written through a fresh wrapper object (any field write voids boundTo),
+y41 class named crypto, y42 `import crypto = Dev.crypto` (the same-named method is found and read).
+
+Not counted, noted: `process.env.X ?? ""` as key or expected value is accepted in the existing fixtures (zz/who.ts signed);
+with X unset an empty header passes.

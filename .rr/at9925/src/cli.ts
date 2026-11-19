@@ -1,0 +1,244 @@
+#!/usr/bin/env node
+import { Command } from "commander";
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+import { resolveTarget } from "./resolve-target.js";
+import { runScan } from "./commands/scan.js";
+import { runDiff } from "./commands/diff.js";
+import { runProbeCommand } from "./commands/probe.js";
+import { runContextCommand } from "./commands/context.js";
+import { runFixCommand } from "./commands/fix.js";
+import { runMcp } from "./commands/mcp.js";
+import { runInit } from "./commands/init.js";
+import { runPatterns } from "./commands/patterns.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkgPath = join(__dirname, "..", "package.json");
+const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+
+const program = new Command();
+
+program
+  .name("sentinel")
+  .description("Security assessment CLI for Next.js + Supabase codebases")
+  .version(pkg.version);
+
+// Deferred exit: set process.exitCode and let Node drain stdout naturally.
+// Using process.exit() after a large stdout.write() can truncate output
+// at the pipe buffer boundary (~64KB).
+function exitAfterDrain(code: number): void {
+  process.exitCode = code;
+}
+
+program
+  .command("scan")
+  .description("Run Recon + Rules (+ AI) scan against a project")
+  .argument("<path>", "Path or GitHub URL (e.g. https://github.com/user/repo)")
+  .option("-f, --format <format>", "Output format (terminal|json|html)", "terminal")
+  .option("-o, --out <file>", "Write report to file instead of stdout")
+  .option("--fail-on <level>", "Exit 1 if findings at or above level")
+  .option("--ai", "Enable AI layer (opt-in)")
+  .option("--ai-deep", "Enable Stage A project-wide risk pass")
+  .option("--ai-dry-run", "Estimate cost only, make no API calls")
+  .option("--ai-provider <name>", "AI provider (anthropic|openai|ollama|mock)")
+  .option("--ai-model <id>", "AI model id")
+  .option("--ai-max-cost <usd>", "Hard budget cap in USD", parseFloat)
+  .option("--ai-concurrency <n>", "Parallel endpoint analyses", parseInt)
+  .option(
+    "--ai-magic-link <glob>",
+    "Glob for endpoints protected by unguessable URL tokens (repeatable)",
+    (val: string, prev: string[] = []) => [...prev, val],
+    [] as string[],
+  )
+  .option("--verify", "Run AI verification pass over rule findings")
+  .option("--verify-model <id>", "Verifier model id")
+  .option("--verify-max-cost <usd>", "Verifier budget cap in USD", parseFloat)
+  .option("--verify-concurrency <n>", "Parallel per-file verifications", parseInt)
+  .option(
+    "--verify-min-severity <level>",
+    "Only verify findings at or above level (critical|high|medium|low|info)",
+  )
+  .option("--no-dismiss", "Keep dismissed findings in the report (trust-building mode)")
+  .option("--dashboard", "Open real-time attack surface visualization in browser")
+  .option("--port <number>", "Dashboard server port (default: 4400)", parseInt)
+  .option("--shipsafe-url <url>", "ShipSafe base URL to push scan results to (env: SHIPSAFE_URL)")
+  .option("--shipsafe-token <token>", "ShipSafe scanner bearer token (env: SHIPSAFE_TOKEN)")
+  .option("--shipsafe-project <id>", "ShipSafe project id (env: SHIPSAFE_PROJECT_ID)")
+  .option("--shipsafe-run-id <id>", "Optional sentinel run id to correlate with ShipSafe (env: SHIPSAFE_RUN_ID)")
+  .action(async (rawPath, options) => {
+    const path = await resolveTarget(rawPath);
+    const exitCode = await runScan({
+      path,
+      format: options.format,
+      failOn: options.failOn,
+      outFile: options.out,
+      ai: options.ai,
+      aiDeep: options.aiDeep,
+      aiDryRun: options.aiDryRun,
+      aiProvider: options.aiProvider,
+      aiModel: options.aiModel,
+      aiMaxCost: options.aiMaxCost,
+      aiConcurrency: options.aiConcurrency,
+      aiMagicLinkRoutes: options.aiMagicLink,
+      verify: options.verify,
+      verifyModel: options.verifyModel,
+      verifyMaxCost: options.verifyMaxCost,
+      verifyConcurrency: options.verifyConcurrency,
+      verifyMinSeverity: options.verifyMinSeverity,
+      dismiss: options.dismiss,
+      dashboard: !!options.dashboard,
+      dashboardPort: options.port,
+      shipsafeUrl: options.shipsafeUrl,
+      shipsafeToken: options.shipsafeToken,
+      shipsafeProjectId: options.shipsafeProject,
+      shipsafeRunId: options.shipsafeRunId,
+    });
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("diff")
+  .description("Diff two sentinel JSON reports — shows new, resolved, and unchanged findings")
+  .argument("<baseline>", "Path to baseline JSON report")
+  .argument("<current>", "Path to current JSON report")
+  .option("-f, --format <format>", "Output format (terminal|json)", "terminal")
+  .option("--fail-on <level>", "Exit 1 if NEW findings at or above level")
+  .action(async (baseline, current, options) => {
+    const exitCode = await runDiff({
+      baseline,
+      current,
+      format: options.format,
+      failOn: options.failOn,
+    });
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("probe")
+  .description("Run Recon + Rules + Probe against a running application")
+  .argument("<path>", "Path to the project to scan")
+  .requiredOption("--target <url>", "Running application URL (scheme://host[:port])")
+  .option("--level <level>", "Aggression level (passive|standard|intrusive)", "passive")
+  .option("--authorize", "Grant authorization for this target")
+  .option("-f, --format <format>", "Output format (terminal|json)", "terminal")
+  .option("--fail-on <level>", "Exit 1 if findings at or above level")
+  .option("--allow-public", "Allow public TLD targets")
+  .option("--internal-network", "Allow RFC1918 targets")
+  .option("--request-cap <n>", "Override default request cap", parseInt)
+  .option("--target-timeout <ms>", "Per-request timeout in ms", parseInt)
+  .action(async (path, options) => {
+    const exitCode = await runProbeCommand({
+      path,
+      target: options.target,
+      level: options.level,
+      authorize: !!options.authorize,
+      format: options.format,
+      failOn: options.failOn,
+      allowPublic: options.allowPublic,
+      internalNetwork: options.internalNetwork,
+      requestCap: options.requestCap,
+      targetTimeout: options.targetTimeout,
+    });
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("context")
+  .description("Generate or display project context for smarter scanning")
+  .argument("<path>", "Path to the project")
+  .option("--show", "Display current context without regenerating")
+  .option("--accept-defaults", "Accept all auto-inferred values without prompting")
+  .option("--only <sections>", "Regenerate only specific sections (comma-separated)")
+  .action(async (path, options) => {
+    const exitCode = await runContextCommand({
+      path,
+      show: options.show,
+      acceptDefaults: options.acceptDefaults,
+      only: options.only,
+    });
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("fix")
+  .description("Apply automated fixes to findings from a scan")
+  .argument("<path>", "Path to the project to fix")
+  .option("--from <file>", "Load findings from a JSON report file instead of re-scanning")
+  .option(
+    "--rule <id>",
+    "Only fix findings for specific rule ID (repeatable)",
+    (val: string, prev: string[] = []) => [...prev, val],
+    [] as string[],
+  )
+  .option("--dry-run", "Show what would be changed without writing files")
+  .option("--no-ai", "Skip AI-powered fixes (deterministic fixes only)")
+  .option("--ai-provider <name>", "AI provider (anthropic|openai|ollama|mock)")
+  .option("--ai-model <id>", "AI model id")
+  .option("--ai-max-cost <usd>", "Hard budget cap in USD for AI fixes", parseFloat)
+  .option("--ai-concurrency <n>", "Parallel AI fix requests", parseInt)
+  .option("--converge", "Re-scan after fixing and repeat until no more fixes land")
+  .option("--max-rounds <n>", "Maximum convergence rounds (default: 5)", parseInt)
+  .option("--dashboard", "Open real-time fix visualization in browser")
+  .option("--port <number>", "Dashboard server port (default: 4400)", parseInt)
+  .action(async (rawPath, options) => {
+    const path = await resolveTarget(rawPath);
+    const exitCode = await runFixCommand({
+      path,
+      from: options.from,
+      rule: options.rule,
+      dryRun: options.dryRun,
+      noAI: !options.ai, // commander converts --no-ai to options.ai = false
+      aiProvider: options.aiProvider,
+      aiModel: options.aiModel,
+      aiMaxCost: options.aiMaxCost,
+      aiConcurrency: options.aiConcurrency,
+      converge: options.converge,
+      maxRounds: options.maxRounds,
+      dashboard: !!options.dashboard,
+      dashboardPort: options.port,
+    });
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("mcp")
+  .description(
+    "Run Sentinel as an MCP server (stdio transport) for IDE integration with Claude Code, Cursor, VS Code",
+  )
+  .action(runMcp);
+
+program
+  .command("init")
+  .description(
+    "Wire Sentinel into your AI coding agent — installs a Claude Code skill that scans before pushes, PRs, and deploys",
+  )
+  .option("--with-claude-code", "Install the Claude Code skill (default and only target today)")
+  .option(
+    "--project",
+    "Install into ./.claude/skills of the current repo (committable — the whole team's agents pick it up) instead of ~/.claude/skills",
+  )
+  .action(async (options) => {
+    const exitCode = await runInit({
+      withClaudeCode: !!options.withClaudeCode,
+      project: !!options.project,
+    });
+    exitAfterDrain(exitCode);
+  });
+
+program
+  .command("patterns")
+  .description(
+    "Inspect or initialize auth patterns Sentinel inferred from your codebase",
+  )
+  .argument("<path>", "Path to the project")
+  .option("--init", "Write inferred patterns to .sentinelrc.json as conventions")
+  .option("--force", "Overwrite existing conventions when used with --init")
+  .action(async (path, options) => {
+    await runPatterns(path, {
+      init: !!options.init,
+      force: !!options.force,
+    });
+  });
+
+program.parseAsync(process.argv);
