@@ -10,6 +10,15 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// A severity tag. The severity comes from a report, so the class takes only a
+// known severity and the label is escaped.
+var KNOWN_SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'];
+function sevTag(severity, suffix, style) {
+  var cls = KNOWN_SEVERITIES.indexOf(severity) === -1 ? 'sev-tag' : 'sev-tag ' + severity;
+  return '<span class="' + cls + '"' + (style ? ' style="' + style + '"' : '') + '>' +
+    escapeHtml(String(severity)) + (suffix || '') + '</span>';
+}
+
 // ---- Scan status display ----
 function updateScanStatus(text) {
   var el = document.getElementById('scanStatusText');
@@ -144,7 +153,7 @@ function renderSummary() {
 
   var vulnRows = sortedGroups.map(function(g) {
     return '<div class="vuln-summary-row" data-vuln-title="' + escapeHtml(g.title) + '" onclick="showVulnFromSummary(\'' + escapeHtml(g.title).replace(/'/g, "\\'") + '\')">' +
-      '<span class="sev-tag ' + g.severity + '">' + g.severity + '</span>' +
+      sevTag(g.severity) +
       '<span class="vuln-summary-name">' + escapeHtml(g.title) + '</span>' +
       '<span class="vuln-summary-instances">' + g.totalInstances + ' instance' + (g.totalInstances !== 1 ? 's' : '') + '</span>' +
     '</div>';
@@ -203,7 +212,7 @@ function renderSummary() {
       '<div class="summary-section-title">Ignored by .sentinelrc.json (' + ignored.length + ') — not counted above</div>' +
       '<div class="vuln-list">' + ignored.map(function(f) {
         return '<div class="vuln-summary-row">' +
-          '<span class="sev-tag ' + f.severity + '">' + f.severity + '</span>' +
+          sevTag(f.severity) +
           '<span class="vuln-summary-name">' + escapeHtml(f.title) + '</span>' +
           '<span class="vuln-summary-instances">' + escapeHtml(f.file + (f.line ? ':' + f.line : '')) + '</span>' +
         '</div>';
@@ -320,7 +329,7 @@ function renderNodeDetail(node) {
         '</div>' +
         '<div class="vuln-card-meta">' +
           '<span class="instance-badge">' + g.instances.length + 'x</span>' +
-          '<span class="sev-tag ' + g.severity + '">' + g.severity + '</span>' +
+          sevTag(g.severity) +
           '<svg class="chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
         '</div>' +
       '</div>' +
@@ -348,7 +357,7 @@ function renderNodeDetail(node) {
             '<span class="node-stat">&#183;</span>' +
             '<span class="node-stat"><strong>' + totalInstances + '</strong> instances</span>' +
             '<span class="node-stat">&#183;</span>' +
-            '<span class="sev-tag ' + sev + '" style="font-size:9px; padding:1px 6px;">' + sev + ' risk</span>' +
+            sevTag(sev, ' risk', 'font-size:9px; padding:1px 6px;') +
           '</div>' +
         '</div>' +
       '</div>' +
