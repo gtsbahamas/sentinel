@@ -230,4 +230,12 @@ describe("fix: ignored findings", () => {
     expect(summary.ignored.every((f) => inTools(f.file))).toBe(true);
     expect(summary.findings.critical).toBeGreaterThan(0);
   });
+
+  it("--from: a report's ignored list reaches the dashboard", async () => {
+    const reportPath = join(project, "report.json");
+    writeFileSync(reportPath, JSON.stringify({ findings: [], ignored: [aiFinding("FROM-IGNORED", join(project, "tools", "hash.ts"))] }));
+    const { emitter, events } = collect();
+    await runFixCommand({ path: project, from: reportPath, converge: true, maxRounds: 1, noAI: true, emitter });
+    expect(complete(events).ignored.map((f) => f.id)).toEqual(["FROM-IGNORED"]);
+  });
 });

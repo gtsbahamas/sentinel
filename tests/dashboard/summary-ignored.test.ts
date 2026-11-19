@@ -5,15 +5,19 @@ import { fileURLToPath } from "url";
 import { runInNewContext } from "vm";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const sidebar = readFileSync(join(__dirname, "..", "..", "src", "dashboard", "client", "sidebar.js"), "utf-8");
+const client = join(__dirname, "..", "..", "src", "dashboard", "client");
+const sidebar = readFileSync(join(client, "sidebar.js"), "utf-8");
+const appSource = readFileSync(join(client, "app.js"), "utf-8");
+// app.js without its boot step (lane building and the websocket).
+const app = appSource.slice(0, appSource.indexOf("// ---- Boot ----"));
 
-// The summary panel, rendered with the smallest document the sidebar touches.
-function renderSummary(ignored: unknown[]): string {
+function fakeDocument() {
   const elements: Record<string, { innerHTML: string; scrollTop: number }> = {
     detailContent: { innerHTML: "", scrollTop: 0 },
   };
   const document = {
     getElementById: (id: string) => elements[id] ?? null,
+    querySelectorAll: () => [],
     createElement: () => {
       let text = "";
       return {
@@ -26,17 +30,21 @@ function renderSummary(ignored: unknown[]): string {
       };
     },
   };
+  return { document, elements };
+}
+
+const SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
+
+// The summary panel, rendered with the smallest document the sidebar touches.
+function renderSummary(ignored: unknown[]): string {
+  const { document, elements } = fakeDocument();
   const state = {
     nodes: [],
     findings: [{ severity: "high", title: "kept one" }],
     isConverge: false,
     ignored,
   };
-  runInNewContext(`${sidebar}\nrenderSummary();`, {
-    document,
-    state,
-    SEVERITY_RANK: { critical: 4, high: 3, medium: 2, low: 1, info: 0 },
-  });
+  runInNewContext(`${sidebar}\nrenderSummary();`, { document, state, SEVERITY_RANK });
   return elements.detailContent.innerHTML;
 }
 
@@ -55,5 +63,20 @@ describe("dashboard summary: findings the config ignores", () => {
 
   it("show no such section when there are none", () => {
     expect(renderSummary([])).not.toContain("Ignored by .sentinelrc.json");
+  });
+
+  it("are taken from scan:complete, in a converge round too, and shown on the summary", () => {
+    const { document, elements } = fakeDocument();
+    runInNewContext(
+      `${sidebar}\n${app}\n` +
+        // A converge round's scan:complete returns early; the list must already be kept.
+        `state.isConverge = true;
+        handleScanComplete({ summary: { ignored: [{ id: "IG-2", severity: "high", title: "From the event", file: "tools/a.ts" }] } });
+        state.isConverge = false;
+        renderSummary();`,
+      { document, SEVERITY_RANK },
+    );
+    expect(elements.detailContent.innerHTML).toContain("Ignored by .sentinelrc.json (1)");
+    expect(elements.detailContent.innerHTML).toContain("tools/a.ts");
   });
 });
