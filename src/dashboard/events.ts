@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import type { Severity, SecurityDomain, Layer } from "../model/types.js";
+import type { Finding, Severity, SecurityDomain, Layer } from "../model/types.js";
 
 // ── Lane assignment ──────────────────────────────────────────────────────────
 
@@ -65,6 +65,22 @@ export interface FindingEventData {
   remediation?: string;
 }
 
+export function toFindingEventData(f: Finding): FindingEventData {
+  return {
+    id: f.id,
+    ruleId: f.ruleId,
+    severity: f.severity,
+    title: f.title,
+    description: f.description,
+    impact: f.impact,
+    file: f.evidence[0]?.file ?? "",
+    line: f.evidence[0]?.line,
+    domain: f.domain,
+    layer: f.layer,
+    remediation: f.remediation,
+  };
+}
+
 // ── Edge event data ──────────────────────────────────────────────────────────
 
 export interface EdgeEventData {
@@ -81,6 +97,8 @@ export interface ScanSummary {
   dataModels: number;
   externalServices: number;
   findings: Record<Severity, number>;
+  // Left out by the config's `ignore`: listed, never in `findings` or the graph.
+  ignored: FindingEventData[];
   durationMs: number;
 }
 

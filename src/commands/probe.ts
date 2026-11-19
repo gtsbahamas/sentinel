@@ -1,18 +1,8 @@
 import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
-import { runRules, registerRules, resetRegistry } from "../layers/rules/index.js";
-import { secretsExposureRules } from "../layers/rules/domains/secrets-exposure.js";
-import { inputInjectionRules } from "../layers/rules/domains/input-injection.js";
-import { authAccessControlRules } from "../layers/rules/domains/auth-access-control.js";
-import { fileUploadRules } from "../layers/rules/domains/file-upload.js";
-import { supplyChainRules } from "../layers/rules/domains/supply-chain.js";
-import { repoIntegrityRules, resetRepoIntegrityCache } from "../layers/rules/domains/repo-integrity.js";
-import { cryptographyRules } from "../layers/rules/domains/cryptography.js";
-import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitoring.js";
-import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
-import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
-import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
-import { llmFeatureRules } from "../layers/rules/domains/llm-features.js";
+import { runRules } from "../layers/rules/index.js";
+import { registerAllRules } from "./register-rules.js";
+import { splitIgnoredFindings } from "../utils/ignored-findings.js";
 import {
   runProbe,
   resolveAuthorization,
@@ -109,22 +99,12 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
     process.stderr.write("Run `sentinel context` to reduce false positives.\n\n");
   }
 
-  resetRegistry();
-  registerRules(secretsExposureRules);
-  registerRules(inputInjectionRules);
-  registerRules(authAccessControlRules);
-  registerRules(fileUploadRules);
-  registerRules(supplyChainRules);
-  registerRules(repoIntegrityRules);
-  // Memoized whole-tree walk must not survive into the next scan in this process.
-  resetRepoIntegrityCache();
-  registerRules(cryptographyRules);
-  registerRules(loggingMonitoringRules);
-  registerRules(apiSecurityRules);
-  registerRules(businessLogicRules);
-  registerRules(infrastructureRules);
-  registerRules(llmFeatureRules);
-  const ruleFindings = await runRules(model, context);
+  registerAllRules();
+  const { kept: ruleFindings, ignored } = splitIgnoredFindings(
+    await runRules(model, context),
+    options.path,
+    config.ignore,
+  );
 
   process.stderr.write(`Running probe against ${options.target} (level: ${options.level})...\n`);
   const { result, mergedFindings } = await runProbe(model, ruleFindings, probeConfig);
@@ -135,13 +115,10 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
   );
 
   if (options.format === "json") {
-    const body = formatJson(model, allFindings, {
-      recon_ms: 0,
-      rules_ms: 0,
-    });
+    const body = formatJson(model, allFindings, { recon_ms: 0, rules_ms: 0 }, null, ignored);
     process.stdout.write(body);
   } else {
-    process.stdout.write(formatTerminal(model, allFindings));
+    process.stdout.write(formatTerminal(model, allFindings, null, { ignored }));
     process.stdout.write("\n" + formatProbeReport(result) + "\n");
   }
 

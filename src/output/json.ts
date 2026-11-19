@@ -5,6 +5,7 @@ import type {
   Severity,
   VerifyResult,
 } from "../model/types.js";
+import { VERSION } from "../version.js";
 
 export interface LayerTiming {
   recon_ms: number;
@@ -18,6 +19,8 @@ export function formatJson(
   findings: Finding[],
   timing: LayerTiming,
   verifyResult?: VerifyResult | null,
+  // Findings left out because the config's `ignore` covers them.
+  ignored: Finding[] = [],
 ): string {
   const summary: Record<Severity, number> = {
     critical: 0, high: 0, medium: 0, low: 0, info: 0,
@@ -27,7 +30,7 @@ export function formatJson(
   const aiLayerStatus = timing.ai ? "complete" : "skipped";
 
   const output = {
-    version: "0.1.0",
+    version: VERSION,
     timestamp: new Date().toISOString(),
     project: {
       name: model.meta.name,
@@ -62,6 +65,7 @@ export function formatJson(
     summary: {
       ...summary,
       total: findings.length,
+      ignored: ignored.length,
       by_domain: Object.fromEntries(
         [...new Set(findings.map((f) => f.domain))].map((d) => [
           d,
@@ -70,6 +74,7 @@ export function formatJson(
       ),
     },
     findings,
+    ignored,
     model,
     ...(verifyResult
       ? {

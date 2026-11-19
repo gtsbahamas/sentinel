@@ -36,7 +36,7 @@ lives in `.claude/skills/` and rides the repo to every contributor.
 - Known-vulnerable dependencies: every exact version in `pnpm-lock.yaml`, `package-lock.json` or `yarn.lock` is checked live against [OSV.dev](https://osv.dev) (no key). Offline, OSV down, no lockfile, or `SENTINEL_OFFLINE=1`: the scan still finishes on a small built-in list and reports `SUPPLY-011 Live vulnerability check skipped`. Each `SUPPLY-001` finding in JSON output carries an `advisory` object (id, package, installed and fixed version, published date, severity).
 - Monitoring hosts: `selectAdvisoryAlerts(advisories, alreadyAlertedKeys)` from `shipsafe-sentinel/dist/monitor/advisory-alerts.js` turns a scan's live advisories into alerts, critical/high only and once per advisory per project (store each alert's `key` and pass the stored keys back). Each alert names the package, installed version, advisory id, published date and fixed version. `advisoriesFromFindings(findings)` pulls the advisories off a JSON report; curated fallback entries never alert.
 
-Full rule catalog: `shipsafe-sentinel scan --list-rules`.
+Full rule catalog: `shipsafe-sentinel scan --list-rules` prints every rule's id, severity and title (add `--format json` for a machine-readable list).
 
 ## Output
 
@@ -81,6 +81,10 @@ Optional `.sentinelrc.json` in your repo root:
   }
 }
 ```
+
+- `ignore`: paths you want no findings from. They are still scanned; a finding that sits wholly under one is left out of the findings, the totals and the exit code, and is listed and counted under "ignored" in every report so nothing disappears unseen. `exclude` is different: it replaces the built-in list of paths the scan never reads (`node_modules`, `.next`, `dist` and so on).
+- `failOn`: the lowest severity that makes the scan exit `1` (`critical`, `high`, `medium`, `low` or `info`; default `high`). Also accepted as `severity.failOn`, which wins if both are set; `--fail-on` on the command line beats both.
+- A key Sentinel does not know is named in a warning on stderr and otherwise skipped, so a typo cannot quietly switch a setting off.
 
 AI-layer checks require `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in env. The deterministic rule layer runs without any API key.
 

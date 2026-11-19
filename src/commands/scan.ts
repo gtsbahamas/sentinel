@@ -2,20 +2,9 @@ import { writeFile, mkdir } from "fs/promises";
 import { dirname, join, resolve } from "path";
 import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
-import { runRules, registerRules, resetRegistry } from "../layers/rules/index.js";
-import { secretsExposureRules } from "../layers/rules/domains/secrets-exposure.js";
-import { inputInjectionRules } from "../layers/rules/domains/input-injection.js";
-import { authAccessControlRules } from "../layers/rules/domains/auth-access-control.js";
-import { fileUploadRules } from "../layers/rules/domains/file-upload.js";
-import { supplyChainRules } from "../layers/rules/domains/supply-chain.js";
-import { repoIntegrityRules, resetRepoIntegrityCache } from "../layers/rules/domains/repo-integrity.js";
-import { cryptographyRules } from "../layers/rules/domains/cryptography.js";
-import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitoring.js";
-import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
-import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
-import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
-import { llmFeatureRules } from "../layers/rules/domains/llm-features.js";
-import { pythonFrameworkRules } from "../layers/rules/domains/python-framework.js";
+import { runRules } from "../layers/rules/index.js";
+import { registerAllRules } from "./register-rules.js";
+import { splitIgnoredFindings } from "../utils/ignored-findings.js";
 import { runAI, runDryRun, createProvider, runVerify, type DryRunResult } from "../layers/ai/index.js";
 import { MockProvider } from "../layers/ai/providers/mock.js";
 import { formatTerminal } from "../output/terminal.js";
@@ -28,7 +17,7 @@ import { isAtOrAbove } from "../model/severity.js";
 import { mergeVerifyConfig, type VerifyOptions } from "./verify-options.js";
 import type { AIConfig, AIRunResult, Finding, Severity, VerifyResult } from "../model/types.js";
 import type { SentinelConfig } from "../config.js";
-import { ScanEventEmitter } from "../dashboard/events.js";
+import { ScanEventEmitter, toFindingEventData } from "../dashboard/events.js";
 
 export interface ScanOptions extends VerifyOptions {
   path: string;
@@ -130,26 +119,15 @@ export async function runScan(options: ScanOptions): Promise<number> {
     process.stderr.write("Run `sentinel context` to reduce false positives.\n\n");
   }
 
-  resetRegistry();
-  registerRules(secretsExposureRules);
-  registerRules(inputInjectionRules);
-  registerRules(authAccessControlRules);
-  registerRules(fileUploadRules);
-  registerRules(supplyChainRules);
-  registerRules(repoIntegrityRules);
-  // Memoized whole-tree walk must not survive into the next scan in this process.
-  resetRepoIntegrityCache();
-  registerRules(cryptographyRules);
-  registerRules(loggingMonitoringRules);
-  registerRules(apiSecurityRules);
-  registerRules(businessLogicRules);
-  registerRules(infrastructureRules);
-  registerRules(llmFeatureRules);
-  registerRules(pythonFrameworkRules);
+  registerAllRules();
 
   const rulesStart = Date.now();
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
-  const ruleFindings = await runRules(model, context, emitter ?? undefined);
+  const { kept: ruleFindings, ignored: ignoredRuleFindings } = splitIgnoredFindings(
+    await runRules(model, context, emitter ?? undefined),
+    options.path,
+    config.ignore,
+  );
   const rules_ms = Date.now() - rulesStart;
   emitter?.emitEvent({ type: "layer:complete", layer: "rules", durationMs: rules_ms, timestamp: Date.now() });
 
@@ -231,30 +209,15 @@ export async function runScan(options: ScanOptions): Promise<number> {
   // AI-layer findings are suppressed separately (context applies project-wide,
   // but verify only examines rule findings — the AI layer has its own
   // context-awareness via buildProjectSummary).
-  const allFindings = applyContextSuppressions(
-    [...ruleFindingsForReport, ...(aiResult?.findings ?? [])],
-    context,
-  );
+  const ai = splitIgnoredFindings(aiResult?.findings ?? [], options.path, config.ignore);
+  const allFindings = applyContextSuppressions([...ruleFindingsForReport, ...ai.kept], context);
+  // Left out by the config's `ignore`; reported apart from the findings, and never part of the exit code.
+  const ignoredFindings = [...ignoredRuleFindings, ...ai.ignored];
 
   // Emit suppressed findings to dashboard (after context filtering)
   if (emitter) {
     for (const f of allFindings) {
-      emitter.emitEvent({
-        type: "finding",
-        data: {
-          id: f.id,
-          ruleId: f.ruleId,
-          severity: f.severity,
-          title: f.title,
-          description: f.description,
-          impact: f.impact,
-          file: f.evidence[0]?.file ?? "",
-          line: f.evidence[0]?.line,
-          domain: f.domain,
-          layer: f.layer,
-          remediation: f.remediation,
-        },
-      });
+      emitter.emitEvent({ type: "finding", data: toFindingEventData(f) });
     }
   }
 
@@ -264,6 +227,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
       allFindings,
       { recon_ms, rules_ms, ai_ms, ai: aiResult ?? undefined },
       verifyResult,
+      ignoredFindings,
     );
     if (options.outFile) {
       const dest = resolve(options.outFile);
@@ -274,14 +238,14 @@ export async function runScan(options: ScanOptions): Promise<number> {
       process.stdout.write(body);
     }
   } else if (options.format === "html") {
-    const body = formatHtml(model, allFindings, { recon_ms, rules_ms });
+    const body = formatHtml(model, allFindings, { recon_ms, rules_ms }, ignoredFindings);
     const dest = resolve(options.outFile ?? join(options.path, config.output.dir, `scan-${Date.now()}.html`));
     await mkdir(dirname(dest), { recursive: true });
     await writeFile(dest, body, "utf-8");
     process.stdout.write(`Wrote HTML report to ${dest}\n`);
   } else {
     process.stdout.write(
-      formatTerminal(model, allFindings, verifyResult, { keepDismissed: verifyConfig.keepDismissed }),
+      formatTerminal(model, allFindings, verifyResult, { keepDismissed: verifyConfig.keepDismissed, ignored: ignoredFindings }),
     );
     if (aiResult) {
       process.stdout.write("\n" + formatAIReport(aiResult, aiConfig) + "\n");
@@ -303,6 +267,10 @@ export async function runScan(options: ScanOptions): Promise<number> {
   if (shipsafeConfig) {
     try {
       await pushToShipSafe(allFindings, shipsafeConfig);
+      // ShipSafe takes findings only; say what stayed behind rather than drop it unseen.
+      if (ignoredFindings.length > 0) {
+        process.stderr.write(`[shipsafe] ${ignoredFindings.length} ignored finding(s) not pushed\n`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(`[shipsafe] unexpected push error: ${msg}\n`);
@@ -332,6 +300,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
         low: findingCounts["low"] ?? 0,
         info: findingCounts["info"] ?? 0,
       },
+      ignored: ignoredFindings.map(toFindingEventData),
       durationMs: recon_ms + rules_ms + ai_ms,
     },
     timestamp: Date.now(),

@@ -3,21 +3,11 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
-import { runRules, registerRules, resetRegistry } from "../layers/rules/index.js";
+import { runRules } from "../layers/rules/index.js";
+import { registerAllRules } from "./register-rules.js";
+import { splitIgnoredFindings, describeIgnoredFinding } from "../utils/ignored-findings.js";
 import { inferContext, readContext } from "../layers/context/index.js";
 import { applyContextSuppressions } from "../layers/context/suppression.js";
-import { secretsExposureRules } from "../layers/rules/domains/secrets-exposure.js";
-import { inputInjectionRules } from "../layers/rules/domains/input-injection.js";
-import { authAccessControlRules } from "../layers/rules/domains/auth-access-control.js";
-import { fileUploadRules } from "../layers/rules/domains/file-upload.js";
-import { supplyChainRules } from "../layers/rules/domains/supply-chain.js";
-import { repoIntegrityRules, resetRepoIntegrityCache } from "../layers/rules/domains/repo-integrity.js";
-import { cryptographyRules } from "../layers/rules/domains/cryptography.js";
-import { loggingMonitoringRules } from "../layers/rules/domains/logging-monitoring.js";
-import { apiSecurityRules } from "../layers/rules/domains/api-security.js";
-import { businessLogicRules } from "../layers/rules/domains/business-logic.js";
-import { infrastructureRules } from "../layers/rules/domains/infrastructure.js";
-import { llmFeatureRules } from "../layers/rules/domains/llm-features.js";
 import { registerFixer, resetFixerRegistry } from "../layers/fix/registry.js";
 import { crypto001Fixer } from "../layers/fix/deterministic/crypto-001.js";
 import { crypto002Fixer } from "../layers/fix/deterministic/crypto-002.js";
@@ -28,7 +18,7 @@ import { getPromptTemplate } from "../layers/fix/ai/prompts.js";
 import { runFix } from "../layers/fix/index.js";
 import type { Finding, AIConfig } from "../model/types.js";
 import type { FixAttempt } from "../layers/fix/types.js";
-import { ScanEventEmitter } from "../dashboard/events.js";
+import { ScanEventEmitter, toFindingEventData } from "../dashboard/events.js";
 import type { ConvergeRoundSummary, ConvergeSummary } from "../dashboard/events.js";
 
 export interface FixCommandOptions {
@@ -73,7 +63,11 @@ function registerAllFixers(): void {
   }
 }
 
-async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEmitter): Promise<Finding[]> {
+// `ignored`: findings the config's `ignore` covers; never offered for fixing.
+async function acquireFindings(
+  options: FixCommandOptions,
+  emitter?: ScanEventEmitter,
+): Promise<{ findings: Finding[]; ignored: Finding[] }> {
   if (options.from) {
     // Load findings from a JSON report file
     const reportPath = resolve(options.from);
@@ -81,7 +75,7 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
       throw new Error(`Report file not found: ${reportPath}`);
     }
     const raw = await readFile(reportPath, "utf-8");
-    const parsed = JSON.parse(raw) as { findings?: Finding[] };
+    const parsed = JSON.parse(raw) as { findings?: Finding[]; ignored?: Finding[] };
     if (!Array.isArray(parsed.findings)) {
       throw new Error(`Report file does not contain a 'findings' array: ${reportPath}`);
     }
@@ -112,7 +106,7 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
       }
     }
 
-    return parsed.findings;
+    return { findings: parsed.findings, ignored: Array.isArray(parsed.ignored) ? parsed.ignored : [] };
   }
 
   // Run a fresh scan to get findings (with context suppression, matching scan command)
@@ -126,26 +120,22 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
   const contextFromFile = await readContext(options.path);
   const context = contextFromFile ?? await inferContext(model);
 
-  resetRegistry();
-  registerRules(secretsExposureRules);
-  registerRules(inputInjectionRules);
-  registerRules(authAccessControlRules);
-  registerRules(fileUploadRules);
-  registerRules(supplyChainRules);
-  registerRules(repoIntegrityRules);
-  // Memoized whole-tree walk must not survive into the next scan in this process.
-  resetRepoIntegrityCache();
-  registerRules(cryptographyRules);
-  registerRules(loggingMonitoringRules);
-  registerRules(apiSecurityRules);
-  registerRules(businessLogicRules);
-  registerRules(infrastructureRules);
-  registerRules(llmFeatureRules);
+  registerAllRules();
 
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
   const rulesStart = Date.now();
-  const rawFindings = await runRules(model, context, emitter ?? undefined);
+  const { kept: rawFindings, ignored } = splitIgnoredFindings(
+    await runRules(model, context, emitter ?? undefined),
+    options.path,
+    config.ignore,
+  );
   emitter?.emitEvent({ type: "layer:complete", layer: "rules", durationMs: Date.now() - rulesStart, timestamp: Date.now() });
+
+  if (ignored.length > 0) {
+    // stderr: stdout carries the fix results.
+    process.stderr.write(`Ignored by .sentinelrc.json (${ignored.length}), not offered for fixing:\n`);
+    for (const f of ignored) process.stderr.write(`  ${describeIgnoredFinding(f)}\n`);
+  }
 
   const findings = applyContextSuppressions(rawFindings, context);
 
@@ -171,7 +161,7 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
     }
   }
 
-  return findings;
+  return { findings, ignored };
 }
 
 function buildAIConfig(options: FixCommandOptions, baseProvider: "anthropic" | "openai" | "ollama" | "mock"): AIConfig {
@@ -264,10 +254,11 @@ async function runSingleRound(options: FixCommandOptions, emitter?: ScanEventEmi
   emitter?.emitEvent({ type: "scan:start", project: options.path, timestamp: Date.now() });
 
   let findings: Finding[];
+  let ignored: Finding[];
   try {
     // Pass emitter so recon events (routes, endpoints, data models) and
     // finding events flow to the dashboard, building the lane graph
-    findings = await acquireFindings(options, emitter);
+    ({ findings, ignored } = await acquireFindings(options, emitter));
   } catch (err) {
     process.stderr.write(`Error acquiring findings: ${err instanceof Error ? err.message : String(err)}\n`);
     return { totalFindings: 0, fixedCount: 0, failedCount: 0, skippedCount: 0, filesModified: [], attempts: [] };
@@ -287,6 +278,7 @@ async function runSingleRound(options: FixCommandOptions, emitter?: ScanEventEmi
         dataModels: 0,
         externalServices: 0,
         findings: sevCounts as any,
+        ignored: ignored.map(toFindingEventData),
         durationMs: 0,
       },
       timestamp: Date.now(),
@@ -345,7 +337,7 @@ export async function runFixCommand(options: FixCommandOptions): Promise<number>
 
     let findings: Finding[];
     try {
-      findings = await acquireFindings(options, emitter ?? undefined);
+      ({ findings } = await acquireFindings(options, emitter ?? undefined));
     } catch (err) {
       process.stderr.write(`Error acquiring findings: ${err instanceof Error ? err.message : String(err)}\n`);
       exitCode = 1;

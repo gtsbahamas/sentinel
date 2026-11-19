@@ -196,6 +196,20 @@ function renderSummary() {
     return '<div class="metric-delta">-' + deltas[sev] + ' fixed</div>';
   }
 
+  // Left out by .sentinelrc.json `ignore`: listed, never counted above.
+  var ignored = state.ignored || [];
+  var ignoredHtml = ignored.length === 0 ? '' :
+    '<div>' +
+      '<div class="summary-section-title">Ignored by .sentinelrc.json (' + ignored.length + ') — not counted above</div>' +
+      '<div class="vuln-list">' + ignored.map(function(f) {
+        return '<div class="vuln-summary-row">' +
+          '<span class="sev-tag ' + f.severity + '">' + f.severity + '</span>' +
+          '<span class="vuln-summary-name">' + escapeHtml(f.title) + '</span>' +
+          '<span class="vuln-summary-instances">' + escapeHtml(f.file + (f.line ? ':' + f.line : '')) + '</span>' +
+        '</div>';
+      }).join('') + '</div>' +
+    '</div>';
+
   content.innerHTML =
     '<div class="summary-view">' +
       convergeHtml +
@@ -209,6 +223,7 @@ function renderSummary() {
         '<div class="summary-section-title">' + totalClasses + ' vulnerability classes / ' + totalInstances + ' instances</div>' +
         '<div class="vuln-list">' + vulnRows + '</div>' +
       '</div>' +
+      ignoredHtml +
       '<div class="click-hint">' +
         '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1"/><path d="M6 4v4M4 6h4" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>' +
         'Click any node in the graph to see its specific findings' +
