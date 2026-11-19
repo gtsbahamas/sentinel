@@ -120,4 +120,12 @@ describe("isTestFile", () => {
     expect(isTestFile("src/lib/router.test.ts")).toBe(true);
     expect(isTestFile("src/lib/routes.spec.ts")).toBe(true);
   });
+  it("needs the test suffix at the very end of the name", () => {
+    expect(isTestFile("src/lib/db.test.ts.bak.ts")).toBe(false);
+    expect(isTestFile("src/lib/db.spec.js.old.js")).toBe(false);
+  });
+  it("needs a folder named exactly __tests__", () => {
+    expect(isTestFile("src/my__tests__/db.ts")).toBe(false);
+    expect(isTestFile("src/__tests__old/db.ts")).toBe(false);
+  });
 });
