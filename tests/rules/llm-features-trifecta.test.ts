@@ -5,6 +5,8 @@ import { llmFeatureRules } from "../../src/layers/rules/domains/llm-features.js"
 import { runRecon } from "../../src/layers/recon/index.js";
 import type { Finding } from "../../src/model/types.js";
 
+const EXCESSIVE_AGENCY_URL = "https://genai.owasp.org/llmrisk/llm062025-excessive-agency/";
+
 // LLM-006: the "lethal trifecta". An AI agent that can read private data, is
 // fed untrusted content, and can act outward, with no human approval in
 // front of the outward action. Each llm-trifecta-* fixture is the same
@@ -19,12 +21,14 @@ async function trifectaFindings(variant: string): Promise<Finding[]> {
 }
 
 describe("LLM-006 lethal trifecta", () => {
-  it("is registered as a high-severity llm-features rule linking Seatrial Action Gate", () => {
+  it("is registered as a high-severity llm-features rule linking the OWASP excessive-agency guidance", () => {
     const rule = llmFeatureRules.find((r) => r.id === "LLM-006");
     expect(rule).toBeDefined();
     expect(rule!.severity).toBe("high");
     expect(rule!.domain).toBe("llm-features");
-    expect(rule!.references.external?.some((u) => /action-gate/.test(u))).toBe(true);
+    expect(rule!.references.external).toContain(EXCESSIVE_AGENCY_URL);
+    // seatrial.io/docs/action-gate is a 404 (the public site is one page); never send a reader there.
+    expect(rule!.references.external?.some((u) => /seatrial\.io\/docs/.test(u))).toBe(false);
   });
 
   it("flags an agent with all three legs and no approval gate exactly once, at high", async () => {
@@ -37,8 +41,9 @@ describe("LLM-006 lethal trifecta", () => {
     expect(f.title).toBe(
       "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
     );
-    expect(f.remediation).toMatch(/Action Gate/);
-    expect(f.remediation).toMatch(/https:\/\/\S+action-gate/);
+    expect(f.remediation).toMatch(/human approval in front of the outward action/);
+    expect(f.remediation).toContain(EXCESSIVE_AGENCY_URL);
+    expect(f.remediation).not.toMatch(/seatrial\.io\/docs|Action Gate/);
   });
 
   it("names the three legs it found in the description", async () => {
