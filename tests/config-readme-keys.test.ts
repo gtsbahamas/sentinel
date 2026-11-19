@@ -205,6 +205,15 @@ describe("scan honours the documented keys end to end", () => {
       expect(ignored.report.summary.ignored).toBe(ignored.report.ignored.length);
       expect(ignored.report.summary.total).toBe(ignored.report.findings.length);
       expect(ignored.res.stderr).toContain("notAKey");
+
+      // The default terminal report says so too.
+      const terminal = spawnSync("npx", ["tsx", cli, "scan", tmp], {
+        cwd: root,
+        encoding: "utf-8",
+        env: { ...process.env, SENTINEL_OFFLINE: "1", NO_COLOR: "1" },
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      expect(terminal.stdout).toContain(`IGNORED BY .sentinelrc.json (${ignored.report.ignored.length})`);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
