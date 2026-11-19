@@ -101,3 +101,47 @@ describe("ignored findings in reports", () => {
     expect(result.nowIgnored.map((f) => f.ruleId).sort()).toEqual(["CRYPTO-002", "INPUT-001"]);
   });
 });
+
+// Findings the project context removed (test and script paths, delegated
+// checks) are the same family: counted in every report, listed in JSON and
+// HTML, and listed on the terminal with --no-dismiss.
+describe("context-suppressed findings in reports", () => {
+  const suppressed = [
+    { reason: "path is excluded by project context (tests/)", finding: finding("SECRETS-002", "/p/tests/helper.ts", "critical") },
+    { reason: "path is excluded by project context (scripts/)", finding: finding("INPUT-001", "/p/scripts/seed.ts", "high") },
+  ];
+
+  it("json: counted and listed, out of the active totals", () => {
+    const out = JSON.parse(formatJson(model, active, timing, null, [], [], suppressed));
+    expect(out.summary.total).toBe(1);
+    expect(out.summary.suppressed).toBe(2);
+    expect(out.suppressed.map((s: any) => [s.finding.ruleId, s.reason])).toEqual([
+      ["SECRETS-002", "path is excluded by project context (tests/)"],
+      ["INPUT-001", "path is excluded by project context (scripts/)"],
+    ]);
+    const none = JSON.parse(formatJson(model, active, timing));
+    expect(none.summary.suppressed).toBe(0);
+    expect(none.suppressed).toEqual([]);
+  });
+
+  it("terminal: always the count; the list with --no-dismiss", () => {
+    const quiet = formatTerminal(model, active, null, { suppressed });
+    expect(quiet).toContain("Suppressed: 2");
+    expect(quiet).toContain("--no-dismiss");
+    expect(quiet).not.toContain("/p/tests/helper.ts");
+
+    const shown = formatTerminal(model, active, null, { suppressed, keepDismissed: true });
+    expect(shown).toContain("SUPPRESSED BY PROJECT CONTEXT (2)");
+    expect(shown).toContain("SECRETS-002");
+    expect(shown).toContain("/p/tests/helper.ts");
+    expect(shown).toContain("path is excluded by project context (scripts/)");
+    expect(shown).toMatch(/Total: 1 critical, 0 high/);
+  });
+
+  it("html: a count and one row per suppressed finding", () => {
+    const out = formatHtml(model, active, timing, [], [], suppressed);
+    expect(out).toContain("Suppressed by project context (2)");
+    expect(out).toContain("/p/tests/helper.ts");
+    expect(out).toContain("2 suppressed");
+  });
+});

@@ -208,3 +208,35 @@ describe("applyContextSuppressions", () => {
     expect(result).toHaveLength(1);
   });
 });
+
+// A finding the project context removes must never just disappear: it comes
+// back in `suppressed`, with the reason, so reports can count and list it.
+describe("splitContextSuppressions", () => {
+  it("returns every removed finding with the reason it was removed", async () => {
+    const { splitContextSuppressions } = await import("../../../src/layers/context/suppression.js");
+    const inTests = mkFinding({ id: "t", ruleId: "SECRETS-002", evidence: [{ file: "/p/tests/helper.ts", line: 3 }] });
+    const inScripts = mkFinding({ id: "s", ruleId: "INPUT-001", evidence: [{ file: "/p/scripts/seed.ts" }] });
+    const publicRoute = mkFinding({ id: "p", ruleId: "AUTH-001", title: "POST /api/public/reservation has no auth check" });
+    const supabase = mkFinding({ id: "i", ruleId: "INFRA-010" });
+    const kept = mkFinding({ id: "k", ruleId: "AUTH-004" });
+    const input = [inTests, inScripts, publicRoute, supabase, kept];
+
+    const ctx = { ...CTX, excludedPaths: ["scripts/", "tests/"] };
+    const { findings, suppressed } = splitContextSuppressions(input, ctx);
+    expect(findings.map((f) => f.id)).toEqual(["k"]);
+    expect(suppressed.map((s) => s.finding.id)).toEqual(["t", "s", "p", "i"]);
+    expect(suppressed[0].reason).toContain("tests/");
+    expect(suppressed[1].reason).toContain("scripts/");
+    expect(suppressed.every((s) => s.reason.length > 0)).toBe(true);
+    // Nothing is lost: kept + suppressed is the input.
+    expect(findings.length + suppressed.length).toBe(input.length);
+    // The older entry point still returns only what is kept.
+    expect(applyContextSuppressions(input, ctx).map((f) => f.id)).toEqual(["k"]);
+  });
+
+  it("with no context nothing is suppressed", async () => {
+    const { splitContextSuppressions } = await import("../../../src/layers/context/suppression.js");
+    const f = mkFinding({ id: "t", evidence: [{ file: "/p/tests/helper.ts" }] });
+    expect(splitContextSuppressions([f], null)).toEqual({ findings: [f], suppressed: [] });
+  });
+});

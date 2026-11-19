@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { execSync } from "child_process";
-import { appendFileSync, cpSync, mkdtempSync, rmSync } from "fs";
+import { appendFileSync, copyFileSync, cpSync, mkdirSync, mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -11,8 +11,8 @@ const project = mkdtempSync(join(tmpdir(), "sentinel-ignore-scan-"));
 cpSync(join(__dirname, "..", "fixtures", "vulnerable-nextjs"), project, { recursive: true });
 afterAll(() => rmSync(project, { recursive: true, force: true }));
 
-function scan(format: "json" | "terminal"): { out: string; status: number } {
-  const cmd = `npx tsx ${cli} scan ${project} --format ${format}`;
+function scan(format: "json" | "terminal", extra = "", dir = project): { out: string; status: number } {
+  const cmd = `npx tsx ${cli} scan ${dir} --format ${format} ${extra}`;
   const opts = { encoding: "utf-8" as const, maxBuffer: 32 * 1024 * 1024, env: { ...process.env, SENTINEL_OFFLINE: "1" } };
   try {
     return { out: execSync(cmd, opts), status: 0 };
@@ -53,5 +53,34 @@ describe("integration: sentinel:ignore through the scan command", () => {
     expect(terminal).toContain(`Ignored: ${moved.length}`);
     expect(terminal).toContain(`IGNORED (${moved.length})`);
     expect(terminal).toContain(target.ruleId);
+  }, 120_000);
+
+  it("a finding under a test path is counted and listed as suppressed, and --no-dismiss shows it", () => {
+    const dir = mkdtempSync(join(tmpdir(), "sentinel-suppressed-scan-"));
+    try {
+      cpSync(join(__dirname, "..", "fixtures", "vulnerable-nextjs"), dir, { recursive: true });
+      const base = JSON.parse(scan("json", "", dir).out);
+
+      // Copy a file that alarms into e2e/: the copy's findings are removed by the project context.
+      const source = base.findings.find((f: any) => /src\/.*\.ts$/.test(f.evidence?.[0]?.file ?? "") && f.layer === "rules");
+      mkdirSync(join(dir, "src", "e2e"), { recursive: true });
+      copyFileSync(source.evidence[0].file, join(dir, "src", "e2e", "copied.ts"));
+
+      const json = JSON.parse(scan("json", "", dir).out);
+      const mine = json.suppressed.filter((s: any) => (s.finding.evidence?.[0]?.file ?? "").includes("/e2e/copied.ts"));
+      expect(mine.length).toBeGreaterThanOrEqual(1);
+      expect(mine.every((s: any) => s.reason.includes("e2e/"))).toBe(true);
+      expect(json.summary.suppressed).toBe(json.suppressed.length);
+      expect(json.findings.some((f: any) => (f.evidence?.[0]?.file ?? "").includes("/e2e/copied.ts"))).toBe(false);
+
+      const quiet = scan("terminal", "", dir).out;
+      expect(quiet).toContain(`Suppressed: ${json.suppressed.length}`);
+      expect(quiet).not.toContain("e2e/copied.ts");
+      const shown = scan("terminal", "--no-dismiss", dir).out;
+      expect(shown).toContain(`SUPPRESSED BY PROJECT CONTEXT (${json.suppressed.length})`);
+      expect(shown).toContain("e2e/copied.ts");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   }, 120_000);
 });

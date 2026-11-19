@@ -101,6 +101,8 @@ Put `sentinel:ignore RULE-ID` in a comment in the file a finding points at, with
 - An ignored finding is never hidden. It leaves the totals and the exit code, and every report still counts and lists it: `Ignored: N` and an `IGNORED` section on the terminal, `summary.ignored_by_comment` and `ignored_by_comment[]` in JSON (apart from the config's `ignored`), an "Ignored" table in HTML. `sentinel diff` reports a finding that became ignored as "now ignored, not resolved".
 - A finding whose file cannot hold a comment (`package.json`) or is never read back (`.env`) cannot be ignored this way.
 
+Findings the project context removes (files under `tests/`, `__tests__/`, `e2e/`, `cypress/`, `scripts/`; public routes; delegated checks) are treated the same way: out of the totals, but counted as `Suppressed: N` on the terminal (listed with `--no-dismiss`), and listed with the reason in JSON (`summary.suppressed`, `suppressed[]`) and HTML.
+
 ## Formats
 
 ```bash

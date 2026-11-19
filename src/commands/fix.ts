@@ -7,7 +7,7 @@ import { runRulesWithIgnored } from "../layers/rules/index.js";
 import { registerAllRules } from "./register-rules.js";
 import { splitIgnoredFindings, describeIgnoredFinding } from "../utils/ignored-findings.js";
 import { inferContext, readContext } from "../layers/context/index.js";
-import { applyContextSuppressions } from "../layers/context/suppression.js";
+import { splitContextSuppressions } from "../layers/context/suppression.js";
 import { registerFixer, resetFixerRegistry } from "../layers/fix/registry.js";
 import { crypto001Fixer } from "../layers/fix/deterministic/crypto-001.js";
 import { crypto002Fixer } from "../layers/fix/deterministic/crypto-002.js";
@@ -145,7 +145,12 @@ async function acquireFindings(
     for (const f of ignored) process.stderr.write(`  ${describeIgnoredFinding(f)}\n`);
   }
 
-  const findings = applyContextSuppressions(rawFindings, context);
+  const { findings, suppressed } = splitContextSuppressions(rawFindings, context);
+  if (suppressed.length > 0) {
+    process.stderr.write(
+      `${suppressed.length} finding(s) are suppressed by project context and will not be fixed (sentinel scan --no-dismiss lists them).\n`,
+    );
+  }
 
   // Emit suppressed findings to dashboard (runRules doesn't emit them)
   if (emitter) {

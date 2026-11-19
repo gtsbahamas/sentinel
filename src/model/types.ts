@@ -80,6 +80,17 @@ export interface IgnoredFinding {
   finding: Finding;
 }
 
+/**
+ * A finding the project context removed (a test or script path, a public
+ * route, a delegated check). It does not alarm or fail a scan, and it is
+ * never dropped: every report counts and lists it.
+ * See src/layers/context/suppression.ts.
+ */
+export interface SuppressedFinding {
+  reason: string;
+  finding: Finding;
+}
+
 export interface FindingAdvisory {
   id: string;
   aliases: string[];

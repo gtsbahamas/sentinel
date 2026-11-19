@@ -12,7 +12,7 @@ import { formatJson } from "../output/json.js";
 import { formatHtml } from "../output/html.js";
 import { pushToShipSafe, resolveShipSafeConfig } from "../output/shipsafe.js";
 import { inferContext, readContext } from "../layers/context/index.js";
-import { applyContextSuppressions } from "../layers/context/suppression.js";
+import { splitContextSuppressions } from "../layers/context/suppression.js";
 import { isAtOrAbove } from "../model/severity.js";
 import { mergeVerifyConfig, type VerifyOptions } from "./verify-options.js";
 import type { AIConfig, AIRunResult, Finding, Severity, VerifyResult } from "../model/types.js";
@@ -177,7 +177,10 @@ export async function runScan(options: ScanOptions): Promise<number> {
   // verification pass. Suppression is a cheap project-level filter (excluded
   // paths, delegations); there is no point paying for AI verification on
   // findings that a user-authored context file has already marked as noise.
-  const suppressedRuleFindings = applyContextSuppressions(ruleFindings, context);
+  // What the context removes is kept in `suppressed`: it takes no part in
+  // verification or the exit code, and every report below counts and lists it.
+  const ruleSplit = splitContextSuppressions(ruleFindings, context);
+  const suppressedRuleFindings = ruleSplit.findings;
 
   // Verification pass — reclassifies surviving rule findings using the AI
   // layer. Findings that pass verification (confirmed + downgraded) re-enter
@@ -219,7 +222,9 @@ export async function runScan(options: ScanOptions): Promise<number> {
   // but verify only examines rule findings — the AI layer has its own
   // context-awareness via buildProjectSummary).
   const ai = splitIgnoredFindings(aiResult?.findings ?? [], options.path, config.ignore);
-  const allFindings = applyContextSuppressions([...ruleFindingsForReport, ...ai.kept], context);
+  const finalSplit = splitContextSuppressions([...ruleFindingsForReport, ...ai.kept], context);
+  const allFindings = finalSplit.findings;
+  const suppressed = [...ruleSplit.suppressed, ...finalSplit.suppressed];
   // Left out by the config's `ignore`; reported apart from the findings, and never part of the exit code.
   const ignoredFindings = [...ignoredRuleFindings, ...ai.ignored];
 
@@ -227,6 +232,13 @@ export async function runScan(options: ScanOptions): Promise<number> {
   if (emitter) {
     for (const f of allFindings) {
       emitter.emitEvent({ type: "finding", data: toFindingEventData(f) });
+    }
+    if (suppressed.length > 0) {
+      emitter.emitEvent({
+        type: "log",
+        level: "warn",
+        message: `${suppressed.length} finding(s) suppressed by project context (run with --no-dismiss to list them)`,
+      });
     }
     if (ignoredByComment.length > 0) {
       emitter.emitEvent({
@@ -247,6 +259,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
       verifyResult,
       ignoredFindings,
       ignoredByComment,
+      suppressed,
     );
     if (options.outFile) {
       const dest = resolve(options.outFile);
@@ -257,7 +270,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
       process.stdout.write(body);
     }
   } else if (options.format === "html") {
-    const body = formatHtml(model, allFindings, { recon_ms, rules_ms }, ignoredFindings, ignoredByComment);
+    const body = formatHtml(model, allFindings, { recon_ms, rules_ms }, ignoredFindings, ignoredByComment, suppressed);
     const dest = resolve(options.outFile ?? join(options.path, config.output.dir, `scan-${Date.now()}.html`));
     await mkdir(dirname(dest), { recursive: true });
     await writeFile(dest, body, "utf-8");
@@ -268,6 +281,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
         keepDismissed: verifyConfig.keepDismissed,
         ignored: ignoredFindings,
         ignoredByComment,
+        suppressed,
       }),
     );
     if (aiResult) {

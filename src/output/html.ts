@@ -1,4 +1,4 @@
-import type { Finding, IgnoredFinding, ProjectModel, Severity, SecurityDomain } from "../model/types.js";
+import type { Finding, IgnoredFinding, SuppressedFinding, ProjectModel, Severity, SecurityDomain } from "../model/types.js";
 import { compareSeverity } from "../model/severity.js";
 import { SECURITY_DOMAINS } from "../model/types.js";
 import type { LayerTiming } from "./json.js";
@@ -69,7 +69,29 @@ export function formatHtml(
   ignored: Finding[] = [],
   // Findings a `sentinel:ignore` comment covers.
   ignoredByComment: IgnoredFinding[] = [],
+  // Findings the project context removed.
+  suppressed: SuppressedFinding[] = [],
 ): string {
+  const suppressedSection = suppressed.length
+    ? `
+<section class="domain-section" id="suppressed">
+  <h2>Suppressed by project context (${suppressed.length})</h2>
+  <p class="description">Removed by the project context (test and script paths, public routes, delegated checks). Not counted in the summary above.</p>
+  <table class="domain-table">
+    <thead><tr><th>Rule</th><th>Severity</th><th>Finding</th><th>File</th><th>Why</th></tr></thead>
+    <tbody>
+      ${suppressed
+        .map((s) => {
+          const ev = s.finding.evidence[0];
+          const where = ev ? `${ev.file}${ev.line !== undefined ? `:${ev.line}` : ""}` : "";
+          return `<tr><td><code>${escape(s.finding.ruleId ?? s.finding.id)}</code></td><td>${severityBadge(s.finding.severity)}</td><td>${escape(s.finding.title)}</td><td><code>${escape(where)}</code></td><td>${escape(s.reason)}</td></tr>`;
+        })
+        .join("")}
+    </tbody>
+  </table>
+</section>
+`
+    : "";
   const ignoredSection = ignored.length === 0 ? "" : `
 <section class="domain-section" id="ignored">
   <h2>Ignored by .sentinelrc.json (${ignored.length})</h2>
@@ -268,8 +290,9 @@ export function formatHtml(
 ${domainSections}
 ${ignoredSection}
 ${ignoredByCommentSection}
+${suppressedSection}
 <footer>
-  Sentinel v${VERSION} — ${findings.length} findings across ${byDomain.size} domains${ignored.length + ignoredByComment.length ? `, ${ignored.length + ignoredByComment.length} ignored` : ""}
+  Sentinel v${VERSION} — ${findings.length} findings across ${byDomain.size} domains${ignored.length + ignoredByComment.length ? `, ${ignored.length + ignoredByComment.length} ignored` : ""}${suppressed.length ? `, ${suppressed.length} suppressed` : ""}
 </footer>
 </div>
 </body>
