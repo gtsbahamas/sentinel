@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import type {
   Finding,
+  IgnoredFinding,
   ProjectModel,
   Severity,
   VerifyResult,
@@ -24,7 +25,8 @@ export function formatTerminal(
   findings: Finding[],
   verifyResult?: VerifyResult | null,
   // `ignored`: findings left out because the config's `ignore` covers them.
-  options?: { keepDismissed?: boolean; ignored?: Finding[] },
+  // `ignoredByComment`: findings a `sentinel:ignore` comment covers.
+  options?: { keepDismissed?: boolean; ignored?: Finding[]; ignoredByComment?: IgnoredFinding[] },
 ): string {
   const lines: string[] = [];
 
@@ -102,6 +104,20 @@ export function formatTerminal(
     lines.push(chalk.bold(`  IGNORED BY .sentinelrc.json (${ignored.length})`) + chalk.dim("  not counted above"));
     lines.push("");
     for (const f of ignored) lines.push(chalk.dim(`  ${describeIgnoredFinding(f)}`));
+  }
+
+  const ignoredByComment = options?.ignoredByComment ?? [];
+  if (ignoredByComment.length > 0) {
+    lines.push(chalk.dim(`  Ignored: ${ignoredByComment.length} (sentinel:ignore comment, not counted above)`));
+    lines.push("");
+    lines.push(chalk.bold(`  IGNORED (${ignoredByComment.length})`));
+    lines.push("");
+    for (const i of ignoredByComment) {
+      lines.push(
+        `  ${chalk.bold(i.ruleId)}  ${i.finding.title}  ${chalk.dim("[" + i.finding.severity + ", " + i.finding.domain + "]")}`,
+      );
+      lines.push(`           ${chalk.dim("sentinel:ignore at " + i.file + ":" + i.line)}`);
+    }
   }
 
   if (verifyResult) {

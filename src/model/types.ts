@@ -66,6 +66,20 @@ export interface Finding {
   advisory?: FindingAdvisory;
 }
 
+/**
+ * A rule finding that a `sentinel:ignore RULE-ID` comment covers. It does not
+ * alarm or fail a scan, and it is never dropped: every report counts and
+ * lists it. See src/layers/rules/ignore.ts.
+ */
+export interface IgnoredFinding {
+  ruleId: string;
+  /** The file carrying the comment (the finding's first evidence file). */
+  file: string;
+  /** 1-based line of the comment. */
+  line: number;
+  finding: Finding;
+}
+
 export interface FindingAdvisory {
   id: string;
   aliases: string[];

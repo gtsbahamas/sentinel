@@ -1,6 +1,7 @@
 import type {
   AIRunResult,
   Finding,
+  IgnoredFinding,
   ProjectModel,
   Severity,
   VerifyResult,
@@ -21,6 +22,8 @@ export function formatJson(
   verifyResult?: VerifyResult | null,
   // Findings left out because the config's `ignore` covers them.
   ignored: Finding[] = [],
+  // Findings a `sentinel:ignore` comment covers.
+  ignoredByComment: IgnoredFinding[] = [],
 ): string {
   const summary: Record<Severity, number> = {
     critical: 0, high: 0, medium: 0, low: 0, info: 0,
@@ -66,6 +69,8 @@ export function formatJson(
       ...summary,
       total: findings.length,
       ignored: ignored.length,
+      // Findings a `sentinel:ignore` comment covers. Not in any count above.
+      ignored_by_comment: ignoredByComment.length,
       by_domain: Object.fromEntries(
         [...new Set(findings.map((f) => f.domain))].map((d) => [
           d,
@@ -75,6 +80,7 @@ export function formatJson(
     },
     findings,
     ignored,
+    ignored_by_comment: ignoredByComment,
     model,
     ...(verifyResult
       ? {

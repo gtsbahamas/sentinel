@@ -1,0 +1,2046 @@
+{
+  "ai-scan": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "PATCH /api/users/[id] has no auth check",
+      "file": "src/app/api/users/[id]/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-004",
+      "severity": "high",
+      "title": "/api/users/[id] fetches by id without ownership check",
+      "file": "src/app/api/users/[id]/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.js",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.js",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.js",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.js",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "PATCH /api/users/[id] missing body validation",
+      "file": "src/app/api/users/[id]/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/users/[id]/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "context": [],
+  "infra-001": [],
+  "llm-trifecta-action-gate-call": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/assistant missing body validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-gate-other-action": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 41
+    },
+    {
+      "ruleId": "LLM-006",
+      "severity": "high",
+      "title": "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 52
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-gated": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 41
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-history-write": [
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-needs-approval": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/assistant missing body validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-needs-approval-other-tool": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/assistant missing body validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-006",
+      "severity": "high",
+      "title": "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
+      "file": "src/lib/ai/tools/post-webhook.ts",
+      "line": 8
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-no-outward-action": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 30
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-no-private-data": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 29
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-no-untrusted-input": [
+    {
+      "ruleId": "API-004",
+      "severity": "medium",
+      "title": "/api/assistant returns unbounded list",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-011",
+      "severity": "critical",
+      "title": "GET /api/assistant reads with service role and no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 40
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-route-approval": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/assistant missing body validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-006",
+      "severity": "high",
+      "title": "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
+      "file": "src/lib/ai/tools/post-webhook.ts",
+      "line": 8
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-split-toolset": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/assistant missing body validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-006",
+      "severity": "high",
+      "title": "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
+      "file": "src/lib/ai/tools/post-webhook.ts",
+      "line": 8
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-uncalled-approval": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 48
+    },
+    {
+      "ruleId": "LLM-006",
+      "severity": "high",
+      "title": "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 54
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-uncalled-arrow-approval": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 44
+    },
+    {
+      "ruleId": "LLM-006",
+      "severity": "high",
+      "title": "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 50
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-ungated": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 41
+    },
+    {
+      "ruleId": "LLM-006",
+      "severity": "high",
+      "title": "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 47
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-unused-gate-import": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 44
+    },
+    {
+      "ruleId": "LLM-006",
+      "severity": "high",
+      "title": "This AI feature can read private data, is fed untrusted content, and can send things out; drop one or put a human approval in front",
+      "file": "src/app/api/assistant/route.ts",
+      "line": 50
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "llm-trifecta-wrapped-tool": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/assistant has no auth check",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/assistant missing body validation",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/assistant/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "safe-ai-app": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/agent has no auth check",
+      "file": "src/app/api/agent/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/chat has no auth check",
+      "file": "src/app/api/chat/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-002",
+      "severity": "high",
+      "title": "innerHTML assignment with variable",
+      "file": "src/lib/legacy-render.ts",
+      "line": 6
+    },
+    {
+      "ruleId": "INPUT-003",
+      "severity": "critical",
+      "title": "SQL query built with template literal",
+      "file": "src/lib/legacy-render.ts",
+      "line": 10
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/agent/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/chat/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/components/AnswerPanel.tsx",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "vulnerable-ai-app": [
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/agent has no auth check",
+      "file": "src/app/api/agent/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/chat has no auth check",
+      "file": "src/app/api/chat/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/summarize has no auth check",
+      "file": "src/app/api/summarize/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-001",
+      "severity": "critical",
+      "title": "dangerouslySetInnerHTML without sanitizer",
+      "file": "src/components/AnswerPanel.tsx",
+      "line": 13
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/chat missing body validation",
+      "file": "src/app/api/chat/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/summarize missing body validation",
+      "file": "src/app/api/summarize/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LLM-001",
+      "severity": "high",
+      "title": "User input interpolated into an LLM prompt",
+      "file": "src/app/api/chat/route.ts",
+      "line": 15
+    },
+    {
+      "ruleId": "LLM-002",
+      "severity": "high",
+      "title": "Retrieved or fetched content interpolated into an LLM prompt",
+      "file": "src/app/api/summarize/route.ts",
+      "line": 18
+    },
+    {
+      "ruleId": "LLM-003",
+      "severity": "high",
+      "title": "LLM output rendered as raw HTML",
+      "file": "src/components/AnswerPanel.tsx",
+      "line": 13
+    },
+    {
+      "ruleId": "LLM-004",
+      "severity": "critical",
+      "title": "LLM output reaches a database query sink",
+      "file": "src/app/api/report/route.ts",
+      "line": 16
+    },
+    {
+      "ruleId": "LLM-005",
+      "severity": "high",
+      "title": "Model-chosen tool arguments used without validation",
+      "file": "src/app/api/agent/route.ts",
+      "line": 34
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/agent/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/chat/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/report/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/summarize/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "OPENAI_API_KEY not documented in .env.example",
+      "file": "src/components/AnswerPanel.tsx",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    }
+  ],
+  "vulnerable-nextjs": [
+    {
+      "ruleId": "API-002",
+      "severity": "high",
+      "title": "/api/login has no rate limit",
+      "file": "src/app/api/login/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "API-002",
+      "severity": "high",
+      "title": "/api/signup has no rate limit",
+      "file": "src/app/api/signup/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "API-003",
+      "severity": "high",
+      "title": "Request body spread into database write",
+      "file": "src/app/api/profile/route.ts",
+      "line": 9
+    },
+    {
+      "ruleId": "API-004",
+      "severity": "medium",
+      "title": "/api/search returns unbounded list",
+      "file": "src/app/api/search/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/profile has no auth check",
+      "file": "src/app/api/profile/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-001",
+      "severity": "critical",
+      "title": "POST /api/upload has no auth check",
+      "file": "src/app/api/upload/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-002",
+      "severity": "high",
+      "title": "Table profiles has no ENABLE ROW LEVEL SECURITY statement",
+      "file": "supabase/migrations/20260101000000_init.sql",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-004",
+      "severity": "high",
+      "title": "/api/projects/[id] fetches by id without ownership check",
+      "file": "src/app/api/projects/[id]/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "AUTH-005",
+      "severity": "critical",
+      "title": "supabase.auth.admin used without server-only guard",
+      "file": "src/components/AdminUsersPanel.tsx",
+      "line": null
+    },
+    {
+      "ruleId": "BIZ-001",
+      "severity": "medium",
+      "title": "/api/login distinguishes \"user not found\" from \"wrong password\"",
+      "file": "src/app/api/login/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "BIZ-007",
+      "severity": "medium",
+      "title": "/api/login does not check email verification",
+      "file": "src/app/api/login/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "BIZ-008",
+      "severity": "critical",
+      "title": "/api/signup accepts role from signup body",
+      "file": "src/app/api/signup/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "BIZ-010",
+      "severity": "low",
+      "title": "/api/signup has no bot protection",
+      "file": "src/app/api/signup/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "CRYPTO-001",
+      "severity": "critical",
+      "title": "Math.random() in a security-sensitive context",
+      "file": "src/lib/crypto-bad.ts",
+      "line": 6
+    },
+    {
+      "ruleId": "CRYPTO-002",
+      "severity": "critical",
+      "title": "MD5 used as a hash function",
+      "file": "src/lib/crypto-bad.ts",
+      "line": 12
+    },
+    {
+      "ruleId": "CRYPTO-003",
+      "severity": "high",
+      "title": "bcrypt with 4 rounds is too fast",
+      "file": "src/lib/crypto-bad.ts",
+      "line": 17
+    },
+    {
+      "ruleId": "CRYPTO-004",
+      "severity": "critical",
+      "title": "aes-128-ecb uses ECB mode",
+      "file": "src/lib/crypto-bad.ts",
+      "line": 22
+    },
+    {
+      "ruleId": "CRYPTO-005",
+      "severity": "critical",
+      "title": "Static/hardcoded IV used",
+      "file": "src/lib/crypto-bad.ts",
+      "line": 22
+    },
+    {
+      "ruleId": "CRYPTO-006",
+      "severity": "critical",
+      "title": "createHmac called with hardcoded key",
+      "file": "src/lib/crypto-bad.ts",
+      "line": 35
+    },
+    {
+      "ruleId": "CRYPTO-007",
+      "severity": "high",
+      "title": "Insecure TLS settings",
+      "file": "src/lib/crypto-bad.ts",
+      "line": 40
+    },
+    {
+      "ruleId": "CRYPTO-008",
+      "severity": "high",
+      "title": "Secret compared with non-constant-time equality",
+      "file": "src/lib/crypto-bad.ts",
+      "line": 46
+    },
+    {
+      "ruleId": "CRYPTO-009",
+      "severity": "high",
+      "title": "Deprecated crypto.createCipher",
+      "file": "src/lib/crypto-bad.ts",
+      "line": 51
+    },
+    {
+      "ruleId": "INFRA-001",
+      "severity": "high",
+      "title": "No Content-Security-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-002",
+      "severity": "high",
+      "title": "No Strict-Transport-Security header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-003",
+      "severity": "medium",
+      "title": "No X-Frame-Options or frame-ancestors directive",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-009",
+      "severity": "low",
+      "title": "No Referrer-Policy header",
+      "file": "next.config.mjs",
+      "line": null
+    },
+    {
+      "ruleId": "INFRA-010",
+      "severity": "medium",
+      "title": "Supabase email confirmations disabled",
+      "file": "supabase/config.toml",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-001",
+      "severity": "critical",
+      "title": "dangerouslySetInnerHTML without sanitizer",
+      "file": "src/components/ProfileCard.tsx",
+      "line": 5
+    },
+    {
+      "ruleId": "INPUT-001",
+      "severity": "critical",
+      "title": "dangerouslySetInnerHTML without sanitizer",
+      "file": "src/components/ProfileCard.tsx",
+      "line": 7
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/login missing body validation",
+      "file": "src/app/api/login/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/profile missing body validation",
+      "file": "src/app/api/profile/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/signup missing body validation",
+      "file": "src/app/api/signup/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "INPUT-005",
+      "severity": "high",
+      "title": "POST /api/upload missing body validation",
+      "file": "src/app/api/upload/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-001",
+      "severity": "high",
+      "title": "Sensitive value passed to log",
+      "file": "src/app/api/login/route.ts",
+      "line": 9
+    },
+    {
+      "ruleId": "LOG-002",
+      "severity": "low",
+      "title": "console.log in API route",
+      "file": "src/app/api/login/route.ts",
+      "line": 9
+    },
+    {
+      "ruleId": "LOG-002",
+      "severity": "low",
+      "title": "console.log in API route",
+      "file": "src/app/api/search/route.ts",
+      "line": 4
+    },
+    {
+      "ruleId": "LOG-002",
+      "severity": "low",
+      "title": "console.log in API route",
+      "file": "src/app/api/search/route.ts",
+      "line": 6
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/download/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/login/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/profile/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/projects/[id]/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/search/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/signup/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-005",
+      "severity": "medium",
+      "title": "Async handler with no try/catch",
+      "file": "src/app/api/upload/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-006",
+      "severity": "low",
+      "title": "No error boundary defined",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-007",
+      "severity": "medium",
+      "title": "PII logged in plaintext",
+      "file": "src/app/api/login/route.ts",
+      "line": 9
+    },
+    {
+      "ruleId": "LOG-009",
+      "severity": "medium",
+      "title": "/api/login does not log auth events",
+      "file": "src/app/api/login/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "LOG-009",
+      "severity": "medium",
+      "title": "/api/signup does not log auth events",
+      "file": "src/app/api/signup/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-001",
+      "severity": "critical",
+      "title": "Service role key used without server-only guard",
+      "file": "src/components/AdminUsersPanel.tsx",
+      "line": null
+    },
+    {
+      "ruleId": "SECRETS-004",
+      "severity": "high",
+      "title": "Hardcoded credential-like string",
+      "file": "src/lib/supabase.ts",
+      "line": 10
+    },
+    {
+      "ruleId": "SECRETS-004",
+      "severity": "high",
+      "title": "Hardcoded credential-like string",
+      "file": "src/lib/supabase.ts",
+      "line": 11
+    },
+    {
+      "ruleId": "SECRETS-008",
+      "severity": "low",
+      "title": "ACME_BILLING_WEBHOOK_SECRET not documented in .env.example",
+      "file": "src/components/AdminUsersPanel.tsx",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-001",
+      "severity": "critical",
+      "title": "flatmap-stream@0.1.1 matches CVE-2018-1000620",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-001",
+      "severity": "high",
+      "title": "lodash@4.17.20 matches CVE-2021-23337",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-002",
+      "severity": "high",
+      "title": "No lockfile in project",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-003",
+      "severity": "medium",
+      "title": "postinstall script defined in package.json",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-004",
+      "severity": "high",
+      "title": "left-pad uses unpinned version \"*\"",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-010",
+      "severity": "medium",
+      "title": "left-pad is deprecated",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-010",
+      "severity": "medium",
+      "title": "request is deprecated",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "SUPPLY-011",
+      "severity": "info",
+      "title": "Live vulnerability check skipped",
+      "file": "package.json",
+      "line": null
+    },
+    {
+      "ruleId": "UPLOAD-001",
+      "severity": "high",
+      "title": "Upload handler does not validate MIME type",
+      "file": "src/app/api/upload/route.ts",
+      "line": 7
+    },
+    {
+      "ruleId": "UPLOAD-002",
+      "severity": "medium",
+      "title": "Upload handler has no size limit",
+      "file": "src/app/api/upload/route.ts",
+      "line": 7
+    },
+    {
+      "ruleId": "UPLOAD-004",
+      "severity": "critical",
+      "title": "User filename used as storage path",
+      "file": "src/app/api/upload/route.ts",
+      "line": 13
+    },
+    {
+      "ruleId": "UPLOAD-006",
+      "severity": "medium",
+      "title": "File download route does not force Content-Disposition: attachment",
+      "file": "src/app/api/download/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "UPLOAD-006",
+      "severity": "medium",
+      "title": "File download route does not force Content-Disposition: attachment",
+      "file": "src/app/api/download/route.ts",
+      "line": null
+    },
+    {
+      "ruleId": "UPLOAD-007",
+      "severity": "high",
+      "title": "Server-side MIME validation missing",
+      "file": "src/app/api/upload/route.ts",
+      "line": 7
+    },
+    {
+      "ruleId": "UPLOAD-008",
+      "severity": "high",
+      "title": "Public bucket \"public-uploads\" has no matching RLS policy",
+      "file": "supabase/config.toml",
+      "line": 7
+    },
+    {
+      "ruleId": "UPLOAD-008",
+      "severity": "high",
+      "title": "Public bucket \"avatars\" has no matching RLS policy",
+      "file": "supabase/migrations/20260101000000_init.sql",
+      "line": 12
+    }
+  ]
+}

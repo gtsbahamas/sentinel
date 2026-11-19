@@ -6,6 +6,7 @@ import { loadConfig, type ConventionRule } from "../../../config.js";
 import { DEFAULT_EXCLUDED_SEGMENTS, isExcludedPath } from "../../recon/pattern-inference.js";
 import type { Finding } from "../../../model/types.js";
 import type { SecurityRule } from "../registry.js";
+import { hasIgnoreComment } from "../ignore.js";
 
 // Compute the path that `match` globs are written against. Endpoint files
 // are absolute on disk; conventions in `.sentinelrc.json` and inferred
@@ -109,11 +110,8 @@ export const authAccessControlRules: SecurityRule[] = [
           if (AUTH_FLOW_PATHS.some((re) => re.test(endpoint.path) || re.test(endpoint.file))) {
             continue;
           }
-          // Respect an explicit suppression pragma so intentional public
-          // endpoints (e.g., embeddable widget APIs) don't generate noise.
           const source = await safeReadFile(endpoint.file);
           if (!source.trim()) continue; // empty file → phantom match
-          if (/sentinel:ignore\s+AUTH-001/.test(source)) continue;
 
           // v0.1.4: Skip stub/template routes that always return 404 with no
           // real handler logic. Holdout dismissal pattern: dynamic-segment
@@ -185,16 +183,6 @@ export const authAccessControlRules: SecurityRule[] = [
         if (endpoint.method !== "GET") continue;
         if (!endpoint.usesServiceRole) continue;
         if (endpoint.hasAuthCheck) continue;
-        // Respect an explicit suppression pragma so intentionally public
-        // service-role reads (e.g., a public catalog API) don't generate noise.
-        let source = "";
-        try {
-          source = await safeReadFile(endpoint.file);
-        } catch {
-          // If the file can't be read, fall back to flagging — better to
-          // err toward more flags than silently drop a critical finding.
-        }
-        if (/sentinel:ignore\s+AUTH-011/.test(source)) continue;
         findings.push(
           mkFinding(
             "AUTH-011",
@@ -259,11 +247,6 @@ export const authAccessControlRules: SecurityRule[] = [
             continue;
           }
 
-          // Honor an explicit suppression so an intentional deviation can
-          // be marked as deliberate (e.g., a public webhook under an admin
-          // glob that genuinely should not run the staff-permission check).
-          if (/sentinel:ignore\s+CONVENTION-001/.test(source)) continue;
-
           if (callsHelper(source, convention.require)) continue;
 
           findings.push(
@@ -325,7 +308,9 @@ export const authAccessControlRules: SecurityRule[] = [
             if (!pathMatches(rel, c.match)) continue;
             let source = "";
             try { source = await safeReadFile(endpoint.file); } catch { continue; }
-            if (/sentinel:ignore\s+CONVENTION-001/.test(source)) continue;
+            // An ignored CONVENTION-001 does not count as flagged, so
+            // PATTERN-001 still reports the file (as it always has).
+            if (hasIgnoreComment(source, "CONVENTION-001")) continue;
             if (callsHelper(source, c.require)) continue;
             // CONVENTION-001 would fire on this file → suppress PATTERN-001.
             conventionFlaggedFiles.add(endpoint.file);
@@ -387,7 +372,6 @@ export const authAccessControlRules: SecurityRule[] = [
           } catch {
             continue;
           }
-          if (/sentinel:ignore\s+PATTERN-001/.test(source)) continue;
           if (callsHelper(source, pattern.dominantHelper)) continue;
           // Skip deprecated stub routes that immediately return 410 Gone.
           // These have no data access, so a missing auth helper is irrelevant.

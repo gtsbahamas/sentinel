@@ -1,6 +1,6 @@
 import { readFile } from "fs/promises";
 import chalk from "chalk";
-import type { Finding, Severity } from "../model/types.js";
+import type { Finding, IgnoredFinding, Severity } from "../model/types.js";
 import { isAtOrAbove } from "../model/severity.js";
 import { VERSION } from "../version.js";
 
@@ -14,6 +14,10 @@ export interface DiffOptions {
 export interface DiffResult {
   added: Finding[];
   removed: Finding[];
+  // In the baseline, and in the current report only as ignored (a
+  // `sentinel:ignore` comment was added, or the config's `ignore` now covers
+  // it). Not resolved, so not in `removed`.
+  nowIgnored: Finding[];
   unchanged: Finding[];
   baselineTotal: number;
   currentTotal: number;
@@ -28,13 +32,40 @@ function key(f: Finding): string {
   return `${f.ruleId ?? "UNKNOWN"}|${file}|${line}`;
 }
 
-async function loadReport(path: string): Promise<Finding[]> {
+export interface Report {
+  findings: Finding[];
+  // Under a path the config's `ignore` lists.
+  ignored: Finding[];
+  // Covered by a `sentinel:ignore` comment.
+  ignoredByComment: IgnoredFinding[];
+}
+
+async function loadReport(path: string): Promise<Report> {
   const raw = await readFile(path, "utf-8");
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed.findings)) {
     throw new Error(`${path} is not a sentinel JSON report (missing findings array)`);
   }
-  return parsed.findings as Finding[];
+  // Reports written before ignored findings were listed have neither list.
+  return {
+    findings: parsed.findings,
+    ignored: Array.isArray(parsed.ignored) ? parsed.ignored : [],
+    ignoredByComment: Array.isArray(parsed.ignored_by_comment) ? parsed.ignored_by_comment : [],
+  };
+}
+
+/** Diff two reports, telling a finding that was fixed from one that was only ignored. */
+export function diffReports(baseline: Report, current: Report): DiffResult {
+  const result = diffFindings(baseline.findings, current.findings);
+  const ignoredKeys = new Set([
+    ...current.ignored.map(key),
+    ...current.ignoredByComment.map((i) => key(i.finding)),
+  ]);
+  return {
+    ...result,
+    removed: result.removed.filter((f) => !ignoredKeys.has(key(f))),
+    nowIgnored: result.removed.filter((f) => ignoredKeys.has(key(f))),
+  };
 }
 
 export function diffFindings(baseline: Finding[], current: Finding[]): DiffResult {
@@ -59,6 +90,7 @@ export function diffFindings(baseline: Finding[], current: Finding[]): DiffResul
   return {
     added,
     removed,
+    nowIgnored: [],
     unchanged,
     baselineTotal: baseline.length,
     currentTotal: current.length,
@@ -141,7 +173,21 @@ function formatTerminalDiff(result: DiffResult): string {
     lines.push("");
   }
 
-  if (result.added.length === 0 && result.removed.length === 0) {
+  if (result.nowIgnored.length > 0) {
+    lines.push("  " + "─".repeat(50));
+    lines.push("");
+    lines.push(chalk.yellow.bold(`  NOW IGNORED, NOT RESOLVED (${result.nowIgnored.length})`));
+    lines.push("");
+    for (const f of result.nowIgnored) {
+      const sev = f.severity.toUpperCase().padEnd(8);
+      const where = f.evidence[0]?.file ?? "";
+      lines.push(`    ${chalk.yellow(sev)} ${chalk.bold(f.ruleId ?? "?")}  ${f.title}`);
+      if (where) lines.push(`             ${chalk.dim(where + " (ignored)")}`);
+    }
+    lines.push("");
+  }
+
+  if (result.added.length === 0 && result.removed.length === 0 && result.nowIgnored.length === 0) {
     lines.push(chalk.green("  No changes — baseline matches current scan."));
     lines.push("");
   }
@@ -158,6 +204,7 @@ export function formatJsonDiff(result: DiffResult): string {
       current_total: result.currentTotal,
       added: result.added,
       removed: result.removed,
+      now_ignored: result.nowIgnored,
       unchanged_count: result.unchanged.length,
       summary: {
         added_by_severity: countBySeverity(result.added),
@@ -170,11 +217,11 @@ export function formatJsonDiff(result: DiffResult): string {
 }
 
 export async function runDiff(options: DiffOptions): Promise<number> {
-  const [baselineFindings, currentFindings] = await Promise.all([
+  const [baseline, current] = await Promise.all([
     loadReport(options.baseline),
     loadReport(options.current),
   ]);
-  const result = diffFindings(baselineFindings, currentFindings);
+  const result = diffReports(baseline, current);
 
   if (options.format === "json") {
     process.stdout.write(formatJsonDiff(result));

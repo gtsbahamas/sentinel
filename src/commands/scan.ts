@@ -2,7 +2,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { dirname, join, resolve } from "path";
 import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
-import { runRules } from "../layers/rules/index.js";
+import { runRulesWithIgnored } from "../layers/rules/index.js";
 import { registerAllRules } from "./register-rules.js";
 import { splitIgnoredFindings } from "../utils/ignored-findings.js";
 import { runAI, runDryRun, createProvider, runVerify, type DryRunResult } from "../layers/ai/index.js";
@@ -123,8 +123,17 @@ export async function runScan(options: ScanOptions): Promise<number> {
 
   const rulesStart = Date.now();
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
+  // `ignoredByComment` are findings a `sentinel:ignore` comment covers;
+  // `ignoredRuleFindings` sit under a path the config's `ignore` lists. Neither
+  // takes part in suppression, verification or the exit code, and every report
+  // format below counts and lists them.
+  const { findings: activeRuleFindings, ignored: ignoredByComment } = await runRulesWithIgnored(
+    model,
+    context,
+    emitter ?? undefined,
+  );
   const { kept: ruleFindings, ignored: ignoredRuleFindings } = splitIgnoredFindings(
-    await runRules(model, context, emitter ?? undefined),
+    activeRuleFindings,
     options.path,
     config.ignore,
   );
@@ -219,6 +228,15 @@ export async function runScan(options: ScanOptions): Promise<number> {
     for (const f of allFindings) {
       emitter.emitEvent({ type: "finding", data: toFindingEventData(f) });
     }
+    if (ignoredByComment.length > 0) {
+      emitter.emitEvent({
+        type: "log",
+        level: "warn",
+        message: `${ignoredByComment.length} finding(s) ignored by sentinel:ignore comments: ${ignoredByComment
+          .map((i) => `${i.ruleId} (${i.file}:${i.line})`)
+          .join(", ")}`,
+      });
+    }
   }
 
   if (options.format === "json") {
@@ -228,6 +246,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
       { recon_ms, rules_ms, ai_ms, ai: aiResult ?? undefined },
       verifyResult,
       ignoredFindings,
+      ignoredByComment,
     );
     if (options.outFile) {
       const dest = resolve(options.outFile);
@@ -238,14 +257,18 @@ export async function runScan(options: ScanOptions): Promise<number> {
       process.stdout.write(body);
     }
   } else if (options.format === "html") {
-    const body = formatHtml(model, allFindings, { recon_ms, rules_ms }, ignoredFindings);
+    const body = formatHtml(model, allFindings, { recon_ms, rules_ms }, ignoredFindings, ignoredByComment);
     const dest = resolve(options.outFile ?? join(options.path, config.output.dir, `scan-${Date.now()}.html`));
     await mkdir(dirname(dest), { recursive: true });
     await writeFile(dest, body, "utf-8");
     process.stdout.write(`Wrote HTML report to ${dest}\n`);
   } else {
     process.stdout.write(
-      formatTerminal(model, allFindings, verifyResult, { keepDismissed: verifyConfig.keepDismissed, ignored: ignoredFindings }),
+      formatTerminal(model, allFindings, verifyResult, {
+        keepDismissed: verifyConfig.keepDismissed,
+        ignored: ignoredFindings,
+        ignoredByComment,
+      }),
     );
     if (aiResult) {
       process.stdout.write("\n" + formatAIReport(aiResult, aiConfig) + "\n");

@@ -1,4 +1,4 @@
-import type { Finding, ProjectModel, Severity, SecurityDomain } from "../model/types.js";
+import type { Finding, IgnoredFinding, ProjectModel, Severity, SecurityDomain } from "../model/types.js";
 import { compareSeverity } from "../model/severity.js";
 import { SECURITY_DOMAINS } from "../model/types.js";
 import type { LayerTiming } from "./json.js";
@@ -67,6 +67,8 @@ export function formatHtml(
   timing: LayerTiming,
   // Findings left out because the config's `ignore` covers them.
   ignored: Finding[] = [],
+  // Findings a `sentinel:ignore` comment covers.
+  ignoredByComment: IgnoredFinding[] = [],
 ): string {
   const ignoredSection = ignored.length === 0 ? "" : `
 <section class="domain-section" id="ignored">
@@ -77,6 +79,25 @@ export function formatHtml(
   </ul>
 </section>
 `;
+  const ignoredByCommentSection = ignoredByComment.length
+    ? `
+<section class="domain-section" id="ignored-by-comment">
+  <h2>Ignored (${ignoredByComment.length})</h2>
+  <p class="description">Covered by a <code>sentinel:ignore</code> comment. Not counted in the summary above.</p>
+  <table class="domain-table">
+    <thead><tr><th>Rule</th><th>Severity</th><th>Finding</th><th>Comment at</th></tr></thead>
+    <tbody>
+      ${ignoredByComment
+        .map(
+          (i) =>
+            `<tr><td><code>${escape(i.ruleId)}</code></td><td>${severityBadge(i.finding.severity)}</td><td>${escape(i.finding.title)}</td><td><code>${escape(i.file)}:${i.line}</code></td></tr>`,
+        )
+        .join("")}
+    </tbody>
+  </table>
+</section>
+`
+    : "";
   const summary: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const f of findings) summary[f.severity]++;
 
@@ -246,8 +267,9 @@ export function formatHtml(
 
 ${domainSections}
 ${ignoredSection}
+${ignoredByCommentSection}
 <footer>
-  Sentinel v${VERSION} — ${findings.length} findings across ${byDomain.size} domains
+  Sentinel v${VERSION} — ${findings.length} findings across ${byDomain.size} domains${ignored.length + ignoredByComment.length ? `, ${ignored.length + ignoredByComment.length} ignored` : ""}
 </footer>
 </div>
 </body>

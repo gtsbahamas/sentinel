@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
-import { runRules } from "../layers/rules/index.js";
+import { runRulesWithIgnored } from "../layers/rules/index.js";
 import { registerAllRules } from "./register-rules.js";
 import { splitIgnoredFindings, describeIgnoredFinding } from "../utils/ignored-findings.js";
 import { inferContext, readContext } from "../layers/context/index.js";
@@ -124,11 +124,19 @@ async function acquireFindings(
 
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
   const rulesStart = Date.now();
-  const { kept: rawFindings, ignored } = splitIgnoredFindings(
-    await runRules(model, context, emitter ?? undefined),
-    options.path,
-    config.ignore,
+  const { findings: activeRuleFindings, ignored: ignoredByComment } = await runRulesWithIgnored(
+    model,
+    context,
+    emitter ?? undefined,
   );
+  if (ignoredByComment.length > 0) {
+    process.stderr.write(
+      `${ignoredByComment.length} finding(s) are ignored by sentinel:ignore comments and will not be fixed: ${ignoredByComment
+        .map((i) => `${i.ruleId} (${i.file}:${i.line})`)
+        .join(", ")}\n`,
+    );
+  }
+  const { kept: rawFindings, ignored } = splitIgnoredFindings(activeRuleFindings, options.path, config.ignore);
   emitter?.emitEvent({ type: "layer:complete", layer: "rules", durationMs: Date.now() - rulesStart, timestamp: Date.now() });
 
   if (ignored.length > 0) {

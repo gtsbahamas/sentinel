@@ -88,6 +88,19 @@ Optional `.sentinelrc.json` in your repo root:
 
 AI-layer checks require `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in env. The deterministic rule layer runs without any API key.
 
+## Ignoring a finding
+
+Put `sentinel:ignore RULE-ID` in a comment in the file a finding points at, with the reason after it:
+
+```ts
+// sentinel:ignore AUTH-001 — verified by HMAC signature, not a session
+```
+
+- It works for every rule, and one comment can name several (`sentinel:ignore UPLOAD-001, UPLOAD-007`).
+- It covers that rule's findings in that file only.
+- An ignored finding is never hidden. It leaves the totals and the exit code, and every report still counts and lists it: `Ignored: N` and an `IGNORED` section on the terminal, `summary.ignored_by_comment` and `ignored_by_comment[]` in JSON (apart from the config's `ignored`), an "Ignored" table in HTML. `sentinel diff` reports a finding that became ignored as "now ignored, not resolved".
+- A finding whose file cannot hold a comment (`package.json`) or is never read back (`.env`) cannot be ignored this way.
+
 ## Formats
 
 ```bash

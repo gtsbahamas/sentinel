@@ -1,6 +1,6 @@
 import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
-import { runRules } from "../layers/rules/index.js";
+import { runRulesWithIgnored } from "../layers/rules/index.js";
 import { registerAllRules } from "./register-rules.js";
 import { splitIgnoredFindings } from "../utils/ignored-findings.js";
 import {
@@ -100,11 +100,8 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
   }
 
   registerAllRules();
-  const { kept: ruleFindings, ignored } = splitIgnoredFindings(
-    await runRules(model, context),
-    options.path,
-    config.ignore,
-  );
+  const { findings: activeRuleFindings, ignored: ignoredByComment } = await runRulesWithIgnored(model, context);
+  const { kept: ruleFindings, ignored } = splitIgnoredFindings(activeRuleFindings, options.path, config.ignore);
 
   process.stderr.write(`Running probe against ${options.target} (level: ${options.level})...\n`);
   const { result, mergedFindings } = await runProbe(model, ruleFindings, probeConfig);
@@ -115,10 +112,10 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
   );
 
   if (options.format === "json") {
-    const body = formatJson(model, allFindings, { recon_ms: 0, rules_ms: 0 }, null, ignored);
+    const body = formatJson(model, allFindings, { recon_ms: 0, rules_ms: 0 }, null, ignored, ignoredByComment);
     process.stdout.write(body);
   } else {
-    process.stdout.write(formatTerminal(model, allFindings, null, { ignored }));
+    process.stdout.write(formatTerminal(model, allFindings, null, { ignored, ignoredByComment }));
     process.stdout.write("\n" + formatProbeReport(result) + "\n");
   }
 
