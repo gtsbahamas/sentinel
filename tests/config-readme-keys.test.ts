@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { spawnSync } from "child_process";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { tmpdir } from "os";
 import { fileURLToPath } from "url";
@@ -11,6 +11,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const cli = join(root, "src", "cli.ts");
 const fixture = join(__dirname, "fixtures", "vulnerable-nextjs");
+// A spawned scan falls back to SHIPSAFE_* from the environment; never let a test push.
+const offlineEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("SHIPSAFE_")));
 
 function readmeConfigExample(): Record<string, unknown> {
   const readme = readFileSync(join(root, "README.md"), "utf-8");
@@ -167,7 +169,7 @@ describe("scan honours the documented keys end to end", () => {
     const res = spawnSync("npx", ["tsx", cli, "scan", dir, "--format", "json"], {
       cwd: root,
       encoding: "utf-8",
-      env: { ...process.env, SENTINEL_OFFLINE: "1" },
+      env: { ...offlineEnv, SENTINEL_OFFLINE: "1" },
       maxBuffer: 64 * 1024 * 1024,
     });
     const report = JSON.parse(res.stdout) as {
@@ -210,7 +212,7 @@ describe("scan honours the documented keys end to end", () => {
       const terminal = spawnSync("npx", ["tsx", cli, "scan", tmp], {
         cwd: root,
         encoding: "utf-8",
-        env: { ...process.env, SENTINEL_OFFLINE: "1", NO_COLOR: "1" },
+        env: { ...offlineEnv, SENTINEL_OFFLINE: "1", NO_COLOR: "1" },
         maxBuffer: 64 * 1024 * 1024,
       });
       expect(terminal.stdout).toContain(`IGNORED BY .sentinelrc.json (${ignored.report.ignored.length})`);
@@ -230,7 +232,7 @@ describe("scan honours the documented keys end to end", () => {
       const res = spawnSync("npx", ["tsx", cli, "scan", tmp, "--format", "json"], {
         cwd: root,
         encoding: "utf-8",
-        env: { ...process.env, SENTINEL_OFFLINE: "1" },
+        env: { ...offlineEnv, SENTINEL_OFFLINE: "1" },
       });
       expect(res.status).toBe(2);
       expect(res.stdout).toBe("");
@@ -239,6 +241,36 @@ describe("scan honours the documented keys end to end", () => {
       expect(lines[0]).toContain(".sentinelrc.json");
       expect(lines[0]).toContain(`\`${key}\``);
       expect(res.stderr).not.toContain("ZodError");
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("a blocking finding only under an ignored path does not set the exit code", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "sentinel-ignore-exit-"));
+    try {
+      writeFileSync(join(tmp, "package.json"), JSON.stringify({ name: "x", version: "1.0.0" }));
+      writeFileSync(
+        join(tmp, "package-lock.json"),
+        JSON.stringify({ name: "x", version: "1.0.0", lockfileVersion: 3, requires: true, packages: { "": { name: "x", version: "1.0.0" } } }),
+      );
+      mkdirSync(join(tmp, "tools"));
+      // MD5 trips CRYPTO-002 (critical).
+      writeFileSync(
+        join(tmp, "tools", "hash.ts"),
+        'import { createHash } from "crypto";\nexport const h = (s: string) => createHash("md5").update(s).digest("hex");\n',
+      );
+      const before = scan(tmp);
+      // The premise: the only finding at the default bar sits under tools/.
+      const blocking = before.report.findings.filter((f) => f.severity === "critical" || f.severity === "high");
+      expect(blocking.length).toBeGreaterThan(0);
+      expect(blocking.every((f) => f.evidence.every((e) => e.file.includes("/tools/")))).toBe(true);
+      expect(before.res.status).toBe(1);
+
+      writeFileSync(join(tmp, ".sentinelrc.json"), JSON.stringify({ ignore: ["tools/"] }));
+      const after = scan(tmp);
+      expect(after.report.ignored.length).toBe(blocking.length);
+      expect(after.res.status).toBe(0);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }

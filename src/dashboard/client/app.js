@@ -16,6 +16,7 @@ var state = {
   currentRound: 0,         // current round number
   maxRounds: 0,            // total rounds allowed
   roundSummaries: [],      // array of round summary objects
+  ignored: [],             // findings the config's `ignore` covers, from scan:complete
   stopReason: null,        // 'zero-findings' | 'no-fixes' | 'not-decreasing' | 'max-rounds'
 };
 
@@ -109,6 +110,8 @@ function handleScanStart(event) {
 }
 
 function handleScanComplete(event) {
+  state.ignored = (event.summary && event.summary.ignored) || [];
+
   // During converge mode, scan:complete fires per round but we don't finalize
   // the UI until converge:complete. Skip all processing here.
   if (state.isConverge) {

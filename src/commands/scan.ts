@@ -17,7 +17,7 @@ import { isAtOrAbove } from "../model/severity.js";
 import { mergeVerifyConfig, type VerifyOptions } from "./verify-options.js";
 import type { AIConfig, AIRunResult, Finding, Severity, VerifyResult } from "../model/types.js";
 import type { SentinelConfig } from "../config.js";
-import { ScanEventEmitter } from "../dashboard/events.js";
+import { ScanEventEmitter, toFindingEventData } from "../dashboard/events.js";
 
 export interface ScanOptions extends VerifyOptions {
   path: string;
@@ -217,22 +217,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
   // Emit suppressed findings to dashboard (after context filtering)
   if (emitter) {
     for (const f of allFindings) {
-      emitter.emitEvent({
-        type: "finding",
-        data: {
-          id: f.id,
-          ruleId: f.ruleId,
-          severity: f.severity,
-          title: f.title,
-          description: f.description,
-          impact: f.impact,
-          file: f.evidence[0]?.file ?? "",
-          line: f.evidence[0]?.line,
-          domain: f.domain,
-          layer: f.layer,
-          remediation: f.remediation,
-        },
-      });
+      emitter.emitEvent({ type: "finding", data: toFindingEventData(f) });
     }
   }
 
@@ -282,6 +267,10 @@ export async function runScan(options: ScanOptions): Promise<number> {
   if (shipsafeConfig) {
     try {
       await pushToShipSafe(allFindings, shipsafeConfig);
+      // ShipSafe takes findings only; say what stayed behind rather than drop it unseen.
+      if (ignoredFindings.length > 0) {
+        process.stderr.write(`[shipsafe] ${ignoredFindings.length} ignored finding(s) not pushed\n`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(`[shipsafe] unexpected push error: ${msg}\n`);
@@ -311,6 +300,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
         low: findingCounts["low"] ?? 0,
         info: findingCounts["info"] ?? 0,
       },
+      ignored: ignoredFindings.map(toFindingEventData),
       durationMs: recon_ms + rules_ms + ai_ms,
     },
     timestamp: Date.now(),

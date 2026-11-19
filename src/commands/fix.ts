@@ -18,7 +18,7 @@ import { getPromptTemplate } from "../layers/fix/ai/prompts.js";
 import { runFix } from "../layers/fix/index.js";
 import type { Finding, AIConfig } from "../model/types.js";
 import type { FixAttempt } from "../layers/fix/types.js";
-import { ScanEventEmitter } from "../dashboard/events.js";
+import { ScanEventEmitter, toFindingEventData } from "../dashboard/events.js";
 import type { ConvergeRoundSummary, ConvergeSummary } from "../dashboard/events.js";
 
 export interface FixCommandOptions {
@@ -63,7 +63,11 @@ function registerAllFixers(): void {
   }
 }
 
-async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEmitter): Promise<Finding[]> {
+// `ignored`: findings the config's `ignore` covers; never offered for fixing.
+async function acquireFindings(
+  options: FixCommandOptions,
+  emitter?: ScanEventEmitter,
+): Promise<{ findings: Finding[]; ignored: Finding[] }> {
   if (options.from) {
     // Load findings from a JSON report file
     const reportPath = resolve(options.from);
@@ -71,7 +75,7 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
       throw new Error(`Report file not found: ${reportPath}`);
     }
     const raw = await readFile(reportPath, "utf-8");
-    const parsed = JSON.parse(raw) as { findings?: Finding[] };
+    const parsed = JSON.parse(raw) as { findings?: Finding[]; ignored?: Finding[] };
     if (!Array.isArray(parsed.findings)) {
       throw new Error(`Report file does not contain a 'findings' array: ${reportPath}`);
     }
@@ -102,7 +106,7 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
       }
     }
 
-    return parsed.findings;
+    return { findings: parsed.findings, ignored: Array.isArray(parsed.ignored) ? parsed.ignored : [] };
   }
 
   // Run a fresh scan to get findings (with context suppression, matching scan command)
@@ -157,7 +161,7 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
     }
   }
 
-  return findings;
+  return { findings, ignored };
 }
 
 function buildAIConfig(options: FixCommandOptions, baseProvider: "anthropic" | "openai" | "ollama" | "mock"): AIConfig {
@@ -250,10 +254,11 @@ async function runSingleRound(options: FixCommandOptions, emitter?: ScanEventEmi
   emitter?.emitEvent({ type: "scan:start", project: options.path, timestamp: Date.now() });
 
   let findings: Finding[];
+  let ignored: Finding[];
   try {
     // Pass emitter so recon events (routes, endpoints, data models) and
     // finding events flow to the dashboard, building the lane graph
-    findings = await acquireFindings(options, emitter);
+    ({ findings, ignored } = await acquireFindings(options, emitter));
   } catch (err) {
     process.stderr.write(`Error acquiring findings: ${err instanceof Error ? err.message : String(err)}\n`);
     return { totalFindings: 0, fixedCount: 0, failedCount: 0, skippedCount: 0, filesModified: [], attempts: [] };
@@ -273,6 +278,7 @@ async function runSingleRound(options: FixCommandOptions, emitter?: ScanEventEmi
         dataModels: 0,
         externalServices: 0,
         findings: sevCounts as any,
+        ignored: ignored.map(toFindingEventData),
         durationMs: 0,
       },
       timestamp: Date.now(),
@@ -331,7 +337,7 @@ export async function runFixCommand(options: FixCommandOptions): Promise<number>
 
     let findings: Finding[];
     try {
-      findings = await acquireFindings(options, emitter ?? undefined);
+      ({ findings } = await acquireFindings(options, emitter ?? undefined));
     } catch (err) {
       process.stderr.write(`Error acquiring findings: ${err instanceof Error ? err.message : String(err)}\n`);
       exitCode = 1;
