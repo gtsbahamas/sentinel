@@ -3,6 +3,7 @@ import { compareSeverity } from "../model/severity.js";
 import { SECURITY_DOMAINS } from "../model/types.js";
 import type { LayerTiming } from "./json.js";
 import { VERSION } from "../version.js";
+import { describeIgnoredFinding } from "../utils/ignored-findings.js";
 
 const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low", "info"];
 
@@ -64,7 +65,18 @@ export function formatHtml(
   model: ProjectModel,
   findings: Finding[],
   timing: LayerTiming,
+  // Findings left out because the config's `ignore` covers them.
+  ignored: Finding[] = [],
 ): string {
+  const ignoredSection = ignored.length === 0 ? "" : `
+<section class="domain-section" id="ignored">
+  <h2>Ignored by .sentinelrc.json (${ignored.length})</h2>
+  <p style="color:var(--muted);">Under a path the config ignores; not counted in the totals above.</p>
+  <ul>
+    ${ignored.map((f) => `<li>${escape(describeIgnoredFinding(f))}</li>`).join("\n    ")}
+  </ul>
+</section>
+`;
   const summary: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const f of findings) summary[f.severity]++;
 
@@ -233,7 +245,7 @@ export function formatHtml(
 </table>
 
 ${domainSections}
-
+${ignoredSection}
 <footer>
   Sentinel v${VERSION} — ${findings.length} findings across ${byDomain.size} domains
 </footer>

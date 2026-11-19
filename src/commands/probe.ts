@@ -2,7 +2,7 @@ import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
 import { runRules } from "../layers/rules/index.js";
 import { registerAllRules } from "./register-rules.js";
-import { dropIgnoredFindings } from "../utils/ignored-findings.js";
+import { splitIgnoredFindings } from "../utils/ignored-findings.js";
 import {
   runProbe,
   resolveAuthorization,
@@ -100,7 +100,7 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
   }
 
   registerAllRules();
-  const ruleFindings = dropIgnoredFindings(
+  const { kept: ruleFindings, ignored } = splitIgnoredFindings(
     await runRules(model, context),
     options.path,
     config.ignore,
@@ -115,13 +115,10 @@ export async function runProbeCommand(options: ProbeOptions): Promise<number> {
   );
 
   if (options.format === "json") {
-    const body = formatJson(model, allFindings, {
-      recon_ms: 0,
-      rules_ms: 0,
-    });
+    const body = formatJson(model, allFindings, { recon_ms: 0, rules_ms: 0 }, null, ignored);
     process.stdout.write(body);
   } else {
-    process.stdout.write(formatTerminal(model, allFindings));
+    process.stdout.write(formatTerminal(model, allFindings, null, { ignored }));
     process.stdout.write("\n" + formatProbeReport(result) + "\n");
   }
 

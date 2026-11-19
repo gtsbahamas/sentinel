@@ -82,7 +82,7 @@ Optional `.sentinelrc.json` in your repo root:
 }
 ```
 
-- `ignore`: paths you want no findings from. They are skipped by the scan and added to the built-in skip list (`node_modules`, `.next`, `dist` and so on). `exclude` replaces that built-in list instead.
+- `ignore`: paths you want no findings from. They are still scanned; a finding that sits wholly under one is left out of the findings, the totals and the exit code, and is listed and counted under "ignored" in every report so nothing disappears unseen. `exclude` is different: it replaces the built-in list of paths the scan never reads (`node_modules`, `.next`, `dist` and so on).
 - `failOn`: the lowest severity that makes the scan exit `1` (`critical`, `high`, `medium`, `low` or `info`; default `high`). Also accepted as `severity.failOn`, which wins if both are set; `--fail-on` on the command line beats both.
 - A key Sentinel does not know is named in a warning on stderr and otherwise skipped, so a typo cannot quietly switch a setting off.
 

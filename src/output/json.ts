@@ -19,6 +19,8 @@ export function formatJson(
   findings: Finding[],
   timing: LayerTiming,
   verifyResult?: VerifyResult | null,
+  // Findings left out because the config's `ignore` covers them.
+  ignored: Finding[] = [],
 ): string {
   const summary: Record<Severity, number> = {
     critical: 0, high: 0, medium: 0, low: 0, info: 0,
@@ -63,6 +65,7 @@ export function formatJson(
     summary: {
       ...summary,
       total: findings.length,
+      ignored: ignored.length,
       by_domain: Object.fromEntries(
         [...new Set(findings.map((f) => f.domain))].map((d) => [
           d,
@@ -71,6 +74,7 @@ export function formatJson(
       ),
     },
     findings,
+    ignored,
     model,
     ...(verifyResult
       ? {

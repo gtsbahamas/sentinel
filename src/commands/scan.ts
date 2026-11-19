@@ -4,7 +4,7 @@ import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
 import { runRules } from "../layers/rules/index.js";
 import { registerAllRules } from "./register-rules.js";
-import { dropIgnoredFindings } from "../utils/ignored-findings.js";
+import { splitIgnoredFindings } from "../utils/ignored-findings.js";
 import { runAI, runDryRun, createProvider, runVerify, type DryRunResult } from "../layers/ai/index.js";
 import { MockProvider } from "../layers/ai/providers/mock.js";
 import { formatTerminal } from "../output/terminal.js";
@@ -123,7 +123,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
 
   const rulesStart = Date.now();
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
-  const ruleFindings = dropIgnoredFindings(
+  const { kept: ruleFindings, ignored: ignoredRuleFindings } = splitIgnoredFindings(
     await runRules(model, context, emitter ?? undefined),
     options.path,
     config.ignore,
@@ -209,13 +209,10 @@ export async function runScan(options: ScanOptions): Promise<number> {
   // AI-layer findings are suppressed separately (context applies project-wide,
   // but verify only examines rule findings — the AI layer has its own
   // context-awareness via buildProjectSummary).
-  const allFindings = applyContextSuppressions(
-    [
-      ...ruleFindingsForReport,
-      ...dropIgnoredFindings(aiResult?.findings ?? [], options.path, config.ignore),
-    ],
-    context,
-  );
+  const ai = splitIgnoredFindings(aiResult?.findings ?? [], options.path, config.ignore);
+  const allFindings = applyContextSuppressions([...ruleFindingsForReport, ...ai.kept], context);
+  // Left out by the config's `ignore`; reported apart from the findings, and never part of the exit code.
+  const ignoredFindings = [...ignoredRuleFindings, ...ai.ignored];
 
   // Emit suppressed findings to dashboard (after context filtering)
   if (emitter) {
@@ -245,6 +242,7 @@ export async function runScan(options: ScanOptions): Promise<number> {
       allFindings,
       { recon_ms, rules_ms, ai_ms, ai: aiResult ?? undefined },
       verifyResult,
+      ignoredFindings,
     );
     if (options.outFile) {
       const dest = resolve(options.outFile);
@@ -255,14 +253,14 @@ export async function runScan(options: ScanOptions): Promise<number> {
       process.stdout.write(body);
     }
   } else if (options.format === "html") {
-    const body = formatHtml(model, allFindings, { recon_ms, rules_ms });
+    const body = formatHtml(model, allFindings, { recon_ms, rules_ms }, ignoredFindings);
     const dest = resolve(options.outFile ?? join(options.path, config.output.dir, `scan-${Date.now()}.html`));
     await mkdir(dirname(dest), { recursive: true });
     await writeFile(dest, body, "utf-8");
     process.stdout.write(`Wrote HTML report to ${dest}\n`);
   } else {
     process.stdout.write(
-      formatTerminal(model, allFindings, verifyResult, { keepDismissed: verifyConfig.keepDismissed }),
+      formatTerminal(model, allFindings, verifyResult, { keepDismissed: verifyConfig.keepDismissed, ignored: ignoredFindings }),
     );
     if (aiResult) {
       process.stdout.write("\n" + formatAIReport(aiResult, aiConfig) + "\n");

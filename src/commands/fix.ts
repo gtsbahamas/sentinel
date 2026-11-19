@@ -5,7 +5,7 @@ import { loadConfig } from "../config.js";
 import { runRecon } from "../layers/recon/index.js";
 import { runRules } from "../layers/rules/index.js";
 import { registerAllRules } from "./register-rules.js";
-import { dropIgnoredFindings } from "../utils/ignored-findings.js";
+import { splitIgnoredFindings, describeIgnoredFinding } from "../utils/ignored-findings.js";
 import { inferContext, readContext } from "../layers/context/index.js";
 import { applyContextSuppressions } from "../layers/context/suppression.js";
 import { registerFixer, resetFixerRegistry } from "../layers/fix/registry.js";
@@ -120,12 +120,18 @@ async function acquireFindings(options: FixCommandOptions, emitter?: ScanEventEm
 
   emitter?.emitEvent({ type: "layer:start", layer: "rules", timestamp: Date.now() });
   const rulesStart = Date.now();
-  const rawFindings = dropIgnoredFindings(
+  const { kept: rawFindings, ignored } = splitIgnoredFindings(
     await runRules(model, context, emitter ?? undefined),
     options.path,
     config.ignore,
   );
   emitter?.emitEvent({ type: "layer:complete", layer: "rules", durationMs: Date.now() - rulesStart, timestamp: Date.now() });
+
+  if (ignored.length > 0) {
+    // stderr: stdout carries the fix results.
+    process.stderr.write(`Ignored by .sentinelrc.json (${ignored.length}), not offered for fixing:\n`);
+    for (const f of ignored) process.stderr.write(`  ${describeIgnoredFinding(f)}\n`);
+  }
 
   const findings = applyContextSuppressions(rawFindings, context);
 

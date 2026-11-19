@@ -43,22 +43,19 @@ describe("config keys the README documents", () => {
     writeFileSync(join(tmp, ".sentinelrc.json"), JSON.stringify(config));
   }
 
-  it("`ignore` adds to the excluded paths, trailing slash or not", async () => {
+  it("`ignore` is read with or without a trailing slash, and the scan still walks those paths", async () => {
     write({ ignore: ["test/", "supabase/migrations/", "scripts"] });
     const config = await loadConfig(tmp);
-    expect(config.exclude).toEqual([
-      ...CONFIG_DEFAULTS.exclude,
-      "test",
-      "supabase/migrations",
-      "scripts",
-    ]);
+    expect(config.ignore).toEqual(["test", "supabase/migrations", "scripts"]);
+    // Not skipped by the walk: a finding there has to be found before it can be listed as ignored.
+    expect(config.exclude).toEqual(CONFIG_DEFAULTS.exclude);
     expect(stderr.join("")).toBe("");
   });
 
-  it("`ignore` adds to a user `exclude` list as well", async () => {
+  it("`ignore` leaves a user `exclude` list as written", async () => {
     write({ exclude: ["vendor/"], ignore: ["test/"] });
     const config = await loadConfig(tmp);
-    expect(config.exclude).toEqual(["vendor", "test"]);
+    expect(config.exclude).toEqual(["vendor"]);
     expect(config.ignore).toEqual(["test"]);
   });
 
@@ -87,7 +84,7 @@ describe("config keys the README documents", () => {
     expect(stderr.join("")).toBe("");
     if (Array.isArray(example.ignore)) {
       for (const entry of example.ignore as string[]) {
-        expect(config.exclude).toContain(entry.replace(/\/+$/, ""));
+        expect(config.ignore).toContain(entry.replace(/\/+$/, ""));
       }
     }
     if (typeof example.failOn === "string") {
@@ -175,6 +172,8 @@ describe("scan honours the documented keys end to end", () => {
     });
     const report = JSON.parse(res.stdout) as {
       findings: { severity: string; evidence: { file: string }[] }[];
+      ignored: { evidence: { file: string }[] }[];
+      summary: { total: number; ignored: number };
     };
     return { res, report };
   }
@@ -200,6 +199,11 @@ describe("scan honours the documented keys end to end", () => {
       expect(ignored.report.findings.length).toBe(
         before.report.findings.length - countInApi(before.report),
       );
+      // What was left out is listed and counted, not silently gone.
+      expect(ignored.report.ignored.length).toBe(countInApi(before.report));
+      expect(ignored.report.ignored.every((f) => f.evidence.every((e) => inApi(e.file)))).toBe(true);
+      expect(ignored.report.summary.ignored).toBe(ignored.report.ignored.length);
+      expect(ignored.report.summary.total).toBe(ignored.report.findings.length);
       expect(ignored.res.stderr).toContain("notAKey");
     } finally {
       rmSync(tmp, { recursive: true, force: true });

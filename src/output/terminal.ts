@@ -8,6 +8,7 @@ import type {
 import { compareSeverity } from "../model/severity.js";
 import { SECURITY_DOMAINS } from "../model/types.js";
 import { VERSION } from "../version.js";
+import { describeIgnoredFinding } from "../utils/ignored-findings.js";
 
 const SEVERITY_COLOR: Record<Severity, (s: string) => string> = {
   critical: chalk.bgRed.white.bold,
@@ -22,7 +23,8 @@ export function formatTerminal(
   model: ProjectModel,
   findings: Finding[],
   verifyResult?: VerifyResult | null,
-  options?: { keepDismissed?: boolean },
+  // `ignored`: findings left out because the config's `ignore` covers them.
+  options?: { keepDismissed?: boolean; ignored?: Finding[] },
 ): string {
   const lines: string[] = [];
 
@@ -93,6 +95,14 @@ export function formatTerminal(
   lines.push(
     `  Total: ${totals.critical} critical, ${totals.high} high, ${totals.medium} medium, ${totals.low} low, ${totals.info} info`,
   );
+
+  const ignored = options?.ignored ?? [];
+  if (ignored.length > 0) {
+    lines.push("");
+    lines.push(chalk.bold(`  IGNORED BY .sentinelrc.json (${ignored.length})`) + chalk.dim("  not counted above"));
+    lines.push("");
+    for (const f of ignored) lines.push(chalk.dim(`  ${describeIgnoredFinding(f)}`));
+  }
 
   if (verifyResult) {
     lines.push("");

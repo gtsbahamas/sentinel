@@ -61,7 +61,8 @@ const ConfigSchema = z.object({
   stack: z.enum(["nextjs-supabase", "react-vite-supabase", "generic-web"]),
   domains: z.array(z.string()),
   // `exclude`: paths the project walk skips. `ignore`: paths the user wants
-  // no findings from; each is added to `exclude` and findings there are dropped.
+  // no findings from; they are still walked, and findings there are set aside
+  // and reported as ignored (src/utils/ignored-findings.ts).
   exclude: z.array(z.string()),
   ignore: z.array(z.string()).optional(),
   severity: z.object({
@@ -83,8 +84,7 @@ const ConfigSchema = z.object({
 });
 
 // The loaded config carries the failing severity once (top-level `failOn` is
-// folded into `severity.failOn`). `exclude` already contains every `ignore`
-// entry; `ignore` is kept so findings under those paths can be dropped too.
+// folded into `severity.failOn`). `ignore` and `exclude` have no trailing slashes.
 export type SentinelConfig = Omit<z.infer<typeof ConfigSchema>, "ignore" | "failOn" | "probe"> & {
   ignore: string[];
 };
@@ -243,5 +243,5 @@ export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
   if (!result.success) throw new ConfigError(describeIssues(configPath, parsed, result.error.issues));
   const { failOn: _failOn, probe: _probe, ...config } = result.data;
   const ignore = normalizeExcludes(config.ignore ?? []);
-  return { ...config, ignore, exclude: normalizeExcludes([...config.exclude, ...ignore]) };
+  return { ...config, ignore, exclude: normalizeExcludes(config.exclude) };
 }
