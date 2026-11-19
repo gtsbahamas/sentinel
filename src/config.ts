@@ -74,6 +74,10 @@ const ConfigSchema = z.object({
     dir: z.string(),
   }),
   ai: AIConfigSchema,
+  // Written by `probe --authorize` and read back by the probe layer alone
+  // (src/layers/probe/authorization.ts); known here so it is not reported as a typo.
+  // Its value is that layer's to judge, so nothing in it can stop a scan.
+  probe: z.object({ authorizations: z.unknown() }).optional().catch(undefined),
   conventions: z.array(ConventionRuleSchema).optional(),
   patternInference: PatternInferenceSchema.optional(),
 });
@@ -81,7 +85,7 @@ const ConfigSchema = z.object({
 // The loaded config carries the failing severity once (top-level `failOn` is
 // folded into `severity.failOn`). `exclude` already contains every `ignore`
 // entry; `ignore` is kept so findings under those paths can be dropped too.
-export type SentinelConfig = Omit<z.infer<typeof ConfigSchema>, "ignore" | "failOn"> & {
+export type SentinelConfig = Omit<z.infer<typeof ConfigSchema>, "ignore" | "failOn" | "probe"> & {
   ignore: string[];
 };
 
@@ -123,10 +127,37 @@ export const CONFIG_DEFAULTS: SentinelConfig = {
   },
 };
 
-// Peel optional/default wrappers to reach the object schema underneath, if any.
+/**
+ * A `.sentinelrc.json` value the scanner cannot use. The message is one line
+ * meant for the person who wrote the file; the CLI prints it and exits 2.
+ */
+export class ConfigError extends Error {
+  override name = "ConfigError";
+}
+
+// Whether the file itself has something at this path (top-level `failOn` is
+// also checked as `severity.failOn`, which the user did not write).
+function wrote(parsed: unknown, path: (string | number)[]): boolean {
+  let at = parsed;
+  for (const key of path) {
+    if (!at || typeof at !== "object" || !(key in at)) return false;
+    at = (at as Record<string | number, unknown>)[key];
+  }
+  return true;
+}
+
+function describeIssues(configPath: string, parsed: unknown, issues: z.ZodIssue[]): string {
+  const written = issues.filter((issue) => wrote(parsed, issue.path));
+  const problems = (written.length > 0 ? written : issues).map(
+    (issue) => `\`${issue.path.join(".")}\`: ${issue.message.replace(/\s+/g, " ")}`,
+  );
+  return `${configPath} has ${problems.length === 1 ? "a value" : "values"} Sentinel cannot use. ${problems.join("; ")}`;
+}
+
+// Peel optional/default/catch wrappers to reach the object schema underneath, if any.
 function objectShape(schema: z.ZodTypeAny): z.ZodRawShape | null {
   let inner = schema;
-  while (inner instanceof z.ZodOptional || inner instanceof z.ZodDefault) {
+  while (inner instanceof z.ZodOptional || inner instanceof z.ZodDefault || inner instanceof z.ZodCatch) {
     inner = inner._def.innerType;
   }
   return inner instanceof z.ZodObject ? inner.shape : null;
@@ -177,7 +208,7 @@ function normalizeExcludes(paths: string[]): string[] {
 /**
  * Load `.sentinelrc.json` from the project root over the defaults. Unknown
  * keys are reported once on stderr and otherwise left alone; invalid values
- * for known keys throw.
+ * for known keys throw a ConfigError.
  */
 export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
   const configPath = join(projectPath, ".sentinelrc.json");
@@ -208,7 +239,9 @@ export async function loadConfig(projectPath: string): Promise<SentinelConfig> {
     patternInference: parsed.patternInference,
   };
 
-  const { failOn: _failOn, ...config } = ConfigSchema.parse(merged);
+  const result = ConfigSchema.safeParse(merged);
+  if (!result.success) throw new ConfigError(describeIssues(configPath, parsed, result.error.issues));
+  const { failOn: _failOn, probe: _probe, ...config } = result.data;
   const ignore = normalizeExcludes(config.ignore ?? []);
   return { ...config, ignore, exclude: normalizeExcludes([...config.exclude, ...ignore]) };
 }

@@ -11,6 +11,7 @@ import { runInit } from "./commands/init.js";
 import { runPatterns } from "./commands/patterns.js";
 import { formatRuleCatalog } from "./commands/register-rules.js";
 import { VERSION } from "./version.js";
+import { ConfigError } from "./config.js";
 
 
 const program = new Command();
@@ -246,4 +247,9 @@ program
     });
   });
 
-program.parseAsync(process.argv);
+program.parseAsync(process.argv).catch((error: unknown) => {
+  // A config the user can fix gets one line and the scanner-error code, not a stack.
+  if (!(error instanceof ConfigError)) throw error;
+  process.stderr.write(`Error: ${error.message}\n`);
+  exitAfterDrain(2);
+});
