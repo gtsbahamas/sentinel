@@ -168,9 +168,9 @@ Copyright 2026 Ty Wells / Frank Labs.
 
 <!-- fleet-readme-status -->
 <!-- fleet-readme-observed 1b3f5fda52ae0210b614c957b55c08e19815dabb2a59bb8e98829d5da6153386 -->
-verified 2026-11-22 23:13:14 CST against git c90a1913c1c7bcac5b9ce406f92c4822072e11cd; creds vault names.
+verified 2026-11-23 12:15:00 CST against git 128cba4a002b815255b919d708af4769c68c6faf; creds vault names.
 
-- Code: no source changes since the README was last edited (2026-11-18 CST).
+- Code: no source changes since the README was last edited (2026-11-22 CST).
 - Deployment: unverified; no successful production deployment was confirmed by this run.
 - Database activity: unverified; no live aggregate was confirmed.
 - Provider accounts: unverified; the creds vault holds no credentials named for this project.
